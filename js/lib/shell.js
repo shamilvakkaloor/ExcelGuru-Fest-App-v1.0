@@ -35,6 +35,16 @@ export const APP_NAME = "ExcelGuru Fest App";
  * Settings, and boot — so it lives here rather than being spelled out at
  * each one, where the three would drift apart.
  */
+/**
+ * Scale the fest logo wherever it appears. The CSS heights are expressed
+ * against --logo-scale, so one variable moves the top bar, the rail and the
+ * home hero together.
+ */
+export function applyLogoScale(scale) {
+  const pct = Number(scale) || 100;
+  document.documentElement.style.setProperty("--logo-scale", String(pct / 100));
+}
+
 export function applyFestName(festName) {
   const name = (festName || "").trim();
   window.__FEST_NAME__ = name || "Fest Tabulation";

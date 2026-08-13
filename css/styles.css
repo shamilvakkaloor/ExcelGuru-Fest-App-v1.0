@@ -72,7 +72,7 @@ a  { color: var(--teal); }
   flex-wrap: wrap;
   row-gap: .5rem;
 }
-.topbar .brand-logo img { height: 30px; display: block;
+.topbar .brand-logo img { height: calc(30px * var(--logo-scale, 1)); display: block;
   max-width: 340px;
   object-fit: contain;
 }
@@ -303,7 +303,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
   pointer-events: none;
 }
 .hero .wrap { position: relative; z-index: 1; }
-.hero .logo-img { max-height: 92px; margin-bottom: .5rem; }
+.hero .logo-img { max-height: calc(92px * var(--logo-scale, 1)); margin-bottom: .5rem; }
 .hero .wrap { padding: 0; }
 .hero h1 { font-size: clamp(2rem, 6vw, 3.2rem); color: #fff; }
 .hero .sub { color: #B7C6D8; font-size: 1.05rem; }
@@ -510,7 +510,7 @@ tr.row-ours:hover { background: #FFF4D8; }
 /* ══ v7 ══════════════════════════════════════════════════════════════ */
 
 /* I1 — the fest lockup is a wordmark, not a square mark. */
-.brand-logo img { height: 32px; max-width: 340px; object-fit: contain; }
+.brand-logo img { height: calc(32px * var(--logo-scale, 1)); max-width: 340px; object-fit: contain; }
 .hero .logo-img { max-width: min(560px, 86vw); height: auto; }
 
 @media (max-width: 480px) {

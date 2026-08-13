@@ -107,6 +107,7 @@ export const DEFAULTS = {
     resultsVisible: true,
     logoData: null,          // uploaded typography lockup, base64
     useLogo: false,          // show the lockup instead of the fest name
+    logoScale: 100,          // percent — scales the lockup everywhere it appears
     runningEventId: null,    // manual override for the "now on" banner
     runningEventAuto: true,  // otherwise derived from the schedule
 

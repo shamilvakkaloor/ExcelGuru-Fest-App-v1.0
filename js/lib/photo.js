@@ -56,6 +56,32 @@ export function compressImage(file, maxPx = MAX_PHOTO_PX, quality = PHOTO_QUALIT
   });
 }
 
+/**
+ * Compress an image to fit a byte budget, narrowing until it does.
+ *
+ * The fest logo lives on config/festSettings as base64, and Firestore
+ * refuses any document over 1 MiB. A wide typography PNG at full width
+ * blows that on its own, and the write fails with nothing on screen to
+ * explain why — the logo simply never appears. Rather than rejecting the
+ * upload, step the width down until it fits.
+ *
+ * Returns { dataUrl, bytes, widthPx } so the caller can say what happened.
+ */
+export async function compressToBudget(file, { maxPx = 900, budgetBytes = 400 * 1024, keepAlpha = true } = {}) {
+  let px = maxPx;
+  let out = await compressImage(file, px, 0.92, keepAlpha);
+  while (dataUrlBytes(out) > budgetBytes && px > 200) {
+    px = Math.round(px * 0.75);
+    out = await compressImage(file, px, 0.92, keepAlpha);
+  }
+  // Transparency is what forces PNG. If it still will not fit, a flattened
+  // JPEG is better than a logo that cannot be saved at all.
+  if (dataUrlBytes(out) > budgetBytes && keepAlpha) {
+    out = await compressImage(file, px, 0.86, false);
+  }
+  return { dataUrl: out, bytes: dataUrlBytes(out), widthPx: px };
+}
+
 /** Rough byte size of a data URL, for warning before a write. */
 export function dataUrlBytes(dataUrl) {
   const b64 = String(dataUrl || "").split(",")[1] || "";

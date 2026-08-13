@@ -8,8 +8,8 @@ import { queueRepublish } from "../../domain/republish.js";
 import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timezone.js";
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
 import { wipeEverything } from "../../domain/reset.js";
-import { compressImage } from "../../lib/photo.js";
-import { applyFestName } from "../../lib/shell.js";
+import { compressImage, compressToBudget } from "../../lib/photo.js";
+import { applyFestName, applyLogoScale } from "../../lib/shell.js";
 
 const TABS = [
   ["basic",          "Fest details"],
@@ -73,21 +73,75 @@ async function basicTab(panel) {
   let useLogo = !!s.useLogo;
   let logoData = s.logoData || null;
 
-  const logoPreview = el("img", {
+  let logoScale = Number(s.logoScale) || 100;
+
+  /* The logo is shown against the dark top bar AND the light page, so the
+   * preview shows both. A lockup with dark lettering vanishes on the top bar,
+   * and there is no way to discover that from a single-background preview. */
+  const previewImg = tone => el("img", {
     src: logoData || "", alt: "",
-    style: "max-height:64px;max-width:100%;display:" + (logoData ? "block" : "none") +
-           ";background:#14232E;padding:.4rem .6rem;border-radius:6px"
+    style: `height:${Math.round(30 * logoScale / 100)}px;max-width:100%;object-fit:contain`
   });
+  const darkImg = previewImg();
+  const lightImg = previewImg();
+  const heroImg = el("img", {
+    src: logoData || "", alt: "",
+    style: `height:${Math.round(92 * logoScale / 100)}px;max-width:100%;object-fit:contain`
+  });
+
+  const sizeNote = el("div.hint");
+  const logoPreview = el("div", {
+    style: "display:" + (logoData ? "block" : "none")
+  }, [
+    el("div.grid.grid-2", { style: "gap:.6rem" }, [
+      el("div", {}, [
+        el("div.hint", { text: "On the top bar" }),
+        el("div", { style: "background:#14232E;padding:.5rem .7rem;border-radius:6px" }, darkImg)
+      ]),
+      el("div", {}, [
+        el("div.hint", { text: "On a light page" }),
+        el("div", { style: "background:#FFFFFF;border:1px solid var(--line);padding:.5rem .7rem;border-radius:6px" }, lightImg)
+      ])
+    ]),
+    el("div", { style: "margin-top:.6rem" }, [
+      el("div.hint", { text: "On the home page" }),
+      el("div", { style: "background:var(--grad-hero,#14232E);padding:.7rem;border-radius:6px" }, heroImg)
+    ]),
+    sizeNote
+  ]);
+
+  const logoSize = select(
+    [{ value: "75", label: "Small" }, { value: "100", label: "Medium (default)" },
+     { value: "125", label: "Large" }, { value: "150", label: "Extra large" }],
+    { value: String(logoScale) });
+  logoSize.addEventListener("change", () => {
+    logoScale = Number(logoSize.value) || 100;
+    darkImg.style.height = lightImg.style.height = Math.round(30 * logoScale / 100) + "px";
+    heroImg.style.height = Math.round(92 * logoScale / 100) + "px";
+  });
+
+  function showLogo() {
+    for (const img of [darkImg, lightImg, heroImg]) img.src = logoData || "";
+    logoPreview.style.display = logoData ? "block" : "none";
+  }
+
   const logoFile = el("input", { type: "file", accept: "image/png,image/svg+xml,image/*", style: "display:none" });
   logoFile.addEventListener("change", guard(async () => {
     const f = logoFile.files?.[0];
     if (!f) return;
-    // I1 — a fest lockup is normally 3:1 or 5:1, not square. v6 resampled to
-    // 520px on the long edge, so a wide wordmark arrived at the top bar
-    // already soft. keepAlpha preserves transparency for a PNG lockup.
-    logoData = await compressImage(f, 1400, 0.92, true);
-    logoPreview.src = logoData;
-    logoPreview.style.display = "block";
+    /* I1 — a fest lockup is normally 3:1 or 5:1, not square, so it is
+     * resampled on the long edge with transparency preserved.
+     *
+     * It is also held to a byte budget. logoData sits on config/festSettings
+     * and Firestore rejects any document over 1 MiB; a full-width PNG lockup
+     * exceeds that alone, and the save failed with nothing on screen saying
+     * so — which is what "the logo upload does not work" was. */
+    const { dataUrl, bytes, widthPx } = await compressToBudget(f, {
+      maxPx: 900, budgetBytes: 400 * 1024, keepAlpha: true
+    });
+    logoData = dataUrl;
+    showLogo();
+    sizeNote.textContent = `Stored at ${widthPx}px wide, about ${Math.round(bytes / 1024)} KB.`;
     toast("Logo ready. Save settings to apply.");
   }));
 
@@ -98,15 +152,17 @@ async function basicTab(panel) {
     field("Maximum score a judge can give", scale, "Percentages are calculated against this. 100 is typical."),
     el("fieldset", {}, [
       el("legend", { text: "Fest logo" }),
-      el("div.hint", { text: "Upload a PNG of your fest typography to show instead of the plain text name, on the home page and top bar." }),
+      el("div.hint", { text: "Upload a PNG of your fest typography to show instead of the plain text name, on the home page and top bar. A transparent PNG works best — it sits on both a dark bar and a light page." }),
       logoPreview,
       el("div.btn-row", { style: "margin:.6rem 0" }, [
         button("Upload logo", { class: "btn-sm", onclick: () => logoFile.click() }),
-        logoData ? button("Remove", { class: "btn-sm", onclick: () => {
-          logoData = null; useLogo = false; logoPreview.style.display = "none"; toast("Logo removed. Save to apply.");
-        }}) : null,
+        button("Remove", { class: "btn-sm", onclick: () => {
+          logoData = null; useLogo = false; showLogo(); sizeNote.textContent = "";
+          toast("Logo removed. Save to apply.");
+        }}),
         logoFile
       ]),
+      field("Logo size", logoSize, "Scales it on the top bar and the home page."),
       checkbox("Show the logo instead of the fest name", useLogo, v => useLogo = v)
     ])
   ]), "Identity"));
@@ -165,9 +221,10 @@ async function basicTab(panel) {
       scheduleVisible: schedVisible,
       useMinEntryCaps: useMinCaps,
       resultPolicy: resultPolicy.value,
-      logoData, useLogo: useLogo && !!logoData
+      logoData, useLogo: useLogo && !!logoData, logoScale
     });
     window.__FEST_LOGO__ = (useLogo && logoData) ? logoData : null;
+    applyLogoScale(logoScale);
     applyFestName(festName.value.trim());
     queueRepublish({ schedule: true });
     toast("Settings saved.");
