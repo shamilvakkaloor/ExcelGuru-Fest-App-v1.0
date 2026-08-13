@@ -1243,6 +1243,17 @@ async function leaderboardTab(panel) {
     manualBox
   ]), "Manual tie resolution"));
 
+  const houseBoardName  = input({ value: state.houseBoardName || "", placeholder: hPlural + " rankings" });
+  const talentBoardName = input({ value: state.talentBoardName || "", placeholder: "Student talent" });
+  houseBoardName.addEventListener("input", () => state.houseBoardName = houseBoardName.value);
+  talentBoardName.addEventListener("input", () => state.talentBoardName = talentBoardName.value);
+
+  panel.appendChild(card(el("div", {}, [
+    el("p.hint", { text: "Rename the two built-in boards. Leave blank to keep the default name shown in each box." }),
+    field("Name for the " + hPlural.toLowerCase() + " board", houseBoardName),
+    field("Name for the student board", talentBoardName)
+  ]), "Board names"));
+
   panel.appendChild(card(el("div", {}, [
     field("Championship", championshipMode),
     el("div.hint", { text:

@@ -204,6 +204,11 @@ export const DEFAULTS = {
     // what it could plausibly contest. "both" shows the raw table with the
     // percentage alongside rather than replacing it.
     championshipMode: "points",
+    // v8.8 — the two built-in boards are renameable, so a fest can call
+    // them what it actually calls them. Blank falls back to the defaults
+    // below rather than showing an empty tab.
+    houseBoardName: "",
+    talentBoardName: "",
     // v8.8 — id -> position, set by an Admin to settle a tie the configured
     // pools cannot (a toss, a judges' decision). Empty for most fests.
     manualHouseOrder: {}

@@ -47,8 +47,12 @@ export default async function resultsPage(root) {
   const boards = board?.boards || [];
   // The whole leaderboard tab set only makes sense once results exist; a
   // fest that has only awarded titles so far gets just that one tab.
+  const boardCfg = board?.config || {};
+  const houseBoardName  = (boardCfg.houseBoardName || "").trim() || (hPlural + " rankings");
+  const talentBoardName = (boardCfg.talentBoardName || "").trim() || "Student talent";
+
   const TABS = board?.eventCount
-    ? [["houses", hPlural + " rankings"], ["students", "Student talent"],
+    ? [["houses", houseBoardName], ["students", talentBoardName],
        ...boards.map(b => ["board:" + b.id, b.name]), ["events", "By event"],
        ...(titles.length ? [["titles", "Titles"]] : [])]
     : [["titles", "Titles"]];
@@ -139,7 +143,7 @@ export default async function resultsPage(root) {
         { key: "percent", label: "%", num: true, render: r => r.percent.toFixed(1) + "%" },
         { key: "points", label: "Points", num: true },
         { key: "maxEarnable", label: "Max earnable", num: true }
-      ], champ), "Championship — " + hPlural.toLowerCase() + " rankings",
+      ], champ), "Championship — " + houseBoardName.toLowerCase(),
         exportRow("house-rankings", champ,
           [{ label: "Rank", key: "rank" }, { label: hTerm, key: "name" }, { label: "%", key: "percent" },
            { label: "Points", key: "points" }, { label: "Max earnable", key: "maxEarnable" }])));
@@ -152,7 +156,7 @@ export default async function resultsPage(root) {
       { key: "rank", label: "Rank", render: rankCell },
       { key: "name", label: hTerm, render: houseTag },
       { key: "total", label: "Points", num: true }
-    ], rows), hPlural + " rankings", exportRow("house-rankings", rows,
+    ], rows), houseBoardName, exportRow("house-rankings", rows,
       [{ label: "Rank", key: "rank" }, { label: hTerm, key: "name" }, { label: "Points", key: "total" }])));
 
     if (mode === "both" && champ.length) {
