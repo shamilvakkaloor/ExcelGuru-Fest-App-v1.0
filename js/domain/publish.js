@@ -585,6 +585,9 @@ export async function rebuildScheduleSnapshot() {
       tierName: tierName[ev?.tierId] || "",
       stage: ev ? (ev.stage === "onStage" ? "On stage" : "Off stage") : "",
       eventClass: ev?.eventClass || "",
+      // Rules and criteria, so the public schedule can show them without a
+      // second read per event.
+      description: ev?.description || "",
       eventId: s.eventId || null,
       durationMin: s.durationMin || 0,
       startTime: s.startTime, endTime: s.endTime

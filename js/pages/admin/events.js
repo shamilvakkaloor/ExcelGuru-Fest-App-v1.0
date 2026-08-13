@@ -42,13 +42,13 @@ export default async function events(root) {
         { label: "category", key: "category" }, { label: "stage", key: "stage" },
         { label: "type", key: "type" }, { label: "tier", key: "tier" },
         { label: "pointsFrom", key: "pf" }, { label: "resultMode", key: "rm" },
-        { label: "gradePoints", key: "gp" },
+        { label: "gradePoints", key: "gp" }, { label: "description", key: "desc" },
         { label: "maxParticipantsPerEntry", key: "a" }, { label: "maxEntriesPerHouse", key: "b" },
         { label: "minEntriesPerHouse", key: "c" }
       ], [{ code: "E01", name: "Solo Song", eventClass: "categoryIndividual", category: "Junior", stage: "onStage",
-            type: "Song", tier: "", pf: "class", rm: "scored", gp: "yes", a: 1, b: 2, c: 1 },
+            type: "Song", tier: "", pf: "class", rm: "scored", gp: "yes", desc: "3 minutes maximum. Judged on tone, rhythm and presentation.", a: 1, b: 2, c: 1 },
           { code: "", name: "Skit", eventClass: "generalGroup", category: "", stage: "onStage",
-            type: "", tier: "", pf: "class", rm: "scored", gp: "yes", a: 6, b: 1, c: "" }])) }),
+            type: "", tier: "", pf: "class", rm: "scored", gp: "yes", desc: "", a: 6, b: 1, c: "" }])) }),
       // I13 — export the event list itself, not just a blank template. Same
       // shape as the import so it round-trips, plus entry count and state.
       button("Export CSV", { onclick: () => downloadText("events.csv", toCSV([
@@ -64,6 +64,7 @@ export default async function events(root) {
         { label: "pointsFrom", value: r => r.pointsFrom || "class" },
         { label: "resultMode", value: r => r.resultMode || "scored" },
         { label: "gradePoints", value: r => r.awardsGradePoints === false ? "no" : "yes" },
+        { label: "description", value: r => r.description || "" },
         { label: "maxParticipantsPerEntry", value: r => r.maxParticipantsPerEntry || 1 },
         { label: "maxEntriesPerHouse", value: r => maxEntriesFor(r) ?? "" },
         { label: "minEntriesPerHouse", value: r => minEntriesFor(r) ?? "" },
@@ -264,6 +265,10 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     el("div.hint", { text: "The event is still judged, ranked and published as normal — its points simply do not count towards house totals or any leaderboard. For exhibition or invitational items." })
   ]);
 
+  const description = el("textarea", { rows: 6,
+    placeholder: "Rules, scoring criteria, time limits — whatever a participant or judge needs to know." });
+  description.value = existing?.description || "";
+
   let wholeTeam = !!existing?.wholeTeam;
   const wholeTeamBox = el("fieldset", {}, [
     el("legend", { text: "Whole-team event" }),
@@ -313,6 +318,8 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       field("Event code", code),
       field("Event class", cls),
       catField,
+      field("Description", description,
+        "Rules and regulations, scoring criteria. Shown to judges when they open this event to score, and on the public event list."),
       field("Stage", stage),
       classBox,
       pointsBox,
@@ -343,6 +350,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             name: name.value.trim(),
             code: finalCode,
             eventClass: cls.value,
+            description: description.value.trim(),
             categoryId: isGeneralClass(cls.value) ? null : (cat.value || null),
             stage: stage.value,
             // v8 — classification and the single point source.
@@ -447,6 +455,7 @@ function importDialog(categories, settings, classification, refresh) {
               categoryId: catId,
               stage: (r.stage || "").toLowerCase().includes("off") ? "offStage" : "onStage",
               typeId, tierId, pointsFrom, resultMode,
+              description: (r.description || "").trim(),
               awardsGradePoints: !/^(no|false|0)$/i.test(String(r.gradepoints || "").trim()),
               maxParticipantsPerEntry: isGroupClass(cls) ? Math.max(1, Number(r.maxparticipantsperentry) || 1) : 1,
               // I12 — applies to every class on import too. v6 forced 1 here

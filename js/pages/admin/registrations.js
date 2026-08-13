@@ -141,6 +141,11 @@ export async function writeJudgingEntries(event, regs, settings = null) {
     eventId: event.id,
     eventName: event.name,
     eventCode: event.code || "",
+    // The rules and criteria travel with the entries, because a judge reads
+    // judgingEntries and never the event document — that indirection is what
+    // enforces blind judging, so anything a judge needs has to come through
+    // here. Reveals nothing about who is competing.
+    description: event.description || "",
     blind,
     resultMode: isDirect ? "direct" : "scored",
     placements,

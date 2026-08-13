@@ -142,7 +142,15 @@ async function registerTab(panel, house, refresh) {
           el("div", { text: e.name }),
           // I5 / I21 — the category travels with the item.
           el("div.hint", { style: "margin:0", text:
-            [eventCategoryLabel(e, catName), classLabel(e.eventClass)].filter(Boolean).join(" · ") })
+            [eventCategoryLabel(e, catName), classLabel(e.eventClass)].filter(Boolean).join(" · ") }),
+          // Collapsed by default: a House Manager scanning forty events
+          // wants the list, and the rules only when they stop at one.
+          e.description
+            ? el("details", { style: "margin-top:.3rem" }, [
+                el("summary.hint", { text: "Rules & criteria" }),
+                el("div.hint", { style: "white-space:pre-wrap;margin:.3rem 0 0", text: e.description })
+              ])
+            : null
         ])},
       { key: "entries", label: "Ours", num: true, render: e => {
           // I12 — the per-house cap applies to every class now, so it is

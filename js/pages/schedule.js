@@ -108,7 +108,14 @@ export default async function schedulePage(root) {
               el("strong", { text: s.title }),
               // I5 / I21 — the category travels with the item everywhere.
               el("div.hint", { style: "margin:0", text:
-                [s.code, s.categoryName, s.typeName, s.tierName, s.stage].filter(Boolean).join(" · ") })
+                [s.code, s.categoryName, s.typeName, s.tierName, s.stage].filter(Boolean).join(" · ") }),
+              // Collapsed: the schedule is a scanning surface first.
+              s.description
+                ? el("details", { style: "margin-top:.3rem" }, [
+                    el("summary.hint", { text: "Rules & criteria" }),
+                    el("div.hint", { style: "white-space:pre-wrap;margin:.3rem 0 0", text: s.description })
+                  ])
+                : null
             ]),
             s.type === "break" ? badge("Break", "badge-warn") : null
           ]))),

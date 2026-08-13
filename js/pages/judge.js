@@ -195,6 +195,12 @@ export default async function judgePage(root) {
         })}
     ], entries.entries)));
 
+    if (entries.description) {
+      panel.appendChild(card(
+        el("div.hint", { style: "white-space:pre-wrap;margin:0", text: entries.description }),
+        "Rules & scoring criteria"));
+    }
+
     panel.appendChild(notice("info",
       "Type a score, then press Save (or Enter). Nothing is stored until you do. Leave a score blank only if the entry is marked absent."));
 

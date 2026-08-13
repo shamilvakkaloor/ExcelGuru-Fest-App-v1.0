@@ -130,6 +130,12 @@ export default async function judging(root) {
     panel.appendChild(card(el("div", {}, [
       el("div.btn-row", {}, [badge(classLabel(event.eventClass)), statusBadge,
         badge(`Score out of ${scale}`), badge(`${lettered.length} entries`)]),
+      event.description
+        ? el("details", { style: "margin-top:.7rem" }, [
+            el("summary", { text: "Rules & scoring criteria" }),
+            el("div.hint", { style: "white-space:pre-wrap;margin-top:.4rem", text: event.description })
+          ])
+        : null,
       el("p.hint", { style: "margin-top:.7rem" , text:
         "Admin can fill a missing judge's score or correct one already submitted. A blank score is never read as zero — mark the entry Absent instead." })
     ]), event.name));
