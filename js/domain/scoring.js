@@ -202,6 +202,11 @@ export function aggregate(events, resultDocs, houses) {
   for (const res of resultDocs) {
     const ev = eventById[res.id];
     if (!ev) continue;
+    // An excluded event is judged, ranked and published like any other; it
+    // simply does not move a house total or a participant's pool. Filtering
+    // here rather than at finalize keeps the event's own result intact, so
+    // the flag can be turned off again without re-finalizing.
+    if (ev.excludeFromTotals) continue;
     const poolField = {
       categoryIndividual: "categoryIndividualPoints",
       categoryGroup:      "categoryGroupPoints",
@@ -298,7 +303,7 @@ export function tallyBoard(board, resultDocs, eventById, meta = {}) {
 
   for (const res of resultDocs) {
     const ev = eventById[res.id];
-    if (!ev || !boardMatchesEvent(board, ev)) continue;
+    if (!ev || ev.excludeFromTotals || !boardMatchesEvent(board, ev)) continue;
 
     for (const entry of res.entries || []) {
       if (entry.isAbsent) continue;

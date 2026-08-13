@@ -63,6 +63,7 @@ async function basicTab(panel) {
   const regEnd    = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.end) });
 
   let blind = !!s.blindJudgingDefault;
+  let gradeless = !!s.gradelessDefault;
   let schedVisible = !!s.scheduleVisible;
   // I31 — the master switch for minimum entries per house. Most fests never
   // set minimums, and a field that is always blank is noise on the Events
@@ -136,6 +137,11 @@ async function basicTab(panel) {
   panel.appendChild(card(el("div", {}, [
     field("How results are decided", resultPolicy,
       "Forcing a mode hides the per-event choice — there is no point offering one that is overridden."),
+    checkbox("Rank only by default — new events award no grade points", gradeless, v => gradeless = v),
+    el("div.hint", { text:
+      "The grade is still worked out and shown; it is simply worth 0 points, so an event is decided by " +
+      "rank alone. This sets what a NEW event starts as. Events that already exist keep their own setting, " +
+      "because changing this must never quietly restate what an event was worth." }),
     checkbox("Use minimum entries per house", useMinCaps, v => useMinCaps = v),
     el("div.hint", { text:
       "Adds a minimum alongside the maximum on each event. Minimums never block a registration — " +
@@ -155,6 +161,7 @@ async function basicTab(panel) {
       gradeThresholds: { aMin: a, bMin: b, cMin: c },
       registrationWindow: { start: fromLocalInput(regStart.value), end: fromLocalInput(regEnd.value) },
       blindJudgingDefault: blind,
+      gradelessDefault: gradeless,
       scheduleVisible: schedVisible,
       useMinEntryCaps: useMinCaps,
       resultPolicy: resultPolicy.value,

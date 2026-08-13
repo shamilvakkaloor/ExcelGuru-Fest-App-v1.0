@@ -22,7 +22,7 @@ import { limitsForCategory, counterKeys, maxFor, recountParticipant,
 import { wallClockToEpoch, offsetMinutesAt, isValidZone } from "./js/lib/timezone.js";
 import { substitutionWindow, pendingCount } from "./js/domain/substitution.js";
 import { effectiveResultMode } from "./js/domain/constants.js";
-import { highestRankAwarded, boardMatchesEvent } from "./js/domain/scoring.js";
+import { highestRankAwarded, boardMatchesEvent, tallyBoard } from "./js/domain/scoring.js";
 import { overlaps, findClashes, describeClashes } from "./js/domain/clashes.js";
 import { codeLetterAt, entryCap, maxEntriesFor, minEntriesFor, entryCompletion,
          rankCountFromLadder, publicRankLimit, rankIsPublic, GENDERS } from "./js/domain/constants.js";
@@ -111,6 +111,21 @@ check("each group member is credited the full entry points in their own pool",
   agg.participants.p2.categoryGroupPoints, 15);
 check("individual points land in the individual pool",
   agg.participants.p1.categoryIndividualPoints, 15);
+
+/* Events left out of totals — v8.8 */
+const exclAgg = aggregate(
+  [{ id: "e1", eventClass: "categoryIndividual" },
+   { id: "e2", eventClass: "categoryIndividual", excludeFromTotals: true }],
+  [{ id: "e1", entries: [{ houseId: "h1", participantIds: ["p1"], totalPoints: 15 }] },
+   { id: "e2", entries: [{ houseId: "h1", participantIds: ["p1"], totalPoints: 99 }] }],
+  [{ id: "h1", adjustmentPoints: 0 }]);
+check("an excluded event does not move the house total", exclAgg.housePoints.h1, 15);
+check("an excluded event does not move a participant pool",
+  exclAgg.participants.p1.categoryIndividualPoints, 15);
+check("an excluded event is left off a custom leaderboard",
+  tallyBoard({ scope: "all" },
+    [{ id: "e2", entries: [{ participantIds: ["p1"], participantNames: ["A"], totalPoints: 99 }] }],
+    { e2: { id: "e2", eventClass: "categoryIndividual", excludeFromTotals: true } }).length, 0);
 
 /* Leaderboard */
 const pools = { categoryIndividualPoints: 15, categoryGroupPoints: 15, generalIndividualPoints: 0, generalGroupPoints: 0 };

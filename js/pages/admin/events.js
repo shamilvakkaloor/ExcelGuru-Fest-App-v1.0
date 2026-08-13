@@ -228,7 +228,12 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   /* ── v8 — gradeless and direct results ────────────────────────────
    * Two independent switches, both defaulting to v7 behaviour.
    */
-  let awardsGrade = existing?.awardsGradePoints !== false;
+  // A new event follows the fest's rank-only default; an existing one keeps
+  // whatever it was saved with.
+  let awardsGrade = existing
+    ? existing.awardsGradePoints !== false
+    : !settings?.gradelessDefault;
+  let excludeFromTotals = !!existing?.excludeFromTotals;
   const resultMode = select(RESULT_MODES, { value: existing?.resultMode || "scored" });
   const modeHint = el("div.hint");
   function syncMode() {
@@ -254,7 +259,9 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     resultModeField,
     modeHint,
     checkbox("This event awards grade points", awardsGrade, v => awardsGrade = v),
-    el("div.hint", { text: "Turn off for a gradeless event. The grade is still worked out and shown, but contributes 0 points. Rank points are unaffected." })
+    el("div.hint", { text: "Turn off for a gradeless event. The grade is still worked out and shown, but contributes 0 points. Rank points are unaffected." }),
+    checkbox("Leave this event out of overall totals and leaderboards", excludeFromTotals, v => excludeFromTotals = v),
+    el("div.hint", { text: "The event is still judged, ranked and published as normal — its points simply do not count towards house totals or any leaderboard. For exhibition or invitational items." })
   ]);
 
   const catField = field("Category", cat, "Ignored for general events.");
@@ -329,6 +336,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             tierId: useTypeTier ? (tierSel.value || null) : (existing?.tierId ?? null),
             pointsFrom: pointsFrom.value || "class",
             awardsGradePoints: awardsGrade,
+            excludeFromTotals,
             resultMode: resultMode.value || "scored",
             maxParticipantsPerEntry: isGroupClass(cls.value) ? Math.max(1, Number(perEntry.value) || 1) : 1,
             // Blank / 0 stores null, which every consumer reads as "no cap".

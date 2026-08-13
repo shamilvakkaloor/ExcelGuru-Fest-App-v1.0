@@ -129,6 +129,11 @@ export const DEFAULTS = {
     hasDeleteGuard: false,       // set once guard/deleteGuard exists
     publicTemplatesFreeText: false, // restricted by default — see pages/templates.js
     resultPolicy: "both",           // both | scored | direct — see effectiveResultMode()
+    // Rank-only scoring, fest-wide. An event still decides for itself
+    // (events.awardsGradePoints); this only sets what a NEW event starts as,
+    // the same way blindJudgingDefault does. Turning it on later does not
+    // silently restate what existing events are worth.
+    gradelessDefault: false,
     // The fest's own timezone, captured from the Admin's browser at setup.
     // Schedule times are wall-clock in THIS zone, not the reader's.
     // IANA zone name, e.g. "Asia/Kolkata". Resolved per date so daylight
