@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fest Tabulation</title>
+<meta name="description" content="Fest tabulation, scoring and live results — by ExcelGuru.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="32x32" href="./assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./assets/icon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./assets/icon-180.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#17232F">
+<link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- Boot screen. Pure CSS: it has to animate before any module has
+         loaded, so it cannot depend on JavaScript arriving first. -->
+    <div class="boot" role="status" aria-live="polite">
+      <div class="boot-inner">
+        <div class="boot-mark" aria-hidden="true">
+          <span class="boot-bar"></span><span class="boot-bar"></span>
+          <span class="boot-bar"></span><span class="boot-bar"></span>
+        </div>
+
+        <h1 class="boot-word" aria-label="ExcelGuru">
+          <span>E</span><span>x</span><span>c</span><span>e</span><span>l</span><span>G</span><span>u</span><span>r</span><span>u</span>
+        </h1>
+
+        <div class="boot-rule"></div>
+
+        <div class="boot-lines" aria-hidden="true">
+          <div class="boot-line">Warming up the scoreboard</div>
+          <div class="boot-line">Counting the grade points</div>
+          <div class="boot-line">Shuffling the code letters</div>
+          <div class="boot-line">Polishing the medals</div>
+        </div>
+
+        <p class="boot-meta">Fest tabulation, scoring &amp; live results<br>
+          <a href="https://excelguru.co.in" target="_blank" rel="noopener">excelguru.co.in</a></p>
+      </div>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+  <!-- Boot watchdog. A CLASSIC script, deliberately: it must run and install
+       its handlers even if the module graph below fails to load at all —
+       which is the one failure mode that otherwise shows nothing but an
+       endless loading screen. -->
+  <script>
+  (function () {
+    var problems = [];
+    function note(what, detail) {
+      problems.push(what + (detail ? ": " + detail : ""));
+      if (window.__BOOT_FAILED__) report();
+    }
+    window.addEventListener("error", function (e) {
+      // Script/CSS that failed to fetch reports as an element error.
+      if (e.target && (e.target.tagName === "SCRIPT" || e.target.tagName === "LINK")) {
+        note("Could not load " + (e.target.src || e.target.href));
+      } else {
+        note(e.message, e.filename ? e.filename + ":" + e.lineno : "");
+      }
+    }, true);
+    window.addEventListener("unhandledrejection", function (e) {
+      note("Unhandled error", (e.reason && (e.reason.message || e.reason)) || "");
+    });
+
+    function report() {
+      var host = document.querySelector(".boot-inner");
+      if (!host || document.getElementById("boot-diag")) return;
+      var box = document.createElement("div");
+      box.id = "boot-diag";
+      box.className = "boot-diag";
+      box.innerHTML =
+        "<strong>The app did not finish starting.</strong>" +
+        "<p>" + (problems.length
+          ? "The browser reported:</p><pre>" + problems.join("\n").replace(/[<>&]/g, function (c) {
+              return { "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]; }) + "</pre>"
+          : "No error was reported, which usually means a network request is " +
+            "still waiting — most often Firebase being unreachable, or " +
+            "config.js pointing at the wrong project.</p>") +
+        "<p>Press F12 and open the Console tab for the full detail. " +
+        "Common causes: config.js not matching your Firebase project, " +
+        "Firestore not enabled, or the security rules not published yet.</p>" +
+        "<button onclick=\"location.reload()\">Reload</button>";
+      host.appendChild(box);
+    }
+
+    // If nothing has replaced the boot screen after 15 seconds, say so
+    // rather than spinning forever.
+    setTimeout(function () {
+      if (window.__APP_STARTED__) return;
+      window.__BOOT_FAILED__ = true;
+      report();
+    }, 15000);
+  })();
+  </script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

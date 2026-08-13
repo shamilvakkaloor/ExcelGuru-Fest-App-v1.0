@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scoring tests</title>
+<link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Scoring tests</h1>
+  <p class="hint">Open this file in a browser after any change to the scoring rules. No Firebase connection is needed — these test pure logic only.</p>
+  <div id="out"></div>
+</div>
+
+<script type="module">
+import { gradeFor, denseRank, computeResults, finalizeBlockers, aggregate,
+         studentScore, rankLeaderboard, averageOf } from "./js/domain/scoring.js";
+import { checkCaps, shortfalls, applyCounts } from "./js/domain/limits.js";
+import { resolvePoints, ladderKey, computeDirectResults, directFinalizeBlockers } from "./js/domain/scoring.js";
+import { limitsForCategory, counterKeys, maxFor, recountParticipant,
+         shortfalls as shortfallsV8 } from "./js/domain/limits.js";
+import { wallClockToEpoch, offsetMinutesAt, isValidZone } from "./js/lib/timezone.js";
+import { substitutionWindow, pendingCount } from "./js/domain/substitution.js";
+import { effectiveResultMode } from "./js/domain/constants.js";
+import { highestRankAwarded, boardMatchesEvent } from "./js/domain/scoring.js";
+import { overlaps, findClashes, describeClashes } from "./js/domain/clashes.js";
+import { codeLetterAt, entryCap, maxEntriesFor, minEntriesFor, entryCompletion,
+         rankCountFromLadder, publicRankLimit, rankIsPublic, GENDERS } from "./js/domain/constants.js";
+import { derivePattern, incrementLetters, nextChestValue, chestSortKey, compareChest,
+         matchesSeed, nextSeededValue, rangeClash, rangeOwner, overlappingRanges,
+         ownershipError, allocateChest, normalizeChest } from "./js/domain/chest.js";
+import { MM_PER_PX_AT_96DPI } from "./js/lib/designRender.js";
+
+const out = document.getElementById("out");
+let pass = 0, fail = 0;
+
+function check(name, actual, expected) {
+  const a = JSON.stringify(actual), e = JSON.stringify(expected);
+  const ok = a === e;
+  ok ? pass++ : fail++;
+  const row = document.createElement("div");
+  row.className = "notice notice-" + (ok ? "ok" : "danger");
+  row.textContent = (ok ? "PASS  " : "FAIL  ") + name + (ok ? "" : `  — got ${a}, expected ${e}`);
+  out.appendChild(row);
+}
+
+const TH = { aMin: 85, bMin: 70, cMin: 50 };
+const GP = { A: 5, B: 3, C: 1, Without: 0 };
+const RP = { 1: 10, 2: 6, 3: 3 };
+
+/* Grades */
+check("90% is an A", gradeFor(90, TH), "A");
+check("85% is exactly an A", gradeFor(85, TH), "A");
+check("84.9% falls to B", gradeFor(84.9, TH), "B");
+check("50% is exactly a C", gradeFor(50, TH), "C");
+check("49% is Without", gradeFor(49, TH), "Without");
+check("0% is Without, not Absent", gradeFor(0, TH), "Without");
+
+/* Dense ranking */
+check("ties share a rank and the next score follows on",
+  denseRank([{ averageScore: 90 }, { averageScore: 90 }, { averageScore: 80 }]).map(r => r.rank),
+  [1, 1, 2]);
+check("distinct scores rank consecutively",
+  denseRank([{ averageScore: 70 }, { averageScore: 90 }, { averageScore: 80 }]).map(r => r.rank),
+  [1, 2, 3]);
+
+/* Averages */
+check("average of three judges", averageOf([80, 90, 100]), 90);
+check("no scores gives null, not zero", averageOf([]), null);
+
+/* Full computation */
+const entries = [
+  { regId: "a", houseId: "h1", participantIds: ["p1"], codeLetter: "A", scores: [90, 92], isAbsent: false },
+  { regId: "b", houseId: "h2", participantIds: ["p2"], codeLetter: "B", scores: [60, 62], isAbsent: false },
+  { regId: "c", houseId: "h1", participantIds: ["p3"], codeLetter: "C", scores: [30, 30], isAbsent: false },
+  { regId: "d", houseId: "h2", participantIds: ["p4"], codeLetter: "D", scores: [], isAbsent: true }
+];
+const res = computeResults(entries, { scoreScale: 100, thresholds: TH, rankPoints: RP, gradePoints: GP });
+const byCode = Object.fromEntries(res.map(r => [r.codeLetter, r]));
+
+check("winner gets rank points plus grade points", byCode.A.totalPoints, 15);
+check("second place grade C", byCode.B.grade, "C");
+check("second place totals rank 6 plus grade 1", byCode.B.totalPoints, 7);
+check("a low score is graded Without", byCode.C.grade, "Without");
+check("Without keeps its rank points", byCode.C.totalPoints, 3);
+check("Without scores zero grade points", byCode.C.gradePoints, 0);
+check("absent entry is graded Absent", byCode.D.grade, "Absent");
+check("absent entry scores nothing", byCode.D.totalPoints, 0);
+check("absent entry takes no rank", byCode.D.rank, null);
+check("absent entry does not consume a rank slot", byCode.C.rank, 3);
+
+/* Finalize guard */
+check("an entry with no score and no absence blocks finalize",
+  finalizeBlockers([{ regId: "x", codeLetter: "X", scores: [], isAbsent: false }]), ["X"]);
+check("an absent entry does not block finalize",
+  finalizeBlockers([{ regId: "x", codeLetter: "X", scores: [], isAbsent: true }]), []);
+
+/* House vs participant point rules */
+const events = [
+  { id: "e1", eventClass: "categoryIndividual" },
+  { id: "e2", eventClass: "categoryGroup" }
+];
+const results = [
+  { id: "e1", entries: [{ houseId: "h1", participantIds: ["p1"], totalPoints: 15 }] },
+  { id: "e2", entries: [{ houseId: "h1", participantIds: ["p1", "p2", "p3", "p4"], totalPoints: 15 }] }
+];
+const agg = aggregate(events, results, [{ id: "h1", adjustmentPoints: 0 }]);
+check("a four-member group win credits the house once, not four times",
+  agg.housePoints.h1, 30);
+check("each group member is credited the full entry points in their own pool",
+  agg.participants.p2.categoryGroupPoints, 15);
+check("individual points land in the individual pool",
+  agg.participants.p1.categoryIndividualPoints, 15);
+
+/* Leaderboard */
+const pools = { categoryIndividualPoints: 15, categoryGroupPoints: 15, generalIndividualPoints: 0, generalGroupPoints: 0 };
+check("group points are excluded by default",
+  studentScore(pools, { includeCategoryGroupPoints: false }), 15);
+check("group points count once toggled on",
+  studentScore(pools, { includeCategoryGroupPoints: true }), 30);
+check("a tie is broken by the first listed pool",
+  rankLeaderboard([
+    { name: "X", total: 10, pools: { categoryGroupPoints: 2 } },
+    { name: "Y", total: 10, pools: { categoryGroupPoints: 8 } }
+  ], ["categoryGroupPoints"]).map(r => r.name),
+  ["Y", "X"]);
+
+/* Caps */
+const LIM = {
+  overallMax: 3, overallMin: 2,
+  categoryIndividual: { splitByStage: true, onStageMax: 1, offStageMax: 2 },
+  categoryGroup: { max: null, min: 1 }
+};
+const ev = { eventClass: "categoryIndividual", stage: "onStage" };
+check("under the cap is allowed", checkCaps({ overall: 0 }, ev, LIM), null);
+check("at the stage cap is blocked",
+  checkCaps({ overall: 1, "categoryIndividual.onStage": 1 }, ev, LIM)?.includes("on-stage"), true);
+check("registering increments both the overall and stage counters",
+  applyCounts({}, ev, LIM, +1), { overall: 1, categoryIndividual: 1, "categoryIndividual.onStage": 1 });
+check("a shortfall is reported against a configured minimum",
+  shortfalls({ overall: 1 }, LIM).map(s => s.key), ["overall", "categoryGroup"]);
+
+/* Code letters */
+check("code letters continue past Z", [codeLetterAt(0), codeLetterAt(25), codeLetterAt(26)], ["A", "Z", "AA"]);
+
+/* ══ v7 ══════════════════════════════════════════════════════════════ */
+
+/* Chest number patterns — I23 */
+check("a seed splits into prefix, letters and digits",
+  derivePattern("RED-A01"), { prefix: "RED-", letters: "A", digits: "01", width: 2 });
+check("a letters-only seed has no digit part",
+  derivePattern("AAA"), { prefix: "", letters: "AAA", digits: "", width: 0 });
+check("a seed with nothing to advance is rejected", derivePattern("---"), null);
+
+check("letters advance like an odometer with A as zero",
+  [incrementLetters("A"), incrementLetters("AZ"), incrementLetters("AAZ")], ["B", "BA", "ABA"]);
+check("all-Z widens", incrementLetters("ZZ"), "AAA");
+
+check("digits roll within their width", nextChestValue("RED-A01"), "RED-A02");
+check("overflowing digits carry into the letters and reset",
+  nextChestValue("RED-A99"), "RED-B01");
+check("a letters-only pattern just advances",
+  [nextChestValue("AAA"), nextChestValue("AAZ")], ["AAB", "ABA"]);
+check("a digits-only pattern widens rather than losing a place",
+  nextChestValue("099"), "100");
+
+check("a value matches its own family but not another prefix",
+  [matchesSeed("RED-A07", "RED-A01"), matchesSeed("BLU-A07", "RED-A01")], [true, false]);
+check("the next seeded value skips ones already taken",
+  nextSeededValue("RED-A01", new Set(["RED-A01", "RED-A02"])), "RED-A03");
+
+/* Natural sort — a plain string compare gets this wrong */
+check("chest numbers sort numerically, not lexically",
+  ["10", "9", "100"].sort(compareChest), ["9", "10", "100"]);
+check("mixed patterns sort by prefix then number",
+  ["RED-A10", "RED-A9", "BLU-A2"].sort(compareChest), ["BLU-A2", "RED-A9", "RED-A10"]);
+check("the sort key pads digit runs", chestSortKey("A9"), "A000000000009");
+
+/* Ranges — I26 / I28 */
+const HOUSES = [
+  { id: "r", name: "Red",  chestRangeStart: 100, chestRangeEnd: 199 },
+  { id: "b", name: "Blue", chestRangeStart: 200, chestRangeEnd: 299 }
+];
+check("a clashing range is refused",
+  !!rangeClash({ houseId: "g", start: 150, end: 250, houses: HOUSES }), true);
+check("a range that only touches the gap is allowed",
+  rangeClash({ houseId: "g", start: 300, end: 399, houses: HOUSES }), null);
+check("editing a house does not clash with itself",
+  rangeClash({ houseId: "r", start: 100, end: 199, houses: HOUSES }), null);
+check("a backwards range is refused",
+  !!rangeClash({ houseId: "g", start: 400, end: 300, houses: HOUSES }), true);
+check("existing overlaps are still reported", overlappingRanges([
+  { id: "x", name: "X", chestRangeStart: 100, chestRangeEnd: 199 },
+  { id: "y", name: "Y", chestRangeStart: 150, chestRangeEnd: 249 }
+]).length, 1);
+check("a number inside a range is owned by that house",
+  rangeOwner("150", HOUSES)?.name, "Red");
+
+const DIGIT_CFG = { chestFormat: "digits", chestAllocation: "houseRange" };
+check("a house may not take a number out of another house's range",
+  !!ownershipError({ value: "250", house: HOUSES[0], houses: HOUSES, settings: DIGIT_CFG }), true);
+check("a house may take a number inside its own range",
+  ownershipError({ value: "150", house: HOUSES[0], houses: HOUSES, settings: DIGIT_CFG }), null);
+check("ownership is not enforced when the fest uses one shared sequence",
+  ownershipError({ value: "250", house: HOUSES[0], houses: HOUSES,
+    settings: { chestFormat: "digits", chestAllocation: "mixed" } }), null);
+check("a seeded house may not use another house's pattern",
+  !!ownershipError({ value: "BLU-A05",
+    house: { id: "r", name: "Red", chestSeed: "RED-A01" },
+    houses: [{ id: "r", name: "Red", chestSeed: "RED-A01" }, { id: "b", name: "Blue", chestSeed: "BLU-A01" }],
+    settings: { chestFormat: "alphanumeric" } }), true);
+
+/* Allocation is pure — this is what makes a batched import possible */
+check("allocation takes the lowest free number in the house range",
+  allocateChest({ explicit: null, house: HOUSES[0], houses: HOUSES,
+    settings: DIGIT_CFG, taken: new Set(["100", "101"]), counter: 0 }).value, "102");
+check("allocation threads the counter instead of reading Firestore",
+  allocateChest({ explicit: null, house: { id: "g", name: "Green" }, houses: [],
+    settings: { chestFormat: "digits", chestAllocation: "mixed" },
+    taken: new Set(), counter: 40 }), { value: "41", counter: 41 });
+check("an explicit number already taken is refused", (() => {
+  try {
+    allocateChest({ explicit: "150", house: HOUSES[0], houses: HOUSES,
+      settings: DIGIT_CFG, taken: new Set(["150"]), counter: 0 });
+    return false;
+  } catch { return true; }
+})(), true);
+check("a letter value is refused when the fest is digits-only", (() => {
+  try {
+    allocateChest({ explicit: "A12", house: HOUSES[0], houses: HOUSES,
+      settings: DIGIT_CFG, taken: new Set(), counter: 0 });
+    return false;
+  } catch { return true; }
+})(), true);
+check("a seeded house with no seed asks rather than guessing", (() => {
+  try {
+    allocateChest({ explicit: null, house: { id: "r", name: "Red" }, houses: [],
+      settings: { chestFormat: "alphanumeric" }, taken: new Set(), counter: 0 });
+    return false;
+  } catch { return true; }
+})(), true);
+
+/* Entry caps — I12 / I31 */
+check("a blank maximum means unlimited",
+  [maxEntriesFor({}), maxEntriesFor({ maxEntriesPerHouse: null }),
+   maxEntriesFor({ maxEntriesPerHouse: "" })], [null, null, null]);
+check("zero also means unlimited", entryCap(0), null);
+check("a set maximum is read on every class",
+  ["categoryIndividual", "generalGroup"].map(c =>
+    maxEntriesFor({ eventClass: c, maxEntriesPerHouse: 2 })), [2, 2]);
+check("a blank minimum means no minimum", minEntriesFor({ minEntriesPerHouse: "" }), null);
+
+check("with no minimum set, one entry completes the event",
+  entryCompletion({}, 1, true).complete, true);
+check("with no entries and no minimum, the event is incomplete",
+  entryCompletion({}, 0, true).complete, false);
+check("a minimum of three needs three",
+  [entryCompletion({ minEntriesPerHouse: 3 }, 2, true).complete,
+   entryCompletion({ minEntriesPerHouse: 3 }, 3, true).complete], [false, true]);
+check("minimums switched off fest-wide fall back to one entry",
+  entryCompletion({ minEntriesPerHouse: 3 }, 1, false).complete, true);
+
+/* Public rank limit — I2 */
+check("the ladder decides how many ranks exist",
+  [rankCountFromLadder({ 1: 5, 2: 3, 3: 1 }), rankCountFromLadder({ 1: 5, 2: 3, 3: 2, 4: 1 })], [3, 4]);
+check("the public limit follows the widest ladder",
+  publicRankLimit({ publicRankLimit: null }, [{ rankPoints: { 1: 5, 2: 3, 3: 1 } }, { rankPoints: { 1: 5, 2: 3, 3: 2, 4: 1 } }]), 4);
+check("an explicit override wins over the ladder",
+  publicRankLimit({ publicRankLimit: 2 }, [{ rankPoints: { 1: 5, 2: 3, 3: 1 } }]), 2);
+check("zero means show every placement",
+  [publicRankLimit({ publicRankLimit: 0 }, []), rankIsPublic(9, 0)], [0, true]);
+check("a place past the limit is not public",
+  [rankIsPublic(3, 3), rankIsPublic(4, 3), rankIsPublic(null, 3)], [true, false, false]);
+
+/* Gender is binary — I27 */
+check("gender offers only blank, male and female",
+  GENDERS.map(g => g.value), ["", "male", "female"]);
+
+/* Font scale — I18 */
+check("30pt renders near 32px at 0.42 zoom, not 180px", (() => {
+  const zoom = 0.42, scale = zoom * MM_PER_PX_AT_96DPI;
+  const px = 30 * (scale / MM_PER_PX_AT_96DPI) * (96 / 72);
+  return Math.round(px);
+})(), 17);
+check("the old formula was about 10.7 times too large", (() => {
+  const zoom = 1, scale = zoom * MM_PER_PX_AT_96DPI;
+  const wrong = 30 * scale * 3.78;
+  const right = 30 * (scale / MM_PER_PX_AT_96DPI) * (96 / 72);
+  return Math.round(wrong / right * 10) / 10;
+})(), 10.7);
+
+const summary = document.createElement("div");
+summary.className = "notice notice-" + (fail ? "danger" : "ok");
+summary.style.fontWeight = "600";
+summary.textContent = `${pass} passed, ${fail} failed`;
+out.prepend(summary);
+
+/* ══ v8 — the points model ═══════════════════════════════════════════
+ * These are the most important tests in the release: a mistake here moves
+ * house standings silently.
+ */
+const V8_CLASS  = { rankPoints: { 1: 5, 2: 3, 3: 1 } };
+const V8_SPEECH = { rankPoints: { 1: 10, 2: 6, 3: 2 } };
+const V8_TIER1  = { rankPoints: { 1: 20, 2: 12 }, gradePoints: { A: 9, B: 5, C: 2, Without: 0 } };
+const V8_GRADE  = { A: 5, B: 3, C: 1, Without: 0 };
+const V8_LADDERS = { categoryIndividual: V8_CLASS, type_speech: V8_SPEECH, tier_t1: V8_TIER1,
+                     stage_onStage: { rankPoints: { 1: 7 } } };
+
+check("ladder key per axis",
+  [ladderKey("class", { eventClass: "categoryIndividual" }),
+   ladderKey("stage", { stage: "offStage" }),
+   ladderKey("type", { typeId: "speech" }),
+   ladderKey("tier", { tierId: "t1" })],
+  ["categoryIndividual", "stage_offStage", "type_speech", "tier_t1"]);
+
+check("an event with no source set uses its class ladder",
+  resolvePoints({ eventClass: "categoryIndividual" }, V8_LADDERS, V8_GRADE).rankPoints,
+  V8_CLASS.rankPoints);
+
+check("naming Type uses the Type ladder",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "type", typeId: "speech" }, V8_LADDERS, V8_GRADE).rankPoints,
+  V8_SPEECH.rankPoints);
+
+check("a ladder without its own grades inherits the shared table",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "type", typeId: "speech" }, V8_LADDERS, V8_GRADE).gradePoints,
+  V8_GRADE);
+
+check("a ladder with its own grades overrides the shared table",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "tier", tierId: "t1" }, V8_LADDERS, V8_GRADE).gradePoints,
+  V8_TIER1.gradePoints);
+
+check("ONE SOURCE ONLY — naming Type ignores tier and stage entirely",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "type", typeId: "speech", tierId: "t1", stage: "onStage" }, V8_LADDERS, V8_GRADE).rankPoints,
+  V8_SPEECH.rankPoints);
+
+check("a missing ladder falls back to the class ladder and is flagged", (() => {
+  const r = resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "type", typeId: "nope" }, V8_LADDERS, V8_GRADE);
+  return [r.source, r.fellBack];
+})(), ["class", true]);
+
+/* Gradeless events */
+const V8_E = [{ regId: "a", scores: [90] }, { regId: "b", scores: [80] }];
+const V8_TH = { aMin: 85, bMin: 70, cMin: 50 };
+check("gradeless keeps the grade visible but worth nothing", (() => {
+  const out = computeResults(V8_E, { scoreScale: 100, thresholds: V8_TH, rankPoints: V8_CLASS.rankPoints, gradePoints: V8_GRADE, awardsGradePoints: false });
+  const a = out.find(e => e.regId === "a");
+  return [a.grade, a.gradePoints, a.totalPoints];
+})(), ["A", 0, 5]);
+
+/* Direct results */
+check("direct mode: tied placements each take the full rank points", (() => {
+  const out = computeDirectResults(
+    [{ regId: "x", placement: 1, grade: "A" }, { regId: "y", placement: 1, grade: "B" }, { regId: "z", placement: 2, grade: "C" }],
+    { rankPoints: V8_CLASS.rankPoints, gradePoints: V8_GRADE });
+  return [out[0].rankPoints, out[1].rankPoints, out.map(r => r.rank)];
+})(), [5, 5, [1, 1, 2]]);
+
+check("direct mode: absence still scores nothing", (() => {
+  const out = computeDirectResults([{ regId: "w", isAbsent: true }], { rankPoints: V8_CLASS.rankPoints, gradePoints: V8_GRADE });
+  return [out[0].rank, out[0].grade, out[0].totalPoints];
+})(), [null, "Absent", 0]);
+
+check("direct mode blocks finalize until every entry has a placement",
+  directFinalizeBlockers([{ regId: "a", placement: null }, { regId: "b", placement: 1 }]), ["a"]);
+
+/* Per-category participant limits */
+check("per-category off behaves exactly as before",
+  limitsForCategory({ overallMax: 5, perCategory: false, byCategory: {} }, "c1").overallMax, 5);
+check("a category override is used wholesale, and others fall back", (() => {
+  const L = { overallMax: 5, perCategory: true, byCategory: { c1: { overallMax: 2 } } };
+  return [limitsForCategory(L, "c1").overallMax, limitsForCategory(L, "c2").overallMax];
+})(), [2, 5]);
+
+/* Optional tiebreakers */
+check("with tiebreakers off, tied participants share a rank",
+  rankLeaderboard([{ name: "A", total: 10, pools: { generalGroupPoints: 1 } },
+                   { name: "B", total: 10, pools: { generalGroupPoints: 9 } }], []).map(r => r.rank),
+  [1, 1]);
+
+/* ══ v8.6 ════════════════════════════════════════════════════════════ */
+
+/* Caps: participant's own category, General outside class caps,
+   Type/Tier counted everywhere */
+const V86_JR = { overallMax: 6,
+  categoryIndividual: { splitByStage: true, max: 4, onStageMax: 2 },
+  categoryGroup: { max: 2 }, generalIndividual: {}, generalGroup: {},
+  useTypeCaps: true, typeCaps: { speech: { max: 2 } } };
+const V86_SR = { overallMax: 8, categoryIndividual: { splitByStage: false, max: 5 },
+  categoryGroup: {}, generalIndividual: {}, generalGroup: {},
+  useTypeCaps: true, typeCaps: { speech: { max: 3 } } };
+const V86_G = { overallMax: 5, categoryIndividual: { max: 3 }, categoryGroup: {},
+  generalIndividual: {}, generalGroup: {}, perCategory: true,
+  byCategory: { jr: V86_JR, sr: V86_SR } };
+
+check("a participant is measured against their own category",
+  [limitsForCategory(V86_G, "jr").overallMax, limitsForCategory(V86_G, "sr").overallMax], [6, 8]);
+
+const V86_CAT = { eventClass: "categoryIndividual", stage: "onStage", typeId: "speech" };
+const V86_GEN = { eventClass: "generalIndividual", stage: "onStage", typeId: "speech" };
+
+check("a General event never touches a category's class cap",
+  maxFor("generalIndividual", V86_JR), null);
+check("a Category event does",  maxFor("categoryIndividual", V86_JR), 4);
+check("a General event still counts toward Type",
+  counterKeys(V86_GEN, V86_JR).includes("type:speech"), true);
+check("a General event does not add a class counter key",
+  counterKeys(V86_GEN, V86_JR).includes("categoryIndividual"), false);
+check("the Type cap value comes from the participant's own category",
+  [maxFor("type:speech", V86_JR), maxFor("type:speech", V86_SR)], [2, 3]);
+
+check("split-by-stage is per category",
+  [counterKeys(V86_CAT, V86_JR).includes("categoryIndividual.onStage"),
+   counterKeys(V86_CAT, V86_SR).includes("categoryIndividual.onStage")], [true, false]);
+
+check("recount rebuilds counts from registrations, ignoring stale keys", (() => {
+  const evs = { e1: V86_CAT, e2: V86_GEN };
+  const regs = [{ eventId: "e1", participantIds: ["p"] }, { eventId: "e2", participantIds: ["p"] }];
+  const c = recountParticipant({ id: "p", categoryId: "jr" }, regs, evs, V86_G);
+  return [c.overall, c["type:speech"], c.categoryIndividual];
+})(), [2, 2, 1]);
+
+/* Timezone — DST-correct, the bug the fixed offset could not handle */
+check("a valid zone is recognised", [isValidZone("Asia/Kolkata"), isValidZone("Not/AZone")], [true, false]);
+check("IST is +5:30 all year",
+  [offsetMinutesAt("Asia/Kolkata", Date.parse("2026-01-14T00:00:00Z")),
+   offsetMinutesAt("Asia/Kolkata", Date.parse("2026-07-14T00:00:00Z"))], [330, 330]);
+check("London shifts with daylight saving",
+  [offsetMinutesAt("Europe/London", Date.parse("2026-01-14T12:00:00Z")),
+   offsetMinutesAt("Europe/London", Date.parse("2026-07-14T12:00:00Z"))], [0, 60]);
+check("10:30 IST is 05:00 UTC",
+  wallClockToEpoch("2026-01-14", "10:30", "Asia/Kolkata"), Date.parse("2026-01-14T05:00:00Z"));
+check("the same wall clock differs across a DST boundary",
+  [wallClockToEpoch("2026-03-28", "12:00", "Europe/London"),
+   wallClockToEpoch("2026-03-29", "12:00", "Europe/London")],
+  [Date.parse("2026-03-28T12:00:00Z"), Date.parse("2026-03-29T11:00:00Z")]);
+
+/* Substitutions — the window */
+check("substitution is refused while registration is still open",
+  substitutionWindow({}, {}, { end: Date.now() + 86400000 }).open, false);
+check("substitution opens once the deadline passes",
+  substitutionWindow({}, {}, { end: Date.now() - 86400000 }).open, true);
+check("a code letter closes the window for good",
+  substitutionWindow({ codeLetter: "C" }, {}, { end: Date.now() - 86400000 }).open, false);
+check("pending requests are counted",
+  pendingCount([{ status: "pending" }, { status: "approved" }, { status: "pending" }]), 2);
+
+/* Fest-wide result policy */
+check("policy 'both' lets the event decide",
+  [effectiveResultMode({ resultMode: "direct" }, { resultPolicy: "both" }),
+   effectiveResultMode({ resultMode: "scored" }, { resultPolicy: "both" })], ["direct", "scored"]);
+check("a forced policy overrides every event",
+  [effectiveResultMode({ resultMode: "scored" }, { resultPolicy: "direct" }),
+   effectiveResultMode({ resultMode: "direct" }, { resultPolicy: "scored" })], ["direct", "scored"]);
+check("no policy set behaves as before", effectiveResultMode({ resultMode: "direct" }, {}), "direct");
+
+/* Rank ceiling reads every ladder, not just the class ones */
+check("a longer Type ladder raises the rank ceiling",
+  highestRankAwarded([{ rankPoints: { 1: 5, 2: 3, 3: 1 } },
+                      { rankPoints: { 1: 9, 2: 7, 3: 5, 4: 3, 5: 2, 6: 1 } }]), 6);
+
+/* Boards: ticked events override the axes */
+check("ticking events replaces the axis filters",
+  [boardMatchesEvent({ eventIds: ["e2"], typeIds: ["speech"] }, { id: "e2", typeId: "essay" }),
+   boardMatchesEvent({ eventIds: ["e2"] }, { id: "e1", typeId: "speech" })], [true, false]);
+
+/* ══ v8.7 — schedule clashes ═════════════════════════════════════════
+ * The clash that actually bites on the day: a person needed in two places
+ * at once. Warned, never blocked — real fests overlap deliberately.
+ */
+check("touching slots do not overlap",
+  [overlaps(600, 630, 610, 640), overlaps(600, 630, 630, 660)], [true, false]);
+
+const V87_SLOTS = [
+  { eventId: "e1", dayId: "d1", venueName: "Stage 1", title: "Solo Song",
+    startMin: 600, endMin: 630, startTime: "10:00", endTime: "10:30" },
+  { eventId: "e2", dayId: "d1", venueName: "Hall A", title: "Essay",
+    startMin: 610, endMin: 640, startTime: "10:10", endTime: "10:40" },
+  { eventId: "e3", dayId: "d2", venueName: "Hall A", title: "Skit",
+    startMin: 610, endMin: 640, startTime: "10:10", endTime: "10:40" }
+];
+const V87_PEOPLE = {
+  e1: [{ id: "p1", name: "Ann", role: "participant" }],
+  e2: [{ id: "p1", name: "Ann", role: "participant" }, { id: "p2", name: "Bob", role: "participant" }],
+  e3: [{ id: "p1", name: "Ann", role: "participant" }]
+};
+
+check("a participant in two overlapping events is a clash",
+  findClashes(V87_SLOTS, V87_PEOPLE).map(c => c.name), ["Ann"]);
+check("the same time on a DIFFERENT DAY is not a clash",
+  findClashes(V87_SLOTS, V87_PEOPLE).some(c => c.a.eventId === "e3" || c.b.eventId === "e3"), false);
+check("someone in only one of the two is not clashing",
+  findClashes(V87_SLOTS, V87_PEOPLE).some(c => c.name === "Bob"), false);
+check("a judge in two overlapping events is a clash", (() => {
+  const j = { e1: [{ id: "j1", name: "Judge A", role: "judge" }],
+              e2: [{ id: "j1", name: "Judge A", role: "judge" }] };
+  const out = findClashes(V87_SLOTS, j);
+  return [out.length, out[0].role];
+})(), [1, "judge"]);
+check("the same id in different roles is not a clash",
+  findClashes(V87_SLOTS, { e1: [{ id: "x", name: "X", role: "judge" }],
+                           e2: [{ id: "x", name: "X", role: "participant" }] }).length, 0);
+check("both venues are named, so the clash can be acted on", (() => {
+  const c = findClashes(V87_SLOTS, V87_PEOPLE)[0];
+  return [c.a.venueName, c.b.venueName];
+})(), ["Stage 1", "Hall A"]);
+check("slots with no time are ignored",
+  findClashes([{ eventId: "e1", dayId: "d1" }, { eventId: "e2", dayId: "d1" }], V87_PEOPLE).length, 0);
+check("a clash summary names the person",
+  /Ann/.test(describeClashes(findClashes(V87_SLOTS, V87_PEOPLE))), true);
+</script>
+</body>
+</html>

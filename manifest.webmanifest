@@ -1,0 +1,13 @@
+{
+  "name": "Fest Tabulation",
+  "short_name": "Fest",
+  "description": "Fest tabulation, scoring and live results — by ExcelGuru.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#17232F",
+  "theme_color": "#17232F",
+  "icons": [
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

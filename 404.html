@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Redirecting…</title>
+<script>
+  // GitHub Pages serves this file for any unknown path. Because the app uses
+  // hash routing, a 404 here almost always means someone hit a deep link or
+  // refreshed on a sub-path — so bounce them back to the app root, keeping
+  // whatever hash they had.
+  var base = location.pathname.split("/").slice(0, 2).join("/") + "/";
+  location.replace(base + (location.hash || ""));
+</script>
+</head>
+<body>Redirecting…</body>
+</html>
