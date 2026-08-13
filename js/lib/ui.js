@@ -185,9 +185,13 @@ export function modal({ title, body, actions, onClose }) {
     return btn;
   });
 
+  // The body is wrapped rather than styled directly: on a phone the dialog is
+  // capped at 92dvh and this wrapper is the part that scrolls. Without it a
+  // tall form overflows the box and paints over the backdrop with no surface
+  // behind it, which reads as the dialog having lost its background.
   const box = el("div.modal", { role: "dialog", "aria-modal": "true" }, [
     el("h3", { text: title }),
-    body,
+    el("div.modal-body", {}, body),
     el("div.modal-actions", {}, actionButtons)
   ]);
   const backdrop = el("div.modal-backdrop", {

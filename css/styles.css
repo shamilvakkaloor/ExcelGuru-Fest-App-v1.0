@@ -1013,7 +1013,17 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
  * 720px a fest is run one-handed, so wide tables become stacked cards and
  * every primary action stays reachable without scrolling.
  */
-.shell { overflow-x: hidden; }        /* a wide table must not scroll the page */
+/* `clip`, not `hidden`, and the difference is the whole left sidebar.
+ *
+ * With `overflow-x: hidden` the unset `overflow-y` computes to `auto`, which
+ * makes .shell a scroll container. The rail and nav panel are `position:
+ * sticky`, so they then stick relative to .shell — which grows with its
+ * content and never scrolls — instead of to the viewport. The sidebar scrolled
+ * off the top of a long page and left empty background below it.
+ *
+ * `clip` contains the same horizontal overflow without creating a scroll
+ * container, so sticky keeps resolving against the viewport. */
+.shell { overflow-x: clip; }          /* a wide table must not scroll the page */
 .shell-scroll { overflow-x: auto; }
 
 @media (max-width: 720px) {
@@ -1028,9 +1038,15 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   .crumbs a { display: none; }        /* keep the current page, drop the trail */
 
   /* Dialogs: full height with the actions pinned, so Save is never below
-     the fold on a short screen with the keyboard up. */
-  .modal { max-height: 92dvh; width: calc(100vw - 1.2rem); }
-  .modal-body { overflow-y: auto; }
+     the fold on a short screen with the keyboard up.
+     The flex column is what makes max-height hold: the body takes the
+     leftover space and scrolls inside it, instead of the content pushing
+     past the dialog and rendering over the backdrop unbacked. */
+  .modal {
+    max-height: 92dvh; width: calc(100vw - 1.2rem);
+    display: flex; flex-direction: column;
+  }
+  .modal-body { overflow-y: auto; min-height: 0; flex: 1; }
   .modal-actions {
     position: sticky; bottom: 0; background: var(--surface);
     border-top: 1px solid var(--line); padding-top: .6rem; margin-top: .4rem;
