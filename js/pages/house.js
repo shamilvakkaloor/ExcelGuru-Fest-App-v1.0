@@ -13,6 +13,7 @@ import { DEFAULTS, classLabel, isGroupClass, isGeneralClass, eventLabel,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, entryCompletion,
          typeTierFilters, eventFilterKeys } from "../domain/constants.js";
 import { compareChest } from "../domain/chest.js";
+import { gradeLabel } from "../domain/scoring.js";
 import { shortfalls, limitsForCategory } from "../domain/limits.js";
 import { toCSV, downloadText } from "../lib/csv.js";
 import { printDocument, htmlTable } from "../lib/pdf.js";
@@ -33,20 +34,21 @@ export default async function housePage(root) {
   let tab = "register";
   const tabs = el("div.tabs");
   const panel = el("div");
-  [["register", "Register"], ["entries", "Our entries"], ["subs", "Substitutions"],
-   ["people", "Our participants"], ["schedule", "Schedule"]]
-    .forEach(([id, label]) => tabs.appendChild(button(label, {
+  const TAB_LIST = [["register", "Register"], ["entries", "Our entries"], ["subs", "Substitutions"],
+   ["people", "Our participants"], ["results", "Our results"], ["titles", "Titles"], ["schedule", "Schedule"]];
+  TAB_LIST.forEach(([id, label]) => tabs.appendChild(button(label, {
       class: id === tab ? "active" : "", onclick: () => { tab = id; paint(); }
     })));
   wrap.append(tabs, panel);
 
   async function paint() {
     tabs.querySelectorAll("button").forEach((b, i) =>
-      b.className = ["register", "entries", "subs", "people", "schedule"][i] === tab ? "active" : "");
+      b.className = TAB_LIST[i][0] === tab ? "active" : "");
     panel.innerHTML = "";
     panel.appendChild(loading("Loading…"));
     const render = { register: registerTab, entries: entriesTab, subs: subsTab,
-                     people: peopleTab, schedule: scheduleTab }[tab];
+                     people: peopleTab, results: houseResultsTab, titles: houseTitlesTab,
+                     schedule: scheduleTab }[tab];
     panel.innerHTML = "";
     await render(panel, house, paint);
   }
@@ -416,6 +418,58 @@ async function peopleTab(panel, house) {
       title: house.name + " — participants", subtitle: window.__FEST_NAME__ || "",
       bodyHTML: htmlTable(columns, rows) }) })
   ]));
+}
+
+/**
+ * Our results — this house's own placements, published events only.
+ *
+ * Reads the public snapshot (`publicResults`), not the raw `results`
+ * collection: firestore.rules keeps `results` staff-only because it holds
+ * unpublished data and, for a blind event, names before they are meant to be
+ * public. The snapshot is the same data a spectator can already see, merely
+ * filtered down to one house — nothing here is privileged.
+ */
+async function houseResultsTab(panel, house) {
+  const settings = await getOne("config", "festSettings").catch(() => null);
+  const events = await getAll("publicResults").catch(() => []);
+  const rows = [];
+  for (const ev of events) {
+    for (const e of ev.entries || []) {
+      if (e.houseId !== house.id) continue;
+      rows.push({ ...e, eventName: ev.eventName, eventCode: ev.eventCode });
+    }
+  }
+  if (!rows.length) {
+    panel.appendChild(empty("No published results yet for " + house.name));
+    return;
+  }
+  rows.sort((a, b) => (a.rank ?? 99999) - (b.rank ?? 99999) || String(a.eventName).localeCompare(String(b.eventName)));
+  panel.appendChild(card(table([
+    { key: "eventName", label: "Event", render: r => el("div", {}, [
+        el("div", { text: r.eventName }),
+        r.eventCode ? el("div.hint", { style: "margin:0", text: r.eventCode }) : null
+      ])},
+    { key: "names", label: "Entry", render: r => (r.names || []).join(", ") },
+    { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger")
+        : (r.rank ? el("span.mono", { text: "#" + r.rank }) : el("span.hint", { text: "—" })) },
+    { key: "grade", label: "Grade", render: r => r.grade ? badge(gradeLabel(r.grade, settings)) : "—" },
+    { key: "totalPoints", label: "Points", num: true }
+  ], rows), house.name + " — results"));
+}
+
+/** Titles awarded to a participant from this house. Public data, filtered. */
+async function houseTitlesTab(panel, house) {
+  const rows = (await getAll("titles", where("houseId", "==", house.id)).catch(() => []))
+    .sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
+  if (!rows.length) { panel.appendChild(empty("No titles awarded to " + house.name + " yet")); return; }
+  panel.appendChild(card(el("div", {}, rows.map(t => el("div", {
+    style: "padding:.6rem 0;border-top:1px solid var(--line)"
+  }, [
+    el("div", { style: "display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap" }, [
+      el("strong", { text: t.name }), badge(t.participantName || "")
+    ]),
+    t.description ? el("div.hint", { style: "margin:.2rem 0 0", text: t.description }) : null
+  ]))), "Titles"));
 }
 
 async function scheduleTab(panel, house) {

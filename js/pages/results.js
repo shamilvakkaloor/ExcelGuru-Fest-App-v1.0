@@ -15,12 +15,18 @@ export default async function resultsPage(root) {
   const wrap = el("div.wrap");
   root.appendChild(wrap);
 
-  const board = await getOne("publicLeaderboard", "main").catch(() => null);
+  const [board, titles] = await Promise.all([
+    getOne("publicLeaderboard", "main").catch(() => null),
+    getAll("titles").catch(() => [])
+  ]);
   // Per-event tables are fetched only when that tab is opened: the leaderboard
   // is two reads, the event list is one per published event.
   let events = null;
 
-  if (!board?.eventCount) {
+  // Titles are hand-awarded and independent of any scored event, so they can
+  // exist before a single result is published — the page should still show
+  // them rather than the blanket "nothing yet" empty state.
+  if (!board?.eventCount && !titles.length) {
     wrap.appendChild(empty("No results published yet", "Standings appear here as soon as the organisers publish them."));
     return;
   }
@@ -28,17 +34,22 @@ export default async function resultsPage(root) {
   // ARCHITECTURE section 6.2 — how many places the public sees. Derived from
   // the rank ladder at publish time, so adding a fourth prize automatically
   // shows fourth place with no second setting to keep in sync.
-  const rankLimit = board.rankLimit ?? 3;
-  const talentLimit = Number(board.talentBoardLimit) || 0;
-  const rankArt = board.rankArt || {};
-  const houseStyle = board.houseStyle || {};
+  const rankLimit = board?.rankLimit ?? 3;
+  const talentLimit = Number(board?.talentBoardLimit) || 0;
+  const rankArt = board?.rankArt || {};
+  const houseStyle = board?.houseStyle || {};
 
   // v8 — public custom boards get their own tab, under their own name.
-  const boards = board.boards || [];
-  const TABS = [["houses", "House rankings"], ["students", "Student talent"],
-    ...boards.map(b => ["board:" + b.id, b.name]), ["events", "By event"]];
+  const boards = board?.boards || [];
+  // The whole leaderboard tab set only makes sense once results exist; a
+  // fest that has only awarded titles so far gets just that one tab.
+  const TABS = board?.eventCount
+    ? [["houses", "House rankings"], ["students", "Student talent"],
+       ...boards.map(b => ["board:" + b.id, b.name]), ["events", "By event"],
+       ...(titles.length ? [["titles", "Titles"]] : [])]
+    : [["titles", "Titles"]];
 
-  let tab = "houses";
+  let tab = TABS[0][0];
   const tabs = el("div.tabs");
   const panel = el("div");
   TABS.forEach(([id, label]) => tabs.appendChild(button(label, {
@@ -52,8 +63,24 @@ export default async function resultsPage(root) {
     panel.innerHTML = "";
     if (tab === "houses") paintHouses();
     else if (tab === "students") paintStudents();
+    else if (tab === "titles") paintTitles();
     else if (tab.startsWith("board:")) paintBoard(tab.slice(6));
     else paintEvents();
+  }
+
+  /** Hand-awarded titles — always public, independent of any scored result. */
+  function paintTitles() {
+    if (!titles.length) return panel.appendChild(empty("No titles awarded yet"));
+    const sorted = [...titles].sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
+    panel.appendChild(card(el("div", {}, sorted.map(t => el("div", {
+      style: "padding:.7rem 0;border-top:1px solid var(--line)"
+    }, [
+      el("div", { style: "display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap" }, [
+        el("strong", { text: t.name }),
+        t.participantName ? badge(t.participantName + (t.houseName ? " · " + t.houseName : "")) : null
+      ]),
+      t.description ? el("div.hint", { style: "margin:.2rem 0 0", text: t.description }) : null
+    ]))), "Titles"));
   }
 
   /** A custom board — participants, with their house alongside. */

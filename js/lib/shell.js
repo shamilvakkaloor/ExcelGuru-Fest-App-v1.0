@@ -73,7 +73,8 @@ const AREAS = [
       items: [
         { label: "Judging",      icon: "gavel", to: "/admin/judging", adminOnly: true },
         { label: "Judge status", icon: "eye",   to: "/admin/judges" },
-        { label: "Results",      icon: "award", to: "/admin/publish" }
+        { label: "Results",      icon: "award", to: "/admin/publish" },
+        { label: "Titles",       icon: "star",  to: "/admin/titles" }
       ]
     }]
   },

@@ -192,6 +192,14 @@ service cloud.firestore {
       allow update, delete: if isStaff();
     }
 
+    // v8.8 — titles. Hand-awarded, not tied to a scored event, so they carry
+    // no publish gate of their own — an Admin decides when to award one and
+    // that decision is immediately what the public sees.
+    match /titles/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
     // v8 — custom leaderboard definitions. Publicly readable because the
     // public results page needs the names of the boards it renders; the
     // tallies themselves live in the snapshot, not here.
