@@ -9,6 +9,7 @@ import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timez
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
 import { wipeEverything } from "../../domain/reset.js";
 import { compressImage } from "../../lib/photo.js";
+import { applyFestName } from "../../lib/shell.js";
 
 const TABS = [
   ["basic",          "Fest details"],
@@ -160,7 +161,7 @@ async function basicTab(panel) {
       logoData, useLogo: useLogo && !!logoData
     });
     window.__FEST_LOGO__ = (useLogo && logoData) ? logoData : null;
-    window.__FEST_NAME__ = festName.value.trim();
+    applyFestName(festName.value.trim());
     queueRepublish({ schedule: true });
     toast("Settings saved.");
   })})));

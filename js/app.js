@@ -3,7 +3,7 @@ import { startSessionWatch, session, is, logout } from "./lib/session.js";
 import { el, empty, button, toast } from "./lib/ui.js";
 import { icon } from "./lib/icons.js";
 import { initTheme, toggleTheme, currentTheme } from "./lib/theme.js";
-import { APP_VERSION, roleLabel } from "./lib/shell.js";
+import { APP_VERSION, roleLabel, applyFestName } from "./lib/shell.js";
 import { getOne } from "./lib/db.js";
 
 import homePage      from "./pages/home.js";
@@ -98,10 +98,9 @@ async function boot() {
   // If the fest has never been configured, everything redirects to first-run
   // setup. That is also the only moment the rules allow an Admin to be made.
   const settings = await getOne("config", "festSettings").catch(() => null);
-  window.__FEST_NAME__ = settings?.festName || "Fest Tabulation";
+  applyFestName(settings?.festName);
   window.__FEST_LOGO__ = settings?.useLogo && settings?.logoData ? settings.logoData : null;
   window.__NEEDS_SETUP__ = !settings;
-  if (settings?.festName) document.title = settings.festName;
   window.__APP_VERSION__ = APP_VERSION;
 
   route("/",          homePage);

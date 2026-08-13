@@ -10,6 +10,7 @@ import { DEFAULTS, EVENT_CLASSES } from "../domain/constants.js";
 import { navigate } from "../lib/router.js";
 import { hashGuardPassword } from "../lib/crypto.js";
 import { detectZone, zoneList, describeZone, isValidZone } from "../lib/timezone.js";
+import { applyFestName } from "../lib/shell.js";
 
 export default async function setupPage(root) {
   const existing = await getOne("config", "festSettings").catch(() => null);
@@ -90,7 +91,7 @@ export default async function setupPage(root) {
 
       toast("Fest created. You are signed in as Admin.");
       window.__NEEDS_SETUP__ = false;
-      window.__FEST_NAME__ = festName.value.trim();
+      applyFestName(festName.value.trim());
       navigate("/admin/dashboard");
     } catch (err) {
       submit.disabled = false;

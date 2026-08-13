@@ -25,6 +25,22 @@ import { navigate, currentPath, queryParams } from "./router.js";
 
 export const APP_VERSION = "8.7";
 
+/** The product name that follows the fest's own name in the browser tab. */
+export const APP_NAME = "ExcelGuru Fest App";
+
+/**
+ * Set the browser tab title from the fest's name.
+ *
+ * Three moments change it — first-run setup, an Admin renaming the fest in
+ * Settings, and boot — so it lives here rather than being spelled out at
+ * each one, where the three would drift apart.
+ */
+export function applyFestName(festName) {
+  const name = (festName || "").trim();
+  window.__FEST_NAME__ = name || "Fest Tabulation";
+  document.title = name ? `${name} - ${APP_NAME}` : APP_NAME;
+}
+
 /* ── Navigation model ────────────────────────────────────────────────
  * `to` is a hash path. `children` render as an indented sub-list and stay
  * expanded while their parent is the active section, which is how Festie
