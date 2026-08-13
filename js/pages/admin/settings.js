@@ -5,6 +5,7 @@ import { DEFAULTS, EVENT_CLASSES, POOL_LABEL, CHEST_FORMATS, CHEST_ALLOCATIONS,
          rankCountFromLadder, RESULT_POLICIES } from "../../domain/constants.js";
 import { availableTieBreakers, gradeScaleFrom, WITHOUT } from "../../domain/scoring.js";
 import { queueRepublish } from "../../domain/republish.js";
+import { rebuildContactSnapshot } from "../../domain/publish.js";
 import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timezone.js";
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
 import { wipeEverything } from "../../domain/reset.js";
@@ -77,6 +78,7 @@ async function basicTab(panel) {
   let blind = !!s.blindJudgingDefault;
   let gradeless = !!s.gradelessDefault;
   let schedVisible = !!s.scheduleVisible;
+  let contactsVisible = !!s.contactsVisible;
   // I31 — the master switch for minimum entries per house. Most fests never
   // set minimums, and a field that is always blank is noise on the Events
   // screen, so the whole feature is opt-in.
@@ -283,7 +285,12 @@ async function basicTab(panel) {
   panel.appendChild(card(el("div", {}, [
     checkbox("Blind judging on by default (judges see code letters only)", blind, v => blind = v),
     checkbox("Schedule visible to the public", schedVisible, v => schedVisible = v),
-    el("div.hint", { text: "While the schedule is hidden you can build and edit it privately." })
+    el("div.hint", { text: "While the schedule is hidden you can build and edit it privately." }),
+    checkbox("Contact page visible to the public", contactsVisible, v => contactsVisible = v),
+    el("div.hint", { text:
+      "Adds a Contact tab to the public site. Only numbers ticked as public on each house " +
+      "(Accounts → edit a house) ever appear there — everything else stays staff-only, so an " +
+      "unticked number is not merely hidden but unreadable without a login." })
   ]), "Visibility"));
 
   panel.appendChild(card(el("div", {}, [
@@ -327,6 +334,7 @@ async function basicTab(panel) {
       blindJudgingDefault: blind,
       gradelessDefault: gradeless,
       scheduleVisible: schedVisible,
+      contactsVisible,
       useMinEntryCaps: useMinCaps,
       resultPolicy: resultPolicy.value,
       logoData, useLogo: useLogo && !!logoData, logoScale
@@ -335,6 +343,8 @@ async function basicTab(panel) {
     applyLogoScale(logoScale);
     applyFestName(festName.value.trim());
     applyHouseTerm(houseSingular.value.trim(), housePlural.value.trim());
+    window.__CONTACTS_VISIBLE__ = contactsVisible;
+    await rebuildContactSnapshot().catch(() => {});
     queueRepublish({ schedule: true });
     toast("Settings saved.");
   })})));

@@ -159,6 +159,7 @@ export const DEFAULTS = {
     // holds the URL.
     manualUrl: "",
     manualLabel: "Fest manual",
+    contactsVisible: false,   // v8.8 — the public Contact page is opt-in
     // The fest's own timezone, captured from the Admin's browser at setup.
     // Schedule times are wall-clock in THIS zone, not the reader's.
     // IANA zone name, e.g. "Asia/Kolkata". Resolved per date so daylight

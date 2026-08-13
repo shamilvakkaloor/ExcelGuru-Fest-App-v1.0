@@ -192,6 +192,30 @@ service cloud.firestore {
       allow update, delete: if isStaff();
     }
 
+    /* v8.8 — house contact details.
+     *
+     * A SEPARATE COLLECTION, and that is the whole point. `houses` is
+     * publicly readable, and Firestore rules are document-level: there is
+     * no way to expose a house's name and hide a phone number on the same
+     * document. Many of these numbers belong to students, so they live
+     * here, staff-only, and reach the public solely through the
+     * publicContacts snapshot — which carries only the numbers an Admin
+     * explicitly ticked.
+     *
+     * A House Manager can read their own house's record so they can see
+     * and check the numbers held for them.
+     */
+    match /houseContacts/{houseId} {
+      allow read: if isStaff() || (isHouse() && houseId == refId());
+      allow write: if isAdmin();
+    }
+
+    // Only the ticked-public entries, rebuilt from houseContacts.
+    match /publicContacts/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
     // v8.8 — manual point adjustments (discipline, bonuses, corrections).
     // Admin-only to WRITE: moving a house total by hand is the single most
     // consequential non-publish act in the app, and a Co-Admin who can score

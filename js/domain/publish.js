@@ -556,6 +556,50 @@ export function venueStart(venue, dayId) {
   return venue?.dayStart?.[dayId] || venue?.startTime || "09:00";
 }
 
+/**
+ * Public contact snapshot — only the numbers an Admin ticked as public.
+ *
+ * The filtering happens HERE rather than on the page, because a page-level
+ * filter would still require the raw contact document to be publicly
+ * readable to be filtered at all. Anything omitted from this document is
+ * genuinely unreachable without a staff login.
+ */
+export async function rebuildContactSnapshot() {
+  const cfg = await loadConfig();
+  const [houses, contacts, book] = await Promise.all([
+    getAll("houses"),
+    getAll("houseContacts").catch(() => []),
+    getOne("config", "contactBook").catch(() => null)
+  ]);
+  const byId = Object.fromEntries(contacts.map(c => [c.id, c]));
+
+  const rows = [];
+  for (const h of houses) {
+    const c = byId[h.id];
+    if (!c) continue;
+    const people = [];
+    const add = (role, name, phone, isPublic) => {
+      if (!name && !(isPublic && phone)) return;
+      people.push({ role, name: name || "", phone: isPublic ? (phone || "") : "" });
+    };
+    add("Manager", c.managerName, c.managerPhone, c.managerPhonePublic);
+    add("Leader", c.leaderName, c.leaderPhone, c.leaderPhonePublic);
+    add("Assistant leader", c.assistantLeaderName, c.assistantLeaderPhone, c.assistantLeaderPhonePublic);
+    if (people.length) rows.push({ houseId: h.id, houseName: h.name, people });
+  }
+
+  await put("publicContacts", "main", {
+    visible: !!cfg.settings.contactsVisible,
+    updatedAt: Date.now(),
+    houses: rows,
+    // Free-form organiser contacts, entirely Admin-authored — everything
+    // here is public by definition, since it is typed into a public list.
+    organisers: (book?.entries || []).map(e => ({
+      name: e.name || "", role: e.role || "", phone: e.phone || ""
+    }))
+  }, false);
+}
+
 /** Public schedule snapshot — rebuilt whenever the schedule is edited. */
 export async function rebuildScheduleSnapshot() {
   const cfg = await loadConfig();

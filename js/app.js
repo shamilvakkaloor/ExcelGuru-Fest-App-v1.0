@@ -35,7 +35,8 @@ export function topbar(extra) {
   const links = el("nav.publicnav", { "aria-label": "Public pages" },
     [["/results", "Results", "trophy"],
      ["/schedule", "Schedule", "calendar"],
-     ["/lookup", "Lookup", "search"]]
+     ["/lookup", "Lookup", "search"],
+     ...(window.__CONTACTS_VISIBLE__ ? [["/contacts", "Contact", "users"]] : [])]
       .map(([to, label, ic]) => el("a" + (here === to ? ".on" : ""), { href: "#" + to },
         [icon(ic, 16), el("span", { text: label })])));
 
@@ -102,6 +103,7 @@ async function boot() {
   applyLogoScale(settings?.logoScale);
   applyHouseTerm(settings?.houseTermSingular, settings?.houseTermPlural);
   window.__FEST_LOGO__ = settings?.useLogo && settings?.logoData ? settings.logoData : null;
+  window.__CONTACTS_VISIBLE__ = !!settings?.contactsVisible;
   window.__NEEDS_SETUP__ = !settings;
   window.__APP_VERSION__ = APP_VERSION;
 
@@ -111,6 +113,7 @@ async function boot() {
   route("/results",   resultsPage);
   route("/templates", (root) => import("./pages/templates.js").then(m => m.default(root)));
   route("/lookup",    lookupPage);
+  route("/contacts",  (root) => import("./pages/contacts.js").then(m => m.default(root)));
   route("/schedule",  schedulePage);
   route("/slideshow", slideshowPage);
   route("/screen",    screenPage);

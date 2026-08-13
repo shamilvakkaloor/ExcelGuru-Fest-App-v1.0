@@ -5,6 +5,7 @@ import { createAccount, revokeAccount, reissueLogin, slugify, validatePassword, 
 import { queueRepublish } from "../../domain/republish.js";
 import { overlappingRanges, rangeClash, derivePattern } from "../../domain/chest.js";
 import { compressImage } from "../../lib/photo.js";
+import { rebuildContactSnapshot } from "../../domain/publish.js";
 import { DEFAULTS, housePluralTerm } from "../../domain/constants.js";
 
 const TABS = [
@@ -141,6 +142,21 @@ function houseFields(existing, cfg) {
   const seed = input({ value: existing?.chestSeed || "", placeholder: "e.g. RED-A01" });
   const adj  = input({ type: "number", value: existing?.adjustmentPoints || 0 });
 
+  // Contacts. Each number carries its own "show publicly" tick, so the fest
+  // decides per person rather than all-or-nothing — a student leader's
+  // number and an organiser's are not the same kind of thing.
+  const mgrName  = input({ value: existing?.managerName || "", placeholder: "Name" });
+  const mgrPhone = input({ value: existing?.managerPhone || "", placeholder: "Mobile number", type: "tel" });
+  let mgrPublic  = !!existing?.managerPhonePublic;
+
+  const leaderName  = input({ value: existing?.leaderName || "", placeholder: "Name" });
+  const leaderPhone = input({ value: existing?.leaderPhone || "", placeholder: "Mobile number", type: "tel" });
+  let leaderPublic  = !!existing?.leaderPhonePublic;
+
+  const asstName  = input({ value: existing?.assistantLeaderName || "", placeholder: "Name" });
+  const asstPhone = input({ value: existing?.assistantLeaderPhone || "", placeholder: "Mobile number", type: "tel" });
+  let asstPublic  = !!existing?.assistantLeaderPhonePublic;
+
   // I11 — optional house colour and crest. Both default to nothing and every
   // surface must render correctly without them.
   let color = existing?.color || "";
@@ -183,6 +199,16 @@ function houseFields(existing, cfg) {
         : el("div.hint", { text: "This fest uses one shared chest number sequence, so houses have no range of their own." }),
     field("Adjustment points", adj, "Added to this house's total. Use negatives to deduct."),
     el("fieldset", {}, [
+      el("legend", { text: "People and contacts (optional)" }),
+      el("div.hint", { text: "Each number is private unless you tick it. Many of these are students, so nothing is published by default — tick only the numbers that should appear on the public Contact page." }),
+      el("div.grid.grid-2", {}, [field("Manager name", mgrName), field("Manager mobile", mgrPhone)]),
+      checkbox("Show the manager's number publicly", mgrPublic, v => mgrPublic = v),
+      el("div.grid.grid-2", { style: "margin-top:.6rem" }, [field("Leader name", leaderName), field("Leader mobile", leaderPhone)]),
+      checkbox("Show the leader's number publicly", leaderPublic, v => leaderPublic = v),
+      el("div.grid.grid-2", { style: "margin-top:.6rem" }, [field("Assistant leader name", asstName), field("Assistant leader mobile", asstPhone)]),
+      checkbox("Show the assistant leader's number publicly", asstPublic, v => asstPublic = v)
+    ]),
+    el("fieldset", {}, [
       el("legend", { text: "Identity (optional)" }),
       colorToggle, colorInput,
       el("div", { style: "margin-top:.6rem" }, [
@@ -200,13 +226,38 @@ function houseFields(existing, cfg) {
 
   return {
     node,
+    /** The staff-only contact record — phone numbers and their public flags. */
+    contacts() {
+      return {
+        managerName: mgrName.value.trim(),
+        managerPhone: mgrPhone.value.trim(),
+        managerPhonePublic: mgrPublic,
+        leaderName: leaderName.value.trim(),
+        leaderPhone: leaderPhone.value.trim(),
+        leaderPhonePublic: leaderPublic,
+        assistantLeaderName: asstName.value.trim(),
+        assistantLeaderPhone: asstPhone.value.trim(),
+        assistantLeaderPhonePublic: asstPublic
+      };
+    },
     /** Returns the fields, or throws with a message the dialog can show. */
     collect(houseId, houses) {
       const data = {
         code: code.value.trim().toUpperCase(),
         adjustmentPoints: Number(adj.value) || 0,
         color: useColor ? colorInput.value : null,
-        logoData
+        logoData,
+        /* Names only. NO PHONE NUMBERS ON THIS DOCUMENT.
+         *
+         * firestore.rules gives `houses` `allow read: if true`, and
+         * Firestore rules are document-level — there is no way to hide one
+         * field from a public read. A number stored here would be readable
+         * by anyone with the project id, whatever the UI showed. Numbers
+         * live in houseContacts/{id}, which is staff-only, and reach the
+         * public only via the ticked-public snapshot. */
+        managerName: mgrName.value.trim(),
+        leaderName: leaderName.value.trim(),
+        assistantLeaderName: asstName.value.trim()
       };
 
       if (seeded) {
@@ -277,6 +328,10 @@ function addDialog(spec, existing, houses, cfg, refresh) {
           // (which queries by request.auth.uid) matched nothing.
           const uid = await createAccount({ slug, password: pw.value, role: spec.id, name: record.name, refId: id });
           await patch(spec.collection, id, { uid });
+
+          // Phone numbers go to the staff-only contact document, never the
+          // publicly-readable house record.
+          if (houseBits) await put("houseContacts", id, houseBits.contacts());
 
           toast(record.name + " created.");
           close(true);
@@ -400,9 +455,16 @@ function repairDialog(spec, records, dirBySlug, refresh) {
   });
 }
 
-function editDialog(spec, record, houses, cfg, refresh) {
+async function editDialog(spec, record, houses, cfg, refresh) {
   const name = input({ value: record.name });
-  const houseBits = spec.id === "house" ? houseFields(record, cfg) : null;
+  // Contacts live in their own staff-only document, so they are fetched
+  // here rather than being part of the house record.
+  const contactDoc = spec.id === "house"
+    ? await getOne("houseContacts", record.id).catch(() => null)
+    : null;
+  const houseBits = spec.id === "house"
+    ? houseFields({ ...record, ...(contactDoc || {}) }, cfg)
+    : null;
 
   modal({
     title: "Edit " + record.name,
@@ -419,6 +481,12 @@ function editDialog(spec, record, houses, cfg, refresh) {
             catch (e) { toast(e.message, true); return false; }
           }
           await patch(spec.collection, record.id, data);
+          if (houseBits) {
+            await put("houseContacts", record.id, houseBits.contacts());
+            // Rebuild the public list so a newly-ticked number appears — and,
+            // more importantly, an untickeded one disappears — immediately.
+            await rebuildContactSnapshot().catch(() => {});
+          }
           if (spec.id === "house") queueRepublish({ results: true });
           toast("Saved.");
           close(true);
