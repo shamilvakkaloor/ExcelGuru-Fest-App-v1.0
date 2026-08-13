@@ -216,6 +216,19 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    /* v8.8 — score overrides. Admin-only, and frozen once the event's
+     * result is published, on exactly the same condition as `scores` and
+     * `entryFlags`: all three move points, so all three lock together.
+     * Without the publish check an Admin could change a mark the public had
+     * already seen, which is the hole I14 closed for scores. */
+    match /scoreOverrides/{id} {
+      allow read: if isStaff();
+      allow write: if isAdmin()
+                   && !resultPublished(request.method == "delete"
+                        ? resource.data.eventId
+                        : request.resource.data.eventId);
+    }
+
     // v8.8 — manual point adjustments (discipline, bonuses, corrections).
     // Admin-only to WRITE: moving a house total by hand is the single most
     // consequential non-publish act in the app, and a Co-Admin who can score

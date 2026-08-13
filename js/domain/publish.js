@@ -37,35 +37,56 @@ export async function loadConfig() {
 
 /** Everything needed to score one event: entries, their scores, absences. */
 export async function loadEventEntries(eventId) {
-  const [regs, scores, flags, direct] = await Promise.all([
+  const [regs, scores, flags, direct, overrides] = await Promise.all([
     getAll("registrations", where("eventId", "==", eventId)),
     getAll("scores", where("eventId", "==", eventId)),
     getAll("entryFlags", where("eventId", "==", eventId)),
     // v8 — placements for "direct" events, where an Admin picks the order
     // instead of judges scoring. Empty for every scored event, so this
     // costs one read and changes nothing for existing fests.
-    getAll("directResults", where("eventId", "==", eventId)).catch(() => [])
+    getAll("directResults", where("eventId", "==", eventId)).catch(() => []),
+    getAll("scoreOverrides", where("eventId", "==", eventId)).catch(() => [])
   ]);
   const byReg = {};
   for (const s of scores) (byReg[s.regId] ||= []).push(s);
   const absentBy = Object.fromEntries(flags.map(f => [f.regId, !!f.isAbsent]));
   const directBy = Object.fromEntries(direct.map(d => [d.regId, d]));
+  const overrideBy = Object.fromEntries(overrides.map(o => [o.regId, o]));
 
-  return regs.map(r => ({
-    regId: r.id,
-    houseId: r.houseId,
-    houseName: r.houseName || "",
-    categoryId: r.categoryId || null,
-    participantIds: r.participantIds || [],
-    participantNames: r.participantNames || [],
-    chestNumbers: r.chestNumbers || [],
-    codeLetter: r.codeLetter || "",
-    entryNumber: r.entryNumber || 1,
-    isAbsent: !!absentBy[r.id],
-    scores: (byReg[r.id] || []).map(s => Number(s.score)),
-    placement: directBy[r.id]?.placement ?? null,
-    grade: directBy[r.id]?.grade ?? null
-  }));
+  return regs.map(r => {
+    /* v8.8 — AN OVERRIDE REPLACES THE AVERAGE, NOT THE RANK.
+     *
+     * The overridden value re-enters the ordinary pipeline, so the
+     * percentage, the grade, the dense ranking and the points all follow
+     * from it exactly as they would from a real average. Overriding the
+     * rank directly would let the stored rank and the stored score
+     * contradict each other on the same row, which is unexplainable to
+     * anyone reading the result afterwards.
+     *
+     * The judges' original marks are left untouched underneath, so an
+     * override can be removed and the true average returns. */
+    const ov = overrideBy[r.id];
+    const realScores = (byReg[r.id] || []).map(s => Number(s.score));
+    return {
+      regId: r.id,
+      houseId: r.houseId,
+      houseName: r.houseName || "",
+      categoryId: r.categoryId || null,
+      participantIds: r.participantIds || [],
+      participantNames: r.participantNames || [],
+      chestNumbers: r.chestNumbers || [],
+      codeLetter: r.codeLetter || "",
+      entryNumber: r.entryNumber || 1,
+      isAbsent: !!absentBy[r.id],
+      scores: ov && ov.value !== null && ov.value !== undefined
+        ? [Number(ov.value)]
+        : realScores,
+      overridden: !!ov,
+      overrideReason: ov?.reason || "",
+      placement: directBy[r.id]?.placement ?? null,
+      grade: directBy[r.id]?.grade ?? null
+    };
+  });
 }
 
 /**
@@ -154,6 +175,9 @@ export async function computeEventResult(eventId) {
     chestNumbers: e.chestNumbers,
     averageScore: e.averageScore, percent: e.percent, rank: e.rank,
     isAbsent: e.isAbsent, grade: e.grade,
+    // Carried onto the stored result so the override is visible on the
+    // Results screen, not just at the moment it was applied.
+    overridden: !!e.overridden, overrideReason: e.overrideReason || "",
     rankPoints: e.rankPoints, gradePoints: e.gradePoints, totalPoints: e.totalPoints
   })).sort((a, b) => (a.rank ?? 99999) - (b.rank ?? 99999));
 

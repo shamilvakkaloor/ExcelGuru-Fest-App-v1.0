@@ -1,5 +1,5 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty,
-         badge, confirmDialog, filterBar } from "../../lib/ui.js";
+         badge, confirmDialog, filterBar, modal } from "../../lib/ui.js";
 import { getAll, getOne, put, remove, where } from "../../lib/db.js";
 import { finalizeEvent, computeEventResult } from "../../domain/publish.js";
 import { averageOf, gradeFor, resolvePoints, gradeScaleFrom, gradeLabel } from "../../domain/scoring.js";
@@ -63,7 +63,7 @@ export default async function judging(root) {
     panel.innerHTML = "";
     if (!event) return;
 
-    const [regs, judgeAssignments, scores, flags, result, directRows, ladderDoc] = await Promise.all([
+    const [regs, judgeAssignments, scores, flags, result, directRows, ladderDoc, overrideRows] = await Promise.all([
       getAll("registrations", where("eventId", "==", event.id)),
       getAll("judgeAssignments", where("eventId", "==", event.id)),
       getAll("scores", where("eventId", "==", event.id)),
@@ -71,8 +71,10 @@ export default async function judging(root) {
       getOne("results", event.id),
       getAll("directResults", where("eventId", "==", event.id)).catch(() => []),
       // Every ladder, so resolvePoints answers exactly as finalize will.
-      getAll("pointsConfig").catch(() => [])
+      getAll("pointsConfig").catch(() => []),
+      getAll("scoreOverrides", where("eventId", "==", event.id)).catch(() => [])
     ]);
+    const overrideBy = Object.fromEntries(overrideRows.map(o => [o.regId, o]));
 
     // v8 — a "direct" event is not scored by judges. Admin picks each
     // placement from the ladder's positions.
@@ -177,6 +179,27 @@ export default async function judging(root) {
       return el("span", {}, [
         el("span.mono", { text: avg.toFixed(2) }), " ",
         badge(gradeLabel(gradeFor(pct, thresholds), settings))
+      ]);
+    }});
+
+    /* An override replaces the average this entry is ranked on. The judges'
+     * marks stay underneath untouched, so removing the override restores
+     * the true average — which is what makes this safe to use during a
+     * dispute and reverse afterwards. */
+    if (!isDirect) cols.push({ key: "override", label: "Override", render: r => {
+      const ov = overrideBy[r.id];
+      return el("div.btn-row", {}, [
+        ov ? badge(String(ov.value), "badge-warn") : null,
+        button(ov ? "Change" : "Override", {
+          class: "btn-sm", disabled: locked,
+          onclick: () => overrideDialog(event, r, ov, scale, paint)
+        }),
+        ov ? button("Clear", { class: "btn-sm btn-danger", disabled: locked,
+          onclick: guard(async () => {
+            await remove("scoreOverrides", event.id + "_" + r.id);
+            toast("Override removed — the judges' average applies again.");
+            paint();
+          })}) : null
       ]);
     }});
 
@@ -337,7 +360,13 @@ function showComputed(panel, data, trigger, isPreview = false, settings = null) 
       { key: "averageScore", label: "Average", num: true, render: r =>
           r.averageScore === null || r.averageScore === undefined
             ? el("span.hint", { text: "—" })
-            : el("span.mono", { text: Number(r.averageScore).toFixed(2) }) },
+            : el("span", {}, [
+                el("span.mono", { text: Number(r.averageScore).toFixed(2) }),
+                // An override that does not announce itself on the result
+                // table is the thing that looks like tampering later.
+                r.overridden ? el("div.hint", { style: "margin:0",
+                  title: r.overrideReason || "", text: "overridden" }) : null
+              ]) },
       { key: "percent", label: "%", num: true, render: r => r.percent === null ? "—" : r.percent.toFixed(1) },
       { key: "grade", label: "Grade", render: r => badge(gradeLabel(r.grade, settings)) },
       { key: "rankPoints", label: "Rank pts", num: true },
@@ -349,6 +378,49 @@ function showComputed(panel, data, trigger, isPreview = false, settings = null) 
   panel.appendChild(box);
   if (trigger) trigger.textContent = isPreview ? "Hide preview" : "Hide computed table";
   box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/**
+ * Set the average this entry is ranked on, in place of the judges'.
+ *
+ * Requires a reason, and the reason is stored on the result — an override
+ * that cannot be explained afterwards is indistinguishable from tampering,
+ * and this is the one screen where that distinction matters most.
+ */
+function overrideDialog(event, reg, existing, scale, refresh) {
+  const value = input({ type: "number", min: 0, max: scale, value: existing?.value ?? "" });
+  const reason = el("textarea", { rows: 3, placeholder: "Why this entry is not being ranked on the judges' average." });
+  reason.value = existing?.reason || "";
+
+  modal({
+    title: "Override score — " + (reg.codeLetter || ""),
+    body: el("div", {}, [
+      notice("warn",
+        "This replaces the average this entry is ranked on. The judges' own marks are kept and are not " +
+        "changed — clearing the override restores them. The percentage, grade, rank and points are all " +
+        "recalculated from the value below exactly as they would be from a real average."),
+      field(`Score out of ${scale}`, value),
+      field("Reason", reason, "Required. Stored on the result and shown alongside it.")
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Save override", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
+          const v = Number(value.value);
+          if (value.value === "" || isNaN(v) || v < 0 || v > scale) {
+            toast(`Enter a score between 0 and ${scale}.`, true); return false;
+          }
+          if (!reason.value.trim()) { toast("Give a reason for the override.", true); return false; }
+          await put("scoreOverrides", event.id + "_" + reg.id, {
+            eventId: event.id, regId: reg.id, value: v,
+            reason: reason.value.trim(),
+            setBy: session.name || "", setAt: Date.now()
+          });
+          toast("Override saved. Finalize again to apply it.");
+          close(true); refresh();
+        })
+      }
+    ]
+  });
 }
 
 function ordinalLabel(n) {
