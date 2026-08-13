@@ -66,6 +66,33 @@ js/pages/              One module per screen; admin screens under pages/admin/
 - **Publish is Admin-only**, enforced in `firestore.rules` on the
   `results.publishStatus` transition, not by hiding a button.
 
+## v8.8 — patterns established, worth following
+
+- **Grades are data, and an ID is forever.** `gradeScale: [{id,label,minPercent}]`
+  in festSettings. Results and `config/gradePoints` are keyed by **id**, so a
+  rename only ever touches `label`. `gradeScaleFrom(settings)` also reads the
+  legacy `{aMin,bMin,cMin}` shape, so old fests need no migration. Never key
+  anything new by a grade's label.
+- **Anything a judge needs travels in `judgingEntries`.** A judge never reads
+  the event document — that indirection is what enforces blind judging. Adding
+  a field a judge must see means adding it to the snapshot in
+  `admin/registrations.js`.
+- **Public documents cannot hide a field.** Firestore rules are document-level.
+  `houses` is world-readable, so phone numbers live in `houseContacts`
+  (staff-only) and reach the public only through the `publicContacts`
+  snapshot. If a new field is sensitive, it needs its own collection — not a
+  flag on a public one.
+- **Manual interventions carry a reason.** Adjustments, score overrides and
+  substitution requests all require one, and all store it on the result.
+  Anything that moves points by hand and cannot be explained afterwards is
+  indistinguishable from tampering.
+- **Preview and finalize share one code path.** `computeEventResult()` does
+  everything `finalizeEvent()` does except write. Never add a second
+  implementation of the points model for a preview.
+- **Overrides replace the input, not the output.** A score override replaces
+  the average and lets percentage/grade/rank/points follow; it does not set a
+  rank directly, which would let the stored rank and score contradict.
+
 ## Recent additions worth knowing
 
 - **Passwords are padded.** `session.js` appends a constant `PAD` before
