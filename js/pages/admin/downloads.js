@@ -292,6 +292,13 @@ async function resultReportsCard() {
 
   let includeAbsent = false;
 
+  // Points range, for the participant list below. Blank means unbounded on
+  // that side, so "at least 10" needs only one box filled.
+  const ptsMin = input({ type: "number", placeholder: "min", style: "max-width:110px" });
+  const ptsMax = input({ type: "number", placeholder: "max", style: "max-width:110px" });
+  ptsMin.addEventListener("change", paint);
+  ptsMax.addEventListener("change", paint);
+
   const grid = el("div.grid.grid-2");
   const countLine = el("div.hint");
 
@@ -346,6 +353,47 @@ async function resultReportsCard() {
         ]};
       }, "counts " + (pickedRanks.size ? [...pickedRanks].sort((a,b)=>a-b).map(ordinal).join(", ") : "1st, 2nd, 3rd") + " as holding a rank"),
 
+      /* The filtered participant list — one row per person, narrowed by
+       * every axis at once: the shared filters above, plus rank earned,
+       * grade earned and a points range. Built from participantSummary so
+       * a person appears once however many events they entered. */
+      reportPack("Participant list (filtered)", () => {
+        const lo = ptsMin.value === "" ? null : Number(ptsMin.value);
+        const hi = ptsMax.value === "" ? null : Number(ptsMax.value);
+        const wantRanks = [...pickedRanks].map(Number);
+        const wantGrades = [...pickedGrades].map(String);
+
+        // Which participants hold one of the picked ranks / grades anywhere
+        // in the filtered rows. Computed from the same rows the summary is,
+        // so the two can never disagree.
+        const rankHolders = new Set(rows
+          .filter(r => !r.isAbsent && r.rank && (!wantRanks.length || wantRanks.includes(Number(r.rank))))
+          .map(r => r.participantId));
+        const gradeHolders = new Set(rows
+          .filter(r => r.grade && (!wantGrades.length || wantGrades.includes(String(r.grade))))
+          .map(r => r.participantId));
+
+        const out = participantSummary(rows)
+          .filter(p => !wantRanks.length || rankHolders.has(p.participantId))
+          .filter(p => !wantGrades.length || gradeHolders.has(p.participantId))
+          .filter(p => lo === null || (p.points || 0) >= lo)
+          .filter(p => hi === null || (p.points || 0) <= hi);
+
+        return { name: "participant-list", rows: out, columns: [
+          { label: "Chest", key: "chestNumber" }, { label: "Name", key: "name" },
+          { label: "House", key: "houseName" }, { label: "Category", key: "categoryName" },
+          { label: "Events", key: "events" }, { label: "Placed", key: "placed" },
+          { label: "1st", key: "firsts" }, { label: "2nd", key: "seconds" }, { label: "3rd", key: "thirds" },
+          { label: "Grades", value: r => (r.grades || []).map(g => gradeLabel(g, settings)).join(", ") },
+          { label: "Points", key: "points" }
+        ]};
+      }, [
+        pickedRanks.size ? "ranks " + [...pickedRanks].sort((a,b)=>a-b).join(", ") : null,
+        pickedGrades.size ? "grades " + [...pickedGrades].map(g => gradeLabel(g, settings)).join(", ") : null,
+        (ptsMin.value !== "" || ptsMax.value !== "")
+          ? `points ${ptsMin.value || "0"}–${ptsMax.value || "∞"}` : null
+      ].filter(Boolean).join(" · ") || "every participant with a published result"),
+
       reportPack("Per-participant summary", () => {
         const out = participantSummary(rows);
         return { name: "participant-summary", rows: out, columns: [
@@ -397,6 +445,10 @@ async function resultReportsCard() {
     ]),
     el("div.grid.grid-2", { style: "margin-top:.6rem" }, [
       field("Rank + grade: rank", oneRank), field("Rank + grade: grade", oneGrade)
+    ]),
+    el("div.grid.grid-2", { style: "margin-top:.6rem" }, [
+      field("Points at least", ptsMin, "For the filtered participant list."),
+      field("Points at most", ptsMax, "Leave either blank for no bound.")
     ]),
     checkbox("Include absentees in Non-rank holders", false, v => { includeAbsent = v; paint(); }),
     countLine,
