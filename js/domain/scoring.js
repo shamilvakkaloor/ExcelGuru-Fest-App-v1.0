@@ -292,6 +292,56 @@ export function aggregate(events, resultDocs, houses) {
 }
 
 /**
+ * House points split by category — who the category champions are.
+ *
+ * A General event has no category of its own, so its points are reported
+ * under a "General" bucket rather than being spread across categories or
+ * silently dropped. The per-category totals plus General therefore always
+ * reconcile with the house's overall total, which is what makes this table
+ * checkable against the main standings.
+ */
+export function categoryBreakdown(events, resultDocs, houses, categories) {
+  const eventById = Object.fromEntries(events.map(e => [e.id, e]));
+  const byHouse = {};
+  for (const h of houses) byHouse[h.id] = { id: h.id, name: h.name, byCategory: {}, total: 0 };
+
+  for (const res of resultDocs) {
+    const ev = eventById[res.id];
+    if (!ev || ev.excludeFromTotals) continue;
+    const key = ev.categoryId || "__general";
+    for (const entry of res.entries || []) {
+      if (!entry.houseId || !byHouse[entry.houseId]) continue;
+      const pts = Number(entry.totalPoints || 0);
+      const row = byHouse[entry.houseId];
+      row.byCategory[key] = (row.byCategory[key] || 0) + pts;
+      row.total += pts;
+    }
+  }
+
+  const columns = [
+    ...categories.map(c => ({ id: c.id, name: c.name })),
+    { id: "__general", name: "General" }
+  ];
+
+  // Winner per column, so the category champion is readable at a glance.
+  const leaders = {};
+  for (const col of columns) {
+    let best = null;
+    for (const row of Object.values(byHouse)) {
+      const v = row.byCategory[col.id] || 0;
+      if (v > 0 && (best === null || v > best.value)) best = { houseId: row.id, value: v };
+    }
+    if (best) leaders[col.id] = best;
+  }
+
+  return {
+    columns,
+    rows: Object.values(byHouse).sort((a, b) => b.total - a.total || String(a.name).localeCompare(String(b.name))),
+    leaders
+  };
+}
+
+/**
  * Championship-by-percentage: each house's points ÷ what it could
  * plausibly have earned, not ÷ every point in the fest.
  *

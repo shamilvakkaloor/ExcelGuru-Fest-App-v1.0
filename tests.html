@@ -24,7 +24,8 @@ import { limitsForCategory, counterKeys, maxFor, recountParticipant,
 import { wallClockToEpoch, offsetMinutesAt, isValidZone } from "./js/lib/timezone.js";
 import { substitutionWindow, pendingCount } from "./js/domain/substitution.js";
 import { effectiveResultMode } from "./js/domain/constants.js";
-import { highestRankAwarded, boardMatchesEvent, tallyBoard, championshipStandings } from "./js/domain/scoring.js";
+import { highestRankAwarded, boardMatchesEvent, tallyBoard, championshipStandings,
+         categoryBreakdown } from "./js/domain/scoring.js";
 import { overlaps, findClashes, describeClashes } from "./js/domain/clashes.js";
 import { codeLetterAt, entryCap, maxEntriesFor, minEntriesFor, entryCompletion,
          rankCountFromLadder, publicRankLimit, rankIsPublic, GENDERS } from "./js/domain/constants.js";
@@ -166,6 +167,38 @@ check("an excluded event is left off a custom leaderboard",
   tallyBoard({ scope: "all" },
     [{ id: "e2", entries: [{ participantIds: ["p1"], participantNames: ["A"], totalPoints: 99 }] }],
     { e2: { id: "e2", eventClass: "categoryIndividual", excludeFromTotals: true } }).length, 0);
+
+/* Category breakdown — v8.8 */
+(() => {
+  const events = [
+    { id: "e1", eventClass: "categoryIndividual", categoryId: "jun" },
+    { id: "e2", eventClass: "categoryIndividual", categoryId: "sen" },
+    { id: "e3", eventClass: "generalGroup", categoryId: null },
+    { id: "e4", eventClass: "categoryIndividual", categoryId: "jun", excludeFromTotals: true }
+  ];
+  const results = [
+    { id: "e1", entries: [{ houseId: "red", totalPoints: 10 }, { houseId: "blue", totalPoints: 4 }] },
+    { id: "e2", entries: [{ houseId: "red", totalPoints: 3 }, { houseId: "blue", totalPoints: 8 }] },
+    { id: "e3", entries: [{ houseId: "red", totalPoints: 5 }] },
+    { id: "e4", entries: [{ houseId: "red", totalPoints: 99 }] }
+  ];
+  const houses = [{ id: "red", name: "Red" }, { id: "blue", name: "Blue" }];
+  const cats = [{ id: "jun", name: "Junior" }, { id: "sen", name: "Senior" }];
+  const out = categoryBreakdown(events, results, houses, cats);
+  const red = out.rows.find(r => r.id === "red");
+  const blue = out.rows.find(r => r.id === "blue");
+
+  check("category points are tallied per house", red.byCategory.jun, 10);
+  check("general events land in their own bucket, not a category", red.byCategory.__general, 5);
+  check("an excluded event is left out of the breakdown too", red.total, 18);
+  check("the per-category totals reconcile with the house total",
+    red.byCategory.jun + red.byCategory.sen + red.byCategory.__general, red.total);
+  check("the category leader is the top scorer in that column alone",
+    out.leaders.sen.houseId, "blue");
+  check("a house can lead one category without leading overall",
+    [out.leaders.jun.houseId, out.rows[0].id], ["red", "red"]);
+  check("blue trails overall despite winning Senior", blue.total, 12);
+})();
 
 /* Championship by percentage — v8.8 */
 (() => {

@@ -8,7 +8,7 @@
 import { getAll, getOne, put, batchWrite, where, serverTimestamp } from "../lib/db.js";
 import { computeResults, computeDirectResults, finalizeBlockers, directFinalizeBlockers,
          resolvePoints, ladderKey, aggregate, studentScore, rankLeaderboard,
-         tallyBoard, gradeScaleFrom, championshipStandings } from "./scoring.js";
+         tallyBoard, gradeScaleFrom, championshipStandings, categoryBreakdown } from "./scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, EVENT_CLASSES, publicRankLimit, rankIsPublic,
          effectiveResultMode, houseTerm, housePluralTerm } from "./constants.js";
 import { wallClockToEpoch } from "../lib/timezone.js";
@@ -459,6 +459,9 @@ export async function rebuildPublicSnapshots() {
       houses: houseRows,
       championship,
       championshipMode: cfg.leaderboard.championshipMode || "points",
+      // Category champions. Derived from the same published results as the
+      // totals above, so the two can never disagree.
+      categoryBreakdown: categoryBreakdown(events, results, houses, categories),
       students: studentRows,
       // v8 — public custom boards, tallied from the same published results
       // so they can never disagree with the standings above.

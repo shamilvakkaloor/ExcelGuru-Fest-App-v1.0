@@ -164,6 +164,37 @@ export default async function resultsPage(root) {
         { key: "maxEarnable", label: "Max earnable", num: true }
       ], champ), "Championship (by percentage)"));
     }
+
+    paintCategoryBreakdown();
+  }
+
+  /** Points split by category, so the category champions are visible. */
+  function paintCategoryBreakdown() {
+    const cb = board?.categoryBreakdown;
+    if (!cb?.rows?.length || !cb.columns?.length) return;
+    // A column nobody has scored in is noise on a public page.
+    const cols = cb.columns.filter(c => cb.rows.some(r => (r.byCategory?.[c.id] || 0) > 0));
+    if (!cols.length) return;
+
+    panel.appendChild(card(table([
+      { key: "name", label: hTerm, render: houseTag },
+      ...cols.map(c => ({
+        key: "cat_" + c.id, label: c.name, num: true,
+        render: r => {
+          const v = r.byCategory?.[c.id] || 0;
+          const isLeader = cb.leaders?.[c.id]?.houseId === r.id && v > 0;
+          return isLeader
+            ? el("strong", { text: String(v), title: c.name + " champion" })
+            : el("span", { text: String(v) });
+        }
+      })),
+      { key: "total", label: "Total", num: true }
+    ], cb.rows), "Points by category",
+      exportRow("points-by-category", cb.rows,
+        [{ label: hTerm, key: "name" },
+         ...cols.map(c => ({ label: c.name, value: r => r.byCategory?.[c.id] || 0 })),
+         { label: "Total", key: "total" }])));
+    panel.appendChild(el("p.hint", { text: "The leading total in each category is shown in bold. General events are counted in their own column, so the category columns and General add up to the total." }));
   }
 
   function paintStudents() {
