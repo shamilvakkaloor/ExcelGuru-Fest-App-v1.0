@@ -92,7 +92,7 @@ export default async function judgesPage(root) {
       panel.appendChild(card(
         rows.length ? table([
           { key: "event", label: "Event" },
-          { key: "cls", label: "Class", render: r => badge(r.cls) },
+          { key: "cls", label: "Event class", render: r => badge(r.cls) },
           { key: "when", label: "Time", render: r => r.when
               ? el("span.mono", { text: r.when }) : el("span.hint", { text: "unscheduled" }) },
           { key: "venue", label: "Venue" },

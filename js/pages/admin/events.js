@@ -89,7 +89,7 @@ export default async function events(root) {
         { key: "filterCategory", label: "Category",
           options: [...categories.map(c => ({ value: c.id, label: c.name })),
                     { value: "__general", label: "General" }] },
-        { key: "filterClass", label: "Class",
+        { key: "filterClass", label: "Event class",
           options: EVENT_CLASSES.filter(c => rows.some(r => r.eventClass === c.id))
             .map(c => ({ value: c.id, label: c.label })) },
         { key: "filterStage", label: "Stage",
@@ -113,7 +113,7 @@ export default async function events(root) {
       listBox.appendChild(card(table([
       { key: "code", label: "Code", render: r => el("span.mono", { text: r.code || "" }) },
       { key: "name", label: "Event" },
-      { key: "eventClass", label: "Class", render: r => badge(classLabel(r.eventClass)) },
+      { key: "eventClass", label: "Event class", render: r => badge(classLabel(r.eventClass)) },
       { key: "categoryId", label: "Category", render: r => eventCategoryLabel(r, catName) },
       { key: "stage", label: "Stage", render: r => r.stage === "onStage" ? "On stage" : "Off stage" },
       // Visible at a glance, not only in the edit dialog.
@@ -443,8 +443,13 @@ function importDialog(categories, settings, classification, refresh) {
             out.appendChild(notice("info",
               "Created " + [...new Set(created)].join(", ") + " automatically. Set their point ladders in Settings \u2192 Points & grades if you want them to award different points."));
           }
-          if (errors.length) out.appendChild(notice("warn", errors.slice(0, 8).join(" ")));
-          if (!ops.length) { out.appendChild(notice("danger", "Nothing to import.")); return false; }
+          if (!ops.length) {
+            out.appendChild(notice("danger", el("div", {}, [
+              el("strong", { text: "Nothing to import." }),
+              el("ul", {}, errors.map(e => el("li", { text: e })))
+            ])));
+            return false;
+          }
 
           const start = auto ? await nextCounter("eventCode", auto) : 0;
           let n = start;
@@ -455,6 +460,19 @@ function importDialog(categories, settings, classification, refresh) {
           await batchWrite(ops.map(o => ({
             type: "set", path: "events", id: crypto.randomUUID(), data: o, merge: false
           })));
+
+          // A partial import holds the dialog open, same as participants:
+          // closing it would take the list of skipped rows with it.
+          if (errors.length) {
+            refresh();
+            out.appendChild(notice("warn", el("div", {}, [
+              el("strong", { text: `Imported ${ops.length}. Skipped ${errors.length}.` }),
+              el("ul", {}, errors.map(e => el("li", { text: e }))),
+              el("div.hint", { text: "Fix these rows in the file and import them again — the rows above were not added." })
+            ])));
+            toast(`Imported ${ops.length}, skipped ${errors.length}.`, true);
+            return false;
+          }
 
           toast(`Imported ${ops.length} events.`);
           close(true); refresh();

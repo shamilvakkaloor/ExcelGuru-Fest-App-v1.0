@@ -100,7 +100,7 @@ async function registerTab(panel, house, refresh) {
       { key: "filterCategory", label: "Category",
         options: [...categories.map(c => ({ value: c.id, label: c.name })),
                   { value: "__general", label: "General" }] },
-      { key: "filterClass", label: "Class",
+      { key: "filterClass", label: "Event class",
         options: [...new Map(open.map(e => [e.eventClass, { value: e.eventClass, label: classLabel(e.eventClass) }])).values()] },
       { key: "filterStage", label: "Stage",
         options: [...new Map(open.map(e => [e.stage || "onStage",

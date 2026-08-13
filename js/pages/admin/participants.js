@@ -308,8 +308,13 @@ function importDialog(houses, categories, cfg, refresh) {
           }
 
           out.innerHTML = "";
-          if (errors.length) out.appendChild(notice("warn", errors.slice(0, 10).join(" ")));
-          if (!staged.length) { out.appendChild(notice("danger", "Nothing to import.")); return false; }
+          if (!staged.length) {
+            out.appendChild(notice("danger", el("div", {}, [
+              el("strong", { text: "Nothing to import." }),
+              el("ul", {}, errors.map(e => el("li", { text: e })))
+            ])));
+            return false;
+          }
 
           progress.textContent = `Writing ${staged.length} participants…`;
           await batchWrite(staged.map(p => ({
@@ -322,6 +327,25 @@ function importDialog(houses, categories, cfg, refresh) {
           }
 
           progress.textContent = "";
+
+          /* A partly-successful import must not close.
+           *
+           * Skipped rows were being listed in this dialog and then closed
+           * half a second later by close(true), while the toast reported
+           * only the rows that worked. From the Admin's side a row had
+           * simply vanished with no reason given. A partial import now
+           * holds the dialog open until the skipped rows have been read. */
+          if (errors.length) {
+            refresh();
+            out.appendChild(notice("warn", el("div", {}, [
+              el("strong", { text: `Imported ${staged.length}. Skipped ${errors.length}.` }),
+              el("ul", {}, errors.map(e => el("li", { text: e }))),
+              el("div.hint", { text: "Fix these rows in the file and import them again — the rows above were not added." })
+            ])));
+            toast(`Imported ${staged.length}, skipped ${errors.length}.`, true);
+            return false;
+          }
+
           toast("Imported " + staged.length + " participants.");
           close(true); refresh();
         })

@@ -84,7 +84,7 @@ export default async function publishPage(root) {
       { key: "name", label: "Event" },
       { key: "category", label: "Category", render: r => badge(
           r.categoryId ? (catName[r.categoryId] || "—") : "General", "badge-cat") },
-      { key: "eventClass", label: "Class", render: r => badge(classLabel(r.eventClass)) },
+      { key: "eventClass", label: "Event class", render: r => badge(classLabel(r.eventClass)) },
       { key: "status", label: "Status", render: r => el("div.btn-row", {}, [
           r.status === PUBLISH_STATUS.PUBLISHED ? badge("Published", "badge-ok")
           : r.status === PUBLISH_STATUS.FINALIZED ? badge("Finalized", "badge-live")

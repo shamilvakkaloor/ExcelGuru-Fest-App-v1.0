@@ -93,7 +93,7 @@ async function resultsData() {
   return {
     name: "results",
     columns: [
-      { label: "Code", key: "code" }, { label: "Event", key: "event" }, { label: "Class", key: "cls" },
+      { label: "Code", key: "code" }, { label: "Event", key: "event" }, { label: "Event class", key: "cls" },
       { label: "Status", key: "status" }, { label: "Rank", key: "rank" }, { label: "Entry", key: "names" },
       { label: "House", key: "house" }, { label: "%", key: "percent" }, { label: "Grade", key: "grade" },
       { label: "Points", key: "points" }
@@ -264,7 +264,7 @@ async function resultReportsCard() {
     filters: [
       { key: "categoryIds", label: "Category", options: categories.map(c => ({ value: c.id, label: c.name })) },
       { key: "houseIds", label: "House", options: houses.map(h => ({ value: h.id, label: h.name })) },
-      { key: "classIds", label: "Class", options: EVENT_CLASSES.map(c => ({ value: c.id, label: c.label })) },
+      { key: "classIds", label: "Event class", options: EVENT_CLASSES.map(c => ({ value: c.id, label: c.label })) },
       { key: "stages", label: "Stage", options: STAGES.map(s => ({ value: s.value, label: s.label })) },
       { key: "typeIds", label: "Type", options: types.map(t => ({ value: t.id, label: t.name })) },
       { key: "tierIds", label: "Tier", options: tiers.map(t => ({ value: t.id, label: t.name })) }
@@ -373,7 +373,7 @@ async function resultReportsCard() {
         const out = emptyEvents(events, regs);
         return { name: "empty-events", rows: out, columns: [
           { label: "Code", key: "code" }, { label: "Name", key: "name" },
-          { label: "Class", value: r => classLabel(r.eventClass) }
+          { label: "Event class", value: r => classLabel(r.eventClass) }
         ]};
       }, "nobody registered")
     );

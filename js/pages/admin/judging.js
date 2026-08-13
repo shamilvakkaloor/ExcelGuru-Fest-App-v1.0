@@ -29,7 +29,7 @@ export default async function judging(root) {
       { key: "filterCategory", label: "Category",
         options: [...categories.map(c => ({ value: c.id, label: c.name })),
                   { value: "__general", label: "General" }] },
-      { key: "filterClass", label: "Class",
+      { key: "filterClass", label: "Event class",
         options: EVENT_CLASSES.filter(c => events.some(e => e.eventClass === c.id))
           .map(c => ({ value: c.id, label: c.label })) }
     ],

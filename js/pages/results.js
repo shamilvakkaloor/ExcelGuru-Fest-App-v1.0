@@ -155,7 +155,7 @@ export default async function resultsPage(root) {
     const bar = filterBar({
       filters: [
         { key: "filterCategory", label: "Category", options: cats },
-        { key: "filterClass", label: "Class",
+        { key: "filterClass", label: "Event class",
           options: EVENT_CLASSES.filter(c => events.some(e => e.eventClass === c.id))
             .map(c => ({ value: c.id, label: c.label })) },
         // Names travel on the snapshot, so the public page needs no extra reads.

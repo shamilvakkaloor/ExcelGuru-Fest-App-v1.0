@@ -276,7 +276,14 @@ function dayDialog(existing, refresh) {
         })} : null,
       { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
           if (!date.value) { toast("Choose a date.", true); return false; }
-          const data = { date: date.value, label: label.value.trim() || date.value, order: 0 };
+          // Keep the day's existing position. Writing order: 0 unconditionally
+          // meant renaming a day also silently moved it among days sharing a
+          // date, which is not what "edit the label" should do.
+          const data = {
+            date: date.value,
+            label: label.value.trim() || date.value,
+            order: existing?.order ?? 0
+          };
           if (existing) await patch("festDays", existing.id, data);
           else await add("festDays", data);
           queueRepublish({ schedule: true });
