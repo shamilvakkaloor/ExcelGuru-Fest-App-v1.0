@@ -73,7 +73,9 @@ async function registerTab(panel, house, refresh) {
     return;
   }
 
-  const open = events.filter(e => windowState(e, cfg).open);
+  // Passing the house id means an extension granted to THIS house keeps the
+  // event on their list after the general deadline has passed.
+  const open = events.filter(e => windowState(e, cfg, Date.now(), house.id).open);
   if (!open.length) {
     panel.appendChild(empty("Registration is closed", "No event is currently open for entries."));
     return;

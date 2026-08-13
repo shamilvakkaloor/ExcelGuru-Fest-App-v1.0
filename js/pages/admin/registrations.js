@@ -1,6 +1,6 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty,
-         modal, confirmDialog, badge } from "../../lib/ui.js";
-import { getAll, getOne, put, remove, batchWrite, where } from "../../lib/db.js";
+         modal, confirmDialog, badge, fmtDateTime, fromLocalInput } from "../../lib/ui.js";
+import { getAll, getOne, put, patch, remove, batchWrite, where } from "../../lib/db.js";
 import { codeLetterAt, classLabel, isGroupClass, eventLabel } from "../../domain/constants.js";
 import { registerEntry, withdrawEntry, windowState } from "../../domain/registration.js";
 import { DEFAULTS, effectiveResultMode } from "../../domain/constants.js";
@@ -56,8 +56,10 @@ export default async function registrations(root) {
         button(lettersAssigned ? "Reassign code letters" : "Assign code letters", {
           onclick: guard(() => assignLetters(event, regs, paint))
         }),
-        button(`Assign judges (${assigned.length})`, { onclick: () => judgeDialog(event, judges, assigned, catName, paint) })
-      ])
+        button(`Assign judges (${assigned.length})`, { onclick: () => judgeDialog(event, judges, assigned, catName, paint) }),
+        button("Extend registration", { onclick: () => extensionDialog(event, houses, paint) })
+      ]),
+      extensionSummary(event, houses)
     ]), event.name));
 
     if (!regs.length) { panel.appendChild(empty("No entries yet")); return; }
@@ -150,6 +152,77 @@ export async function writeJudgingEntries(event, regs, settings = null) {
         ? { regId: r.id, codeLetter: r.codeLetter }
         : { regId: r.id, codeLetter: r.codeLetter, label: r.wholeTeam ? r.houseName : (r.participantNames || []).join(", "), houseName: r.houseName })
   }, false);
+}
+
+/** A line naming any extensions in force, so they are never invisible. */
+function extensionSummary(event, houses) {
+  const ext = event.registrationExtensions || {};
+  const live = Object.entries(ext).filter(([, until]) => until && until > Date.now());
+  if (!live.length) return null;
+  const houseName = Object.fromEntries(houses.map(h => [h.id, h.name]));
+  return el("div.hint", { style: "margin-top:.6rem", text:
+    "Extended until " + live.map(([k, until]) =>
+      `${k === "__all" ? "everyone" : (houseName[k] || "a house")}: ${fmtDateTime(until)}`).join(" · ") });
+}
+
+/**
+ * Grant an extension — for one house or for everybody.
+ *
+ * Only ever moves the deadline later. There is deliberately no way to open
+ * registration EARLY for one house, because that would be an advantage
+ * rather than a remedy.
+ */
+function extensionDialog(event, houses, refresh) {
+  const ext = { ...(event.registrationExtensions || {}) };
+  const who = select([
+    { value: "__all", label: "Every house" },
+    ...houses.map(h => ({ value: h.id, label: h.name }))
+  ]);
+  const until = input({ type: "datetime-local" });
+  const listBox = el("div");
+
+  function paintList() {
+    listBox.innerHTML = "";
+    const rows = Object.entries(ext);
+    if (!rows.length) { listBox.appendChild(el("div.hint", { text: "No extensions in force." })); return; }
+    const houseName = Object.fromEntries(houses.map(h => [h.id, h.name]));
+    for (const [key, ts] of rows) {
+      listBox.appendChild(el("div.slot-row", {}, [
+        el("div.body", { text: (key === "__all" ? "Every house" : (houseName[key] || key)) + " — " + fmtDateTime(ts) }),
+        button("Remove", { class: "btn-sm btn-danger", onclick: () => { delete ext[key]; paintList(); } })
+      ]));
+    }
+  }
+  paintList();
+
+  modal({
+    title: "Extend registration",
+    body: el("div", {}, [
+      el("p.hint", { text:
+        "Reopens this event past its deadline, for one house or for all of them. An extension can only " +
+        "move the deadline later — it never opens registration early, which would be an advantage rather " +
+        "than a remedy. Withdrawing stays possible for as long as the extension runs." }),
+      el("div.grid.grid-2", {}, [field("Who", who), field("Open until", until)]),
+      el("div.btn-row", {}, button("Add extension", { class: "btn-sm", onclick: () => {
+        const ts = fromLocalInput(until.value);
+        if (!ts) { toast("Choose a date and time.", true); return; }
+        if (ts <= Date.now()) { toast("That time has already passed.", true); return; }
+        ext[who.value] = ts;
+        until.value = "";
+        paintList();
+      }})),
+      el("hr", { style: "border:0;border-top:1px solid var(--line);margin:1rem 0" }),
+      listBox
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
+          await patch("events", event.id, { registrationExtensions: ext });
+          toast("Saved."); close(true); refresh();
+        })
+      }
+    ]
+  });
 }
 
 function judgeDialog(event, judges, assigned, catName, refresh) {

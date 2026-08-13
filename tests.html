@@ -17,6 +17,7 @@ import { gradeFor, denseRank, computeResults, finalizeBlockers, aggregate,
          studentScore, rankLeaderboard, averageOf,
          gradeScaleFrom, gradeLabel } from "./js/domain/scoring.js";
 import { nonRankHolders } from "./js/domain/reports.js";
+import { windowState, registrationWindow } from "./js/domain/registration.js";
 import { checkCaps, shortfalls, applyCounts } from "./js/domain/limits.js";
 import { resolvePoints, ladderKey, computeDirectResults, directFinalizeBlockers } from "./js/domain/scoring.js";
 import { limitsForCategory, counterKeys, maxFor, recountParticipant,
@@ -167,6 +168,28 @@ check("an excluded event is left off a custom leaderboard",
   tallyBoard({ scope: "all" },
     [{ id: "e2", entries: [{ participantIds: ["p1"], participantNames: ["A"], totalPoints: 99 }] }],
     { e2: { id: "e2", eventClass: "categoryIndividual", excludeFromTotals: true } }).length, 0);
+
+/* Registration extensions — v8.8 */
+(() => {
+  const PAST = Date.now() - 86400000;
+  const FUTURE = Date.now() + 86400000;
+  const closed = { registrationEnd: PAST };
+
+  check("an event past its deadline is closed",
+    windowState(closed, {}, Date.now(), "red").open, false);
+  check("an extension for that house reopens it",
+    windowState({ ...closed, registrationExtensions: { red: FUTURE } }, {}, Date.now(), "red").open, true);
+  check("another house is unaffected by it",
+    windowState({ ...closed, registrationExtensions: { red: FUTURE } }, {}, Date.now(), "blue").open, false);
+  check("__all reopens it for everybody",
+    windowState({ ...closed, registrationExtensions: { __all: FUTURE } }, {}, Date.now(), "blue").open, true);
+  check("an expired extension does not reopen anything",
+    windowState({ ...closed, registrationExtensions: { red: PAST } }, {}, Date.now(), "red").open, false);
+  check("an extension never pulls the deadline earlier",
+    registrationWindow({ registrationEnd: FUTURE, registrationExtensions: { red: PAST } }, {}, "red").end, FUTURE);
+  check("an extension cannot open registration before its start",
+    windowState({ registrationStart: FUTURE, registrationExtensions: { red: FUTURE } }, {}, Date.now(), "red").open, false);
+})();
 
 /* Manual adjustments — v8.8 */
 (() => {

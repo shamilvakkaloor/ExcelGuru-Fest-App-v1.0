@@ -19,15 +19,31 @@ import { isGroupClass, maxEntriesFor } from "./constants.js";
 
 export const tallyId = (eventId, houseId) => `${eventId}_${houseId}`;
 
-/** Effective window for an event: its own override, else the fest default. */
-export function registrationWindow(event, settings) {
+/**
+ * Effective window for an event: its own override, else the fest default.
+ *
+ * `houseId` applies an extension an Admin granted after the fact — a house
+ * whose entries were lost, an event reopened for one team. An extension
+ * only ever moves the DEADLINE later and never the opening earlier, so it
+ * cannot be used to let one house in before everybody else.
+ */
+export function registrationWindow(event, settings, houseId = null) {
   const start = event.registrationStart ?? settings?.registrationWindow?.start ?? null;
-  const end   = event.registrationEnd   ?? settings?.registrationWindow?.end   ?? null;
+  let end     = event.registrationEnd   ?? settings?.registrationWindow?.end   ?? null;
+
+  const ext = event.registrationExtensions || {};
+  // "__all" extends the event for every house at once, which is the common
+  // case (the whole event ran late), without writing one entry per house.
+  for (const key of ["__all", houseId]) {
+    if (!key) continue;
+    const until = ext[key];
+    if (until && (end === null || until > end)) end = until;
+  }
   return { start, end };
 }
 
-export function windowState(event, settings, now = Date.now()) {
-  const { start, end } = registrationWindow(event, settings);
+export function windowState(event, settings, now = Date.now(), houseId = null) {
+  const { start, end } = registrationWindow(event, settings, houseId);
   if (start && now < start) return { open: false, reason: "Registration has not opened yet." };
   if (end && now > end)     return { open: false, reason: "The registration deadline has passed." };
   return { open: true, reason: null };
@@ -63,7 +79,7 @@ export async function registerEntry({ event, house, participants, settings, limi
   const wholeTeam = !!event.wholeTeam && isGroupClass(event.eventClass);
 
   if (!wholeTeam && !participants.length) throw new Error("Choose at least one participant.");
-  const state = windowState(event, settings);
+  const state = windowState(event, settings, Date.now(), house.id);
   if (!state.open) throw new Error(state.reason);
 
   const max = isGroupClass(event.eventClass) ? (event.maxParticipantsPerEntry || 1) : 1;
@@ -233,7 +249,10 @@ export async function withdrawEntry({ registration, event, limits }) {
 /** Can this entry still be withdrawn by its House Manager? */
 export function canWithdraw(registration, event, settings) {
   if (registration.codeLetter) return { ok: false, reason: "Code letters have been assigned." };
-  const state = windowState(event, settings);
+  // A house with an extension can still withdraw while that extension runs —
+  // otherwise reopening registration for them would let them add but never
+  // correct a mistake.
+  const state = windowState(event, settings, Date.now(), registration.houseId);
   if (!state.open) return { ok: false, reason: state.reason };
   return { ok: true };
 }
