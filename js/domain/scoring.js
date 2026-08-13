@@ -370,18 +370,41 @@ export function availableTieBreakers(cfg) {
 }
 
 /** Sort by total, then walk the tiebreak list until the tie resolves. */
-export function rankLeaderboard(rows, tieBreakOrder = []) {
+export function rankLeaderboard(rows, tieBreakOrder = [], manualOrder = null) {
+  /* `manualOrder` is a map of id -> position, set by an Admin after a toss
+   * or a judges' decision. It is the LAST word before the alphabetical
+   * fallback, never the first: a tie that the configured pools can settle
+   * is still settled by the pools, so a manual entry left behind from an
+   * earlier round cannot silently override real scoring. An id with no
+   * entry sorts after every id that has one.
+   *
+   * Manual placements also SPLIT the rank — that is the whole point of
+   * resolving a tie. Two rows left genuinely tied still share a rank
+   * (co-toppers), which is what happens with tiebreakers switched off. */
+  const manualOf = id => {
+    const v = manualOrder?.[id];
+    return (v === undefined || v === null || v === "") ? Infinity : Number(v);
+  };
+
   const sorted = [...rows].sort((a, b) => {
     if (b.total !== a.total) return b.total - a.total;
     for (const key of tieBreakOrder) {
       const d = (b.pools?.[key] || 0) - (a.pools?.[key] || 0);
       if (d !== 0) return d;
     }
+    const ma = manualOf(a.id), mb = manualOf(b.id);
+    if (ma !== mb) return ma - mb;
     return String(a.name || "").localeCompare(String(b.name || ""));
   });
-  let rank = 0, prev = null;
+
+  let rank = 0, prevTotal = null, prevManual = null;
   return sorted.map(r => {
-    if (prev === null || r.total !== prev) { rank++; prev = r.total; }
+    const mine = manualOf(r.id);
+    // A new rank when the total changes, or when a manual placement
+    // distinguishes this row from the previous one at the same total.
+    const distinct = prevTotal === null || r.total !== prevTotal
+      || (mine !== Infinity && mine !== prevManual);
+    if (distinct) { rank++; prevTotal = r.total; prevManual = mine; }
     return { ...r, rank };
   });
 }

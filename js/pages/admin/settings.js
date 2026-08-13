@@ -1085,8 +1085,13 @@ async function limitsTab(panel) {
 }
 
 async function leaderboardTab(panel) {
-  const cfg = { ...DEFAULTS.leaderboard, ...(await getOne("config", "leaderboard") || {}) };
-  const state = { ...cfg };
+  const [lbDoc, board, festSettings] = await Promise.all([
+    getOne("config", "leaderboard"),
+    getOne("publicLeaderboard", "main").catch(() => null),
+    getOne("config", "festSettings").catch(() => null)
+  ]);
+  const cfg = { ...DEFAULTS.leaderboard, ...(lbDoc || {}) };
+  const state = { ...cfg, manualHouseOrder: { ...(cfg.manualHouseOrder || {}) } };
   const tieBox = el("div");
 
   function paintTies() {
@@ -1142,6 +1147,60 @@ async function leaderboardTab(panel) {
     { value: "both", label: "Both — show percentage alongside the points table" }
   ], { value: state.championshipMode || "points" });
   championshipMode.addEventListener("change", () => state.championshipMode = championshipMode.value);
+
+  /* ── Manual tie resolution ────────────────────────────────────────
+   * Read from the last published snapshot rather than recomputing: the
+   * tie an Admin needs to settle is the one currently on display. */
+  const hPlural = housePluralTerm(festSettings);
+  const tied = [];
+  {
+    const byTotal = {};
+    for (const h of (board?.houses || [])) (byTotal[h.total ?? 0] ||= []).push(h);
+    for (const [total, group] of Object.entries(byTotal)) {
+      if (group.length > 1) tied.push({ total: Number(total), group });
+    }
+    tied.sort((a, b) => b.total - a.total);
+  }
+
+  const manualBox = el("div");
+  function paintManual() {
+    manualBox.innerHTML = "";
+    if (!board) {
+      manualBox.appendChild(el("div.hint", { text: "Publish some results first — ties are read from the published standings." }));
+      return;
+    }
+    if (!tied.length) {
+      manualBox.appendChild(el("div.hint", { text: "No ties in the current standings." }));
+      return;
+    }
+    for (const { total, group } of tied) {
+      manualBox.appendChild(el("div.hint", { style: "margin:.6rem 0 .2rem",
+        text: `Tied on ${total} points:` }));
+      for (const h of group) {
+        const pos = input({ type: "number", min: 1, style: "max-width:90px",
+          value: state.manualHouseOrder?.[h.id] ?? "" });
+        pos.addEventListener("change", () => {
+          const v = pos.value.trim();
+          if (v === "") delete state.manualHouseOrder[h.id];
+          else state.manualHouseOrder[h.id] = Number(v);
+        });
+        manualBox.appendChild(el("div.slot-row", {}, [
+          el("div.body", { text: h.name }),
+          field("Place", pos)
+        ]));
+      }
+    }
+  }
+  paintManual();
+
+  panel.appendChild(card(el("div", {}, [
+    el("p.hint", { text:
+      `Settle a tie the pools above cannot — after a toss, or a judges' decision. Lower number places higher. ` +
+      `Leave blank to let the ${hPlural.toLowerCase()} share the rank as co-toppers, which is what happens ` +
+      `with tiebreakers switched off. A manual place is only consulted after every configured pool has been ` +
+      `tried, so it can never override real scoring.` }),
+    manualBox
+  ]), "Manual tie resolution"));
 
   panel.appendChild(card(el("div", {}, [
     field("Championship", championshipMode),

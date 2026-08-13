@@ -309,7 +309,7 @@ export async function rebuildPublicSnapshots() {
 
   const houseRows = rankLeaderboard(houses.map(h => ({
     id: h.id, name: h.name, total: housePoints[h.id] || 0, pools: {}
-  })), []);
+  })), [], cfg.leaderboard.manualHouseOrder || null);
 
   // Championship-by-percentage is opt-in and reads the whole participant
   // roster plus every points ladder to work out what each house COULD have

@@ -209,6 +209,34 @@ check("group points are excluded by default",
   studentScore(pools, { includeCategoryGroupPoints: false }), 15);
 check("group points count once toggled on",
   studentScore(pools, { includeCategoryGroupPoints: true }), 30);
+/* Manual tie resolution — v8.8 */
+check("a manual place settles a tie the pools cannot",
+  rankLeaderboard(
+    [{ id: "a", name: "A", total: 10, pools: {} }, { id: "b", name: "B", total: 10, pools: {} }],
+    [], { b: 1, a: 2 }
+  ).map(r => r.name), ["B", "A"]);
+check("a manual place also splits the rank",
+  rankLeaderboard(
+    [{ id: "a", name: "A", total: 10, pools: {} }, { id: "b", name: "B", total: 10, pools: {} }],
+    [], { b: 1, a: 2 }
+  ).map(r => r.rank), [1, 2]);
+check("with no manual place a tie still shares a rank as co-toppers",
+  rankLeaderboard(
+    [{ id: "a", name: "A", total: 10, pools: {} }, { id: "b", name: "B", total: 10, pools: {} }],
+    [], {}
+  ).map(r => r.rank), [1, 1]);
+check("a configured pool still wins over a stale manual place",
+  rankLeaderboard(
+    [{ id: "a", name: "A", total: 10, pools: { categoryGroupPoints: 9 } },
+     { id: "b", name: "B", total: 10, pools: { categoryGroupPoints: 1 } }],
+    ["categoryGroupPoints"], { b: 1, a: 2 }
+  ).map(r => r.name), ["A", "B"]);
+check("manual ordering never disturbs rows separated by total",
+  rankLeaderboard(
+    [{ id: "a", name: "A", total: 5, pools: {} }, { id: "b", name: "B", total: 10, pools: {} }],
+    [], { a: 1, b: 9 }
+  ).map(r => r.name), ["B", "A"]);
+
 check("a tie is broken by the first listed pool",
   rankLeaderboard([
     { name: "X", total: 10, pools: { categoryGroupPoints: 2 } },

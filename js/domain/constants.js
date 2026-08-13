@@ -190,7 +190,10 @@ export const DEFAULTS = {
     // missing a whole category (no Subjuniors, say) is judged only against
     // what it could plausibly contest. "both" shows the raw table with the
     // percentage alongside rather than replacing it.
-    championshipMode: "points"
+    championshipMode: "points",
+    // v8.8 — id -> position, set by an Admin to settle a tie the configured
+    // pools cannot (a toss, a judges' decision). Empty for most fests.
+    manualHouseOrder: {}
   }
 };
 
