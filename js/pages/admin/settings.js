@@ -1126,6 +1126,23 @@ async function leaderboardTab(panel) {
 
   panel.appendChild(notice("warn", "House totals always count all four pools plus manual adjustments, regardless of these toggles."));
 
+  const championshipMode = select([
+    { value: "points", label: "Points — highest total wins (default)" },
+    { value: "percentage", label: "Percentage — points earned ÷ maximum earnable" },
+    { value: "both", label: "Both — show percentage alongside the points table" }
+  ], { value: state.championshipMode || "points" });
+  championshipMode.addEventListener("change", () => state.championshipMode = championshipMode.value);
+
+  panel.appendChild(card(el("div", {}, [
+    field("Championship", championshipMode),
+    el("div.hint", { text:
+      "“Maximum earnable” is the best possible score across every General event plus every " +
+      "Category event in a category the house actually has a participant in — not every event in the fest. " +
+      "A house fielding only Seniors and Juniors is judged only against what it could plausibly enter. " +
+      "Costs an extra read of the whole participant list on every republish, so it stays off (points-only) " +
+      "unless you turn it on." })
+  ]), "Top house metric"));
+
   panel.appendChild(el("div.btn-row", {}, button("Save and rebuild", { class: "btn-accent", onclick: guard(async () => {
     await put("config", "leaderboard", state, false);
     queueRepublish({ results: true });

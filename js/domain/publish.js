@@ -8,7 +8,7 @@
 import { getAll, getOne, put, batchWrite, where, serverTimestamp } from "../lib/db.js";
 import { computeResults, computeDirectResults, finalizeBlockers, directFinalizeBlockers,
          resolvePoints, ladderKey, aggregate, studentScore, rankLeaderboard,
-         tallyBoard, gradeScaleFrom } from "./scoring.js";
+         tallyBoard, gradeScaleFrom, championshipStandings } from "./scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, EVENT_CLASSES, publicRankLimit, rankIsPublic,
          effectiveResultMode } from "./constants.js";
 import { wallClockToEpoch } from "../lib/timezone.js";
@@ -311,6 +311,22 @@ export async function rebuildPublicSnapshots() {
     id: h.id, name: h.name, total: housePoints[h.id] || 0, pools: {}
   })), []);
 
+  // Championship-by-percentage is opt-in and reads the whole participant
+  // roster plus every points ladder to work out what each house COULD have
+  // earned — real cost, so it only runs when an Admin has actually turned
+  // it on. "points" mode (the default) never pays for either read.
+  let championship = null;
+  if (cfg.leaderboard.championshipMode && cfg.leaderboard.championshipMode !== "points") {
+    const [roster, ladderDocs] = await Promise.all([
+      getAll("participants").catch(() => []),
+      getAll("pointsConfig").catch(() => [])
+    ]);
+    const ladderMap = Object.fromEntries(ladderDocs.map(d => [d.id, d]));
+    championship = championshipStandings({
+      events, houses, participants: roster, housePoints, ladders: ladderMap, gradePoints: cfg.gradePoints
+    });
+  }
+
   // Names come from the result rows, so no participants read is needed here.
   const meta = {};
   for (const res of results) {
@@ -441,6 +457,8 @@ export async function rebuildPublicSnapshots() {
       updatedAt: Date.now(),
       config: cfg.leaderboard,
       houses: houseRows,
+      championship,
+      championshipMode: cfg.leaderboard.championshipMode || "points",
       students: studentRows,
       // v8 — public custom boards, tallied from the same published results
       // so they can never disagree with the standings above.

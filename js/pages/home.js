@@ -48,17 +48,23 @@ export default async function homePage(root) {
   root.appendChild(wrap);
 
   /* ── House standings, front and centre ────────────────────────── */
-  const houses = board?.houses || [];
+  // Championship-by-percentage, when it's the fest's chosen metric, ranks
+  // and labels the podium too — the front page should not show a #1 that
+  // disagrees with the one /results leads with.
+  const usingChampionship = board?.championshipMode === "percentage" && board?.championship?.length;
+  const houses = usingChampionship ? board.championship : (board?.houses || []);
   if (houses.length) {
     const top = houses.slice(0, 4);
-    const max = Math.max(1, ...houses.map(h => h.total || 0));
+    const valueOf = h => usingChampionship ? h.percent : h.total;
+    const labelOf = h => usingChampionship ? h.percent.toFixed(1) + "%" : (h.total ?? 0) + " pts";
+    const max = Math.max(1, ...houses.map(h => valueOf(h) || 0));
     wrap.appendChild(card(
       el("div.podium", {}, top.map(h => {
         const cls = h.rank <= 3 ? "p" + h.rank : "pn";
         const bar = el("i", { style: "width:0%" });
         // Animate on the next frame so the transition actually runs.
         requestAnimationFrame(() =>
-          requestAnimationFrame(() => { bar.style.width = Math.round((h.total / max) * 100) + "%"; }));
+          requestAnimationFrame(() => { bar.style.width = Math.round((valueOf(h) / max) * 100) + "%"; }));
         const style = board?.houseStyle?.[h.id] || {};
         if (style.color) bar.style.background = style.color;
         return el("div.podium-card." + cls, {
@@ -69,11 +75,11 @@ export default async function homePage(root) {
             ? el("img.house-crest", { src: style.logoData, alt: "" })
             : null,
           el("div.hname", { text: h.name }),
-          el("div.hpts", { text: (h.total ?? 0) + " pts" }),
+          el("div.hpts", { text: labelOf(h) }),
           el("div.hbar", {}, bar)
         ]);
       })),
-      "House standings",
+      usingChampionship ? "Championship standings" : "House standings",
       el("a.btn.btn-sm", { href: "#/results", text: "Full table" })));
   }
 

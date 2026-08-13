@@ -24,7 +24,7 @@ import { limitsForCategory, counterKeys, maxFor, recountParticipant,
 import { wallClockToEpoch, offsetMinutesAt, isValidZone } from "./js/lib/timezone.js";
 import { substitutionWindow, pendingCount } from "./js/domain/substitution.js";
 import { effectiveResultMode } from "./js/domain/constants.js";
-import { highestRankAwarded, boardMatchesEvent, tallyBoard } from "./js/domain/scoring.js";
+import { highestRankAwarded, boardMatchesEvent, tallyBoard, championshipStandings } from "./js/domain/scoring.js";
 import { overlaps, findClashes, describeClashes } from "./js/domain/clashes.js";
 import { codeLetterAt, entryCap, maxEntriesFor, minEntriesFor, entryCompletion,
          rankCountFromLadder, publicRankLimit, rankIsPublic, GENDERS } from "./js/domain/constants.js";
@@ -166,6 +166,42 @@ check("an excluded event is left off a custom leaderboard",
   tallyBoard({ scope: "all" },
     [{ id: "e2", entries: [{ participantIds: ["p1"], participantNames: ["A"], totalPoints: 99 }] }],
     { e2: { id: "e2", eventClass: "categoryIndividual", excludeFromTotals: true } }).length, 0);
+
+/* Championship by percentage — v8.8 */
+(() => {
+  const events = [
+    { id: "e1", eventClass: "categoryIndividual", categoryId: "sen", pointsFrom: "class" },
+    { id: "e2", eventClass: "categoryIndividual", categoryId: "sub", pointsFrom: "class" },
+    { id: "e3", eventClass: "generalIndividual", categoryId: null, pointsFrom: "class" }
+  ];
+  const houses = [{ id: "red", name: "Red" }, { id: "blue", name: "Blue" }];
+  // Red fields Seniors only; Blue fields both Seniors and Subjuniors.
+  const participants = [
+    { houseId: "red", categoryId: "sen" },
+    { houseId: "blue", categoryId: "sen" },
+    { houseId: "blue", categoryId: "sub" }
+  ];
+  const ladders = {
+    categoryIndividual: { rankPoints: { 1: 10 } },
+    generalIndividual: { rankPoints: { 1: 5 } }
+  };
+  // Blue outscores Red in raw points (15 vs 10) but is eligible for more —
+  // by percentage Red should come out ahead despite fewer raw points.
+  const housePoints = { red: 10, blue: 15 };
+  const rows = championshipStandings({ events, houses, participants, housePoints, ladders, gradePoints: {} });
+  const byId = Object.fromEntries(rows.map(r => [r.id, r]));
+
+  check("Red is only eligible for events in categories it actually fields",
+    byId.red.maxEarnable, 15);   // e1 (10) + e3 (5); e2 (Subjunior) is out of reach
+  check("Blue is eligible for every category it fields plus every general event",
+    byId.blue.maxEarnable, 25);  // e1 + e2 + e3
+  check("percentage is earned ÷ max earnable, as a rounded percent",
+    byId.red.percent, Math.round((10 / 15) * 1000) / 10);
+  check("a house with fewer raw points can still rank first by percentage",
+    rows[0].id, "red");
+  check("the trailing house keeps its own correct percentage",
+    byId.blue.percent, Math.round((15 / 25) * 1000) / 10);
+})();
 
 /* Leaderboard */
 const pools = { categoryIndividualPoints: 15, categoryGroupPoints: 15, generalIndividualPoints: 0, generalGroupPoints: 0 };

@@ -291,6 +291,66 @@ export function aggregate(events, resultDocs, houses) {
   return { housePoints, participants };
 }
 
+/**
+ * Championship-by-percentage: each house's points ÷ what it could
+ * plausibly have earned, not ÷ every point in the fest.
+ *
+ * "Maximum earnable" is the sum of the best possible score across every
+ * event the house is actually eligible for: every General event (open to
+ * all houses by definition), plus every Category event in a category the
+ * house has at least one participant in. A house fielding only Seniors and
+ * Juniors is never compared against Subjunior events it structurally
+ * cannot enter — that asymmetry is the entire point of this metric.
+ *
+ * Pure and read-only: it never recomputes a result, only what that result
+ * could have been worth at best.
+ */
+export function championshipStandings({ events, houses, participants, housePoints, ladders, gradePoints }) {
+  const eligibleCategories = {};
+  for (const p of participants || []) {
+    if (!p.houseId || !p.categoryId) continue;
+    (eligibleCategories[p.houseId] ||= new Set()).add(p.categoryId);
+  }
+
+  const maxOf = obj => Object.values(obj || {}).reduce((m, v) => Math.max(m, Number(v) || 0), 0);
+
+  const bestPossible = {};   // eventId -> points
+  for (const ev of events || []) {
+    if (ev.excludeFromTotals) continue;
+    const { rankPoints, gradePoints: evGrade } = resolvePoints(ev, ladders, gradePoints);
+    const awardsGrade = ev.awardsGradePoints !== false;
+    bestPossible[ev.id] = maxOf(rankPoints) + (awardsGrade ? maxOf(evGrade) : 0);
+  }
+
+  const isGeneral = ev => ev.eventClass === "generalIndividual" || ev.eventClass === "generalGroup";
+
+  const maxEarnable = {};
+  for (const h of houses || []) {
+    let total = 0;
+    for (const ev of events || []) {
+      if (ev.excludeFromTotals) continue;
+      const eligible = isGeneral(ev) || (ev.categoryId && eligibleCategories[h.id]?.has(ev.categoryId));
+      if (eligible) total += bestPossible[ev.id] || 0;
+    }
+    maxEarnable[h.id] = total;
+  }
+
+  const sorted = (houses || []).map(h => {
+    const earned = Number(housePoints?.[h.id] || 0);
+    const max = maxEarnable[h.id] || 0;
+    return { id: h.id, name: h.name, points: earned, maxEarnable: max,
+      percent: max > 0 ? Math.round((earned / max) * 1000) / 10 : 0 };
+  }).sort((a, b) => b.percent - a.percent || String(a.name).localeCompare(String(b.name)));
+
+  // Dense ranking, same rule as everywhere else: equal percentages share a
+  // rank and the next distinct value takes the next consecutive one.
+  let rank = 0, prev = null;
+  return sorted.map(r => {
+    if (prev === null || r.percent !== prev) { rank++; prev = r.percent; }
+    return { ...r, rank };
+  });
+}
+
 /** Leaderboard score for one participant, honouring the pool toggles. */
 export function studentScore(pools, cfg) {
   let total = pools.categoryIndividualPoints || 0;

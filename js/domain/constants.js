@@ -135,6 +135,12 @@ export const DEFAULTS = {
     // the same way blindJudgingDefault does. Turning it on later does not
     // silently restate what existing events are worth.
     gradelessDefault: false,
+    // v8.8 — renaming "House" (e.g. to "Team", "Zone"). Everywhere that
+    // reads this goes through houseTerm()/housePluralTerm() in this file,
+    // so a fest that never touches it sees literally "House" — the
+    // vocab-substitution pattern Type/Tier already established.
+    houseTermSingular: "House",
+    houseTermPlural: "Houses",
     // The fest's own timezone, captured from the Admin's browser at setup.
     // Schedule times are wall-clock in THIS zone, not the reader's.
     // IANA zone name, e.g. "Asia/Kolkata". Resolved per date so daylight
@@ -166,7 +172,13 @@ export const DEFAULTS = {
     includeGeneralGroupPoints: false,
     splitByCategory: true,
     tieBreakOrder: ["categoryGroupPoints", "generalIndividualPoints", "generalGroupPoints"],
-    useTiebreakers: true          // v8 — off, ties simply share the same rank
+    useTiebreakers: true,         // v8 — off, ties simply share the same rank
+    // v8.8 — "points" ranks houses by raw total, unchanged default.
+    // "percentage" ranks by points earned ÷ maximum earnable, so a house
+    // missing a whole category (no Subjuniors, say) is judged only against
+    // what it could plausibly contest. "both" shows the raw table with the
+    // percentage alongside rather than replacing it.
+    championshipMode: "points"
   }
 };
 

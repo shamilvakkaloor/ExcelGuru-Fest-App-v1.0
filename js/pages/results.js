@@ -125,12 +125,41 @@ export default async function resultsPage(root) {
   function paintHouses() {
     const rows = board?.houses || [];
     if (!rows.length) return panel.appendChild(empty("Nothing published yet"));
+    const mode = board?.championshipMode || "points";
+    const champ = board?.championship || [];
+
+    if (mode === "percentage" && champ.length) {
+      panel.appendChild(card(table([
+        { key: "rank", label: "Rank", render: rankCell },
+        { key: "name", label: "House", render: houseTag },
+        { key: "percent", label: "%", num: true, render: r => r.percent.toFixed(1) + "%" },
+        { key: "points", label: "Points", num: true },
+        { key: "maxEarnable", label: "Max earnable", num: true }
+      ], champ), "Championship — house rankings",
+        exportRow("house-rankings", champ,
+          [{ label: "Rank", key: "rank" }, { label: "House", key: "name" }, { label: "%", key: "percent" },
+           { label: "Points", key: "points" }, { label: "Max earnable", key: "maxEarnable" }])));
+      panel.appendChild(el("p.hint", { text:
+        "Ranked by points earned as a share of the most that house could plausibly have earned — not by raw points." }));
+      return;
+    }
+
     panel.appendChild(card(table([
       { key: "rank", label: "Rank", render: rankCell },
       { key: "name", label: "House", render: houseTag },
       { key: "total", label: "Points", num: true }
     ], rows), "House rankings", exportRow("house-rankings", rows,
       [{ label: "Rank", key: "rank" }, { label: "House", key: "name" }, { label: "Points", key: "total" }])));
+
+    if (mode === "both" && champ.length) {
+      panel.appendChild(card(table([
+        { key: "rank", label: "Rank", render: rankCell },
+        { key: "name", label: "House", render: houseTag },
+        { key: "percent", label: "%", num: true, render: r => r.percent.toFixed(1) + "%" },
+        { key: "points", label: "Points", num: true },
+        { key: "maxEarnable", label: "Max earnable", num: true }
+      ], champ), "Championship (by percentage)"));
+    }
   }
 
   function paintStudents() {
