@@ -1,7 +1,7 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty,
          badge, confirmDialog, filterBar } from "../../lib/ui.js";
 import { getAll, getOne, put, remove, where } from "../../lib/db.js";
-import { finalizeEvent } from "../../domain/publish.js";
+import { finalizeEvent, computeEventResult } from "../../domain/publish.js";
 import { averageOf, gradeFor, resolvePoints } from "../../domain/scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, classLabel, eventLabel, EVENT_CLASSES,
          isGeneralClass, typeTierFilters, eventFilterKeys, effectiveResultMode } from "../../domain/constants.js";
@@ -197,7 +197,19 @@ export default async function judging(root) {
         toast("Finalized. Publish it from the Results screen.");
         paint();
       })}),
-      result ? button("View computed table", { onclick: e => showComputed(panel, result, e.target) }) : null
+      /* The computed table used to appear only once an event was finalized,
+       * which is the one moment it is least useful — the question an Admin
+       * actually has is "what will finalizing do?". It now previews from the
+       * scores on screen, through the same code finalize runs, so the two
+       * cannot disagree. */
+      button(result ? "View computed table" : "Preview computed table", {
+        onclick: guard(async e => {
+          const btn = e.target;
+          if (panel.querySelector(".computed-table")) { showComputed(panel, null, btn); return; }
+          const preview = await computeEventResult(event.id);
+          showComputed(panel, preview, btn, !result);
+        })
+      })
     ]));
 
     /** Placement dropdown for a direct event — ladder positions, plus none. */
@@ -278,28 +290,53 @@ export default async function judging(root) {
  * three times produced three identical tables stacked down the page. It is
  * now a toggle that owns exactly one node.
  */
-function showComputed(panel, result, trigger) {
+/**
+ * Show the computed table, from a stored result or a live preview.
+ *
+ * `data` is either a stored result document (`.entries`) or the return of
+ * computeEventResult (`.rows` plus `.blockers`). Passing null just closes it.
+ */
+function showComputed(panel, data, trigger, isPreview = false) {
   const existing = panel.querySelector(".computed-table");
   if (existing) {
     existing.remove();
-    if (trigger) trigger.textContent = "View computed table";
+    if (trigger) trigger.textContent = isPreview || !data ? "Preview computed table" : "View computed table";
     return;
   }
+  if (!data) return;
 
-  const box = card(table([
-    { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger") : el("span.rank-medal", { text: "#" + r.rank }) },
-    { key: "codeLetter", label: "Code", render: r => el("span.mono", { text: r.codeLetter }) },
-    { key: "names", label: "Entry", render: r => (r.participantNames || []).join(", ") },
-    { key: "houseName", label: "House" },
-    { key: "percent", label: "%", num: true, render: r => r.percent === null ? "—" : r.percent.toFixed(1) },
-    { key: "grade", label: "Grade", render: r => badge(r.grade) },
-    { key: "rankPoints", label: "Rank pts", num: true },
-    { key: "gradePoints", label: "Grade pts", num: true },
-    { key: "totalPoints", label: "Total", num: true }
-  ], result.entries || []), "Computed result");
+  const rows = data.entries || data.rows || [];
+  const blockers = data.blockers || [];
+
+  const box = card(el("div", {}, [
+    // An unscored entry is not a zero, so a preview that silently ranked
+    // around it would be misleading. Say what is still missing.
+    blockers.length
+      ? notice("warn", `Not ready to finalize — still missing a score or an Absent mark for: ${blockers.join(", ")}. ` +
+          `Those entries are left out of the ranking below.`)
+      : null,
+    isPreview && !blockers.length
+      ? notice("info", "This is what finalizing will store. Nothing has been saved yet.")
+      : null,
+    table([
+      { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger") : el("span.rank-medal", { text: "#" + r.rank }) },
+      { key: "codeLetter", label: "Code", render: r => el("span.mono", { text: r.codeLetter }) },
+      { key: "names", label: "Entry", render: r => (r.participantNames || []).join(", ") },
+      { key: "houseName", label: "House" },
+      { key: "averageScore", label: "Average", num: true, render: r =>
+          r.averageScore === null || r.averageScore === undefined
+            ? el("span.hint", { text: "—" })
+            : el("span.mono", { text: Number(r.averageScore).toFixed(2) }) },
+      { key: "percent", label: "%", num: true, render: r => r.percent === null ? "—" : r.percent.toFixed(1) },
+      { key: "grade", label: "Grade", render: r => badge(r.grade) },
+      { key: "rankPoints", label: "Rank pts", num: true },
+      { key: "gradePoints", label: "Grade pts", num: true },
+      { key: "totalPoints", label: "Total", num: true }
+    ], rows)
+  ]), isPreview ? "Computed result — preview" : "Computed result");
   box.classList.add("computed-table");
   panel.appendChild(box);
-  if (trigger) trigger.textContent = "Hide computed table";
+  if (trigger) trigger.textContent = isPreview ? "Hide preview" : "Hide computed table";
   box.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 

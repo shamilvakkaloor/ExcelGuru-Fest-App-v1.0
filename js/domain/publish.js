@@ -89,7 +89,17 @@ async function loadLadders(event) {
   return out;
 }
 
-export async function finalizeEvent(eventId) {
+/**
+ * Everything finalize works out, with nothing written.
+ *
+ * Finalize and the Judging screen's preview both go through here, so the
+ * table an Admin studies before committing cannot disagree with the result
+ * they get — the alternative is a second implementation of the points model
+ * that drifts. Unlike finalizeEvent this does NOT throw on blockers: a
+ * preview of a half-scored event is exactly when it is most useful, so the
+ * blockers are returned for the caller to show.
+ */
+export async function computeEventResult(eventId) {
   const event = await getOne("events", eventId);
   if (!event) throw new Error("Event not found.");
 
@@ -104,11 +114,6 @@ export async function finalizeEvent(eventId) {
   const blockers = isDirect
     ? directFinalizeBlockers(entries)
     : finalizeBlockers(entries);
-  if (blockers.length) {
-    throw new Error((isDirect
-      ? "Missing a placement or an Absent mark for: "
-      : "Missing a score or an Absent mark for: ") + blockers.join(", "));
-  }
 
   /* v8 — THE POINT SOURCE.
    *
@@ -151,6 +156,19 @@ export async function finalizeEvent(eventId) {
     isAbsent: e.isAbsent, grade: e.grade,
     rankPoints: e.rankPoints, gradePoints: e.gradePoints, totalPoints: e.totalPoints
   })).sort((a, b) => (a.rank ?? 99999) - (b.rank ?? 99999));
+
+  return { event, isDirect, blockers, rows, source, fellBack, awardsGradePoints };
+}
+
+export async function finalizeEvent(eventId) {
+  const { event, isDirect, blockers, rows, source, fellBack, awardsGradePoints } =
+    await computeEventResult(eventId);
+
+  if (blockers.length) {
+    throw new Error((isDirect
+      ? "Missing a placement or an Absent mark for: "
+      : "Missing a score or an Absent mark for: ") + blockers.join(", "));
+  }
 
   const existing = await getOne("results", eventId);
   await put("results", eventId, {
