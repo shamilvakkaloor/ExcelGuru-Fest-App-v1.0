@@ -69,6 +69,8 @@ async function basicTab(panel) {
   const scale     = input({ type: "number", min: 1, value: s.scoreScale });
   const houseSingular = input({ value: s.houseTermSingular || "House", placeholder: "House" });
   const housePlural   = input({ value: s.houseTermPlural || "Houses", placeholder: "Houses" });
+  const manualUrl   = input({ value: s.manualUrl || "", placeholder: "https://drive.google.com/file/d/…/view" });
+  const manualLabel = input({ value: s.manualLabel || "Fest manual", placeholder: "Fest manual" });
   const regStart  = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.start) });
   const regEnd    = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.end) });
 
@@ -160,6 +162,18 @@ async function basicTab(panel) {
     field("Subtitle", subtitle),
     field("School / college", school),
     field("Maximum score a judge can give", scale, "Percentages are calculated against this. 100 is typical."),
+    el("fieldset", {}, [
+      el("legend", { text: "Fest manual" }),
+      el("div.hint", { text:
+        "A link to the rules and regulations, shown as a download button on the public home page. " +
+        "Upload the PDF to Google Drive and paste the share link here — the file itself is not stored " +
+        "in the app, because Firestore caps a document at 1 MB and the free plan has no file storage. " +
+        "IMPORTANT: in Drive, set the file's sharing to “Anyone with the link”, or visitors will hit a " +
+        "request-access screen instead of the manual." }),
+      field("Link", manualUrl),
+      field("Button label", manualLabel),
+      el("div.hint", { text: "Leave the link blank to hide the button entirely." })
+    ]),
     el("fieldset", {}, [
       el("legend", { text: "Terminology" }),
       el("div.hint", { text: "Rename “House” across the admin panel, public pages and certificates — e.g. “Team” or “Zone”. Internal labels and code (houseId, the house role) never change, only what's shown." }),
@@ -305,6 +319,8 @@ async function basicTab(panel) {
       scoreScale: Number(scale.value) || 100,
       houseTermSingular: houseSingular.value.trim() || "House",
       houseTermPlural: housePlural.value.trim() || "Houses",
+      manualUrl: manualUrl.value.trim(),
+      manualLabel: manualLabel.value.trim() || "Fest manual",
       gradeScale: gradeScale.map(g => ({ id: g.id, label: g.label.trim(), minPercent: Number(g.minPercent) })),
       withoutLabel: withoutLabel.trim() || "Without",
       registrationWindow: { start: fromLocalInput(regStart.value), end: fromLocalInput(regEnd.value) },

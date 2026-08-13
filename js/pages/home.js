@@ -121,6 +121,19 @@ export default async function homePage(root) {
     }
   }
 
+  /* ── Fest manual ──────────────────────────────────────────────── */
+  // Hidden entirely when no link is set, rather than showing a dead button.
+  // rel=noopener because this is an external destination the fest controls,
+  // not a page of ours.
+  if (settings?.manualUrl) {
+    wrap.appendChild(card(el("div.btn-row", {}, [
+      el("a.btn.btn-accent", {
+        href: settings.manualUrl, target: "_blank", rel: "noopener noreferrer",
+        text: "Download " + (settings.manualLabel || "the fest manual")
+      })
+    ]), settings.manualLabel || "Fest manual"));
+  }
+
   /* ── Navigation tiles ─────────────────────────────────────────── */
   wrap.appendChild(el("h2", { text: "Explore", style: "margin-top:1.4rem" }));
   wrap.appendChild(el("div.home-tiles", {}, [

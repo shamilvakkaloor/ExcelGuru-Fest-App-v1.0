@@ -153,6 +153,12 @@ export const DEFAULTS = {
     // vocab-substitution pattern Type/Tier already established.
     houseTermSingular: "House",
     houseTermPlural: "Houses",
+    // v8.8 — the fest manual is LINKED, not uploaded. A real manual is
+    // several MB and Firestore caps a document at 1 MiB, with no Cloud
+    // Storage on the free tier — so the file lives in Drive and the app
+    // holds the URL.
+    manualUrl: "",
+    manualLabel: "Fest manual",
     // The fest's own timezone, captured from the Admin's browser at setup.
     // Schedule times are wall-clock in THIS zone, not the reader's.
     // IANA zone name, e.g. "Asia/Kolkata". Resolved per date so daylight
