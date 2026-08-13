@@ -7,6 +7,7 @@ import { getOne, getAll, where } from "../lib/db.js";
 import { topbar, homeForRole } from "../app.js";
 import { session } from "../lib/session.js";
 import { classLabel, rankIsPublic } from "../domain/constants.js";
+import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 
 export default async function homePage(root) {
@@ -108,7 +109,7 @@ export default async function homePage(root) {
             el("div", { text: (w.names || []).join(", ") }),
             el("div.hint", { style: "margin:0", text: w.houseName || "" })
           ]),
-          badge(w.grade || "")
+          badge(w.grade ? gradeLabel(w.grade, settings) : "")
         ]))
       ]));
     }

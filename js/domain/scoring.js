@@ -2,18 +2,77 @@
 // that must be right, so it is deliberately isolated and independently
 // testable (open tests.html in a browser to run the checks).
 
-/**
- * Grade for a percentage score.
- *   A / B / C  — highest threshold met
- *   Without    — scored, but under the C threshold (0% included)
- *   Absent     — never inferred here; the caller passes isAbsent explicitly
+/* ══ Grades ══════════════════════════════════════════════════════════
+ *
+ * A fest defines its own grades — A+/A/B/C/D, or just Pass, or the
+ * original A/B/C — as an ordered list of { id, label, minPercent }.
+ *
+ * AN ID IS FOREVER; A LABEL IS NOT.
+ * Every finalized result stores its grade by ID, and config/gradePoints is
+ * keyed by ID. So renaming "C" to "Satisfactory" changes `label` and
+ * nothing else: past results keep their meaning and no points table is
+ * orphaned. Deleting a grade that results already reference is the one
+ * genuinely destructive edit, and the editor refuses it.
+ *
+ * WITHOUT is not in the list. It is whatever falls below the lowest
+ * threshold, so it cannot be removed and always exists; only its label is
+ * configurable. Absent is never inferred here — the caller passes isAbsent.
  */
-export function gradeFor(percent, thresholds) {
-  const { aMin, bMin, cMin } = thresholds;
-  if (percent >= aMin) return "A";
-  if (percent >= bMin) return "B";
-  if (percent >= cMin) return "C";
-  return "Without";
+export const WITHOUT = "Without";
+
+export const DEFAULT_GRADE_SCALE = [
+  { id: "A", label: "A", minPercent: 85 },
+  { id: "B", label: "B", minPercent: 70 },
+  { id: "C", label: "C", minPercent: 50 }
+];
+
+/**
+ * The fest's grade scale, however it happens to be configured.
+ *
+ * Fests created before custom grades hold `gradeThresholds: {aMin,bMin,cMin}`
+ * and no scale. Reading both shapes here means old fests keep working with
+ * no migration step and no rewrite of stored data.
+ */
+export function gradeScaleFrom(settings) {
+  const scale = settings?.gradeScale;
+  if (Array.isArray(scale) && scale.length) {
+    return scale
+      .map(g => ({ id: g.id, label: g.label || g.id, minPercent: Number(g.minPercent) }))
+      .filter(g => g.id && !isNaN(g.minPercent))
+      .sort((a, b) => b.minPercent - a.minPercent);
+  }
+  const t = settings?.gradeThresholds;
+  if (t && [t.aMin, t.bMin, t.cMin].every(v => v !== undefined && v !== null)) {
+    return [
+      { id: "A", label: "A", minPercent: Number(t.aMin) },
+      { id: "B", label: "B", minPercent: Number(t.bMin) },
+      { id: "C", label: "C", minPercent: Number(t.cMin) }
+    ];
+  }
+  return [...DEFAULT_GRADE_SCALE];
+}
+
+/** Display label for a stored grade id. */
+export function gradeLabel(id, settings) {
+  if (id === WITHOUT) return settings?.withoutLabel || WITHOUT;
+  if (id === "Absent") return "Absent";
+  return gradeScaleFrom(settings).find(g => g.id === id)?.label || id;
+}
+
+/**
+ * Grade for a percentage score, as a stored ID.
+ *
+ * Accepts either the ordered scale or the legacy {aMin,bMin,cMin} object,
+ * so every existing caller keeps working unchanged.
+ */
+export function gradeFor(percent, thresholdsOrScale) {
+  const scale = Array.isArray(thresholdsOrScale)
+    ? [...thresholdsOrScale].sort((a, b) => b.minPercent - a.minPercent)
+    : gradeScaleFrom({ gradeThresholds: thresholdsOrScale });
+  for (const g of scale) {
+    if (percent >= g.minPercent) return g.id;
+  }
+  return WITHOUT;
 }
 
 /* ══ v8 — the points model ═══════════════════════════════════════════

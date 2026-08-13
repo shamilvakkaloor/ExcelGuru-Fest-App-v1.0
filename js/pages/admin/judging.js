@@ -2,7 +2,7 @@ import { el, card, field, input, select, button, table, toast, guard, notice, em
          badge, confirmDialog, filterBar } from "../../lib/ui.js";
 import { getAll, getOne, put, remove, where } from "../../lib/db.js";
 import { finalizeEvent, computeEventResult } from "../../domain/publish.js";
-import { averageOf, gradeFor, resolvePoints } from "../../domain/scoring.js";
+import { averageOf, gradeFor, resolvePoints, gradeScaleFrom, gradeLabel } from "../../domain/scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, classLabel, eventLabel, EVENT_CLASSES,
          isGeneralClass, typeTierFilters, eventFilterKeys, effectiveResultMode } from "../../domain/constants.js";
 import { session } from "../../lib/session.js";
@@ -13,7 +13,7 @@ export default async function judging(root) {
   const [events, settings] = await Promise.all([getAll("events"), getOne("config", "festSettings")]);
   if (!events.length) { root.appendChild(empty("No events yet")); return; }
   const scale = Number(settings?.scoreScale) || 100;
-  const thresholds = settings?.gradeThresholds || DEFAULTS.festSettings.gradeThresholds;
+  const thresholds = gradeScaleFrom(settings || DEFAULTS.festSettings);
 
   const [categories, types, tiers] = await Promise.all([
     getAll("categories"), getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => [])
@@ -170,7 +170,7 @@ export default async function judging(root) {
       const pct = (avg / scale) * 100;
       return el("span", {}, [
         el("span.mono", { text: avg.toFixed(2) }), " ",
-        badge(gradeFor(pct, thresholds))
+        badge(gradeLabel(gradeFor(pct, thresholds), settings))
       ]);
     }});
 
@@ -207,7 +207,7 @@ export default async function judging(root) {
           const btn = e.target;
           if (panel.querySelector(".computed-table")) { showComputed(panel, null, btn); return; }
           const preview = await computeEventResult(event.id);
-          showComputed(panel, preview, btn, !result);
+          showComputed(panel, preview, btn, !result, settings);
         })
       })
     ]));
@@ -238,8 +238,11 @@ export default async function judging(root) {
      *  event worth less than a scored one. */
     function directGradeInput(reg) {
       const current = directBy[reg.id]?.grade ?? "";
+      // The fest's own scale, not a hard-coded A/B/C — a custom grade must
+      // be pickable here or a direct event simply cannot use it.
       const sel = select([{ value: "", label: "—" },
-        ...["A", "B", "C", "Without"].map(g => ({ value: g, label: g }))],
+        ...thresholds.map(g => ({ value: g.id, label: g.label })),
+        { value: "Without", label: gradeLabel("Without", settings) }],
         { value: current });
       sel.disabled = absentBy[reg.id] || locked;
       sel.addEventListener("change", guard(async () => {
@@ -296,7 +299,7 @@ export default async function judging(root) {
  * `data` is either a stored result document (`.entries`) or the return of
  * computeEventResult (`.rows` plus `.blockers`). Passing null just closes it.
  */
-function showComputed(panel, data, trigger, isPreview = false) {
+function showComputed(panel, data, trigger, isPreview = false, settings = null) {
   const existing = panel.querySelector(".computed-table");
   if (existing) {
     existing.remove();
@@ -328,7 +331,7 @@ function showComputed(panel, data, trigger, isPreview = false) {
             ? el("span.hint", { text: "—" })
             : el("span.mono", { text: Number(r.averageScore).toFixed(2) }) },
       { key: "percent", label: "%", num: true, render: r => r.percent === null ? "—" : r.percent.toFixed(1) },
-      { key: "grade", label: "Grade", render: r => badge(r.grade) },
+      { key: "grade", label: "Grade", render: r => badge(gradeLabel(r.grade, settings)) },
       { key: "rankPoints", label: "Rank pts", num: true },
       { key: "gradePoints", label: "Grade pts", num: true },
       { key: "totalPoints", label: "Total", num: true }

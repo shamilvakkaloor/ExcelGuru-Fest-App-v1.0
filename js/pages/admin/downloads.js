@@ -11,7 +11,7 @@ import { flattenResults, winnersList, gradeList, rankGradeList, nonRankHolders,
          participantSummary, houseRoster, absenteeList, emptyEvents,
          reportFilter } from "../../domain/reports.js";
 import { EVENT_CLASSES, STAGES } from "../../domain/constants.js";
-import { highestRankAwarded } from "../../domain/scoring.js";
+import { highestRankAwarded, gradeScaleFrom, gradeLabel, WITHOUT } from "../../domain/scoring.js";
 
 export default async function downloads(root) {
   root.appendChild(el("h1", { text: "Downloads" }));
@@ -75,7 +75,7 @@ async function participantsData() {
 }
 
 async function resultsData() {
-  const results = await getAll("results");
+  const [results, settings] = await Promise.all([getAll("results"), getOne("config", "festSettings")]);
   const rows = [];
   for (const r of results) {
     for (const e of r.entries || []) {
@@ -84,7 +84,7 @@ async function resultsData() {
         status: r.publishStatus,
         rank: e.isAbsent ? "" : e.rank,
         names: (e.participantNames || []).join(" / "),
-        house: e.houseName, grade: e.grade,
+        house: e.houseName, grade: e.grade ? gradeLabel(e.grade, settings) : "",
         percent: e.percent === null ? "" : e.percent.toFixed(2),
         points: e.totalPoints
       });
@@ -254,9 +254,15 @@ async function resultReportsCard() {
   }
 
   const allRows = flattenResults(published, { events, categories, houses });
+  // Best-to-worst, for nonRankHolders' "best grade" — the fest's real order,
+  // not an assumption that every scale is A/B/C.
+  const gradeOrder = [...gradeScaleFrom(settings).map(g => g.id), WITHOUT];
   const maxRank = highestRankAwarded(ladders);
   const ranks = Array.from({ length: maxRank }, (_, i) => i + 1);
-  const GRADES = ["A", "B", "C", "Without"];
+  // Filter and grouping use the id (stable); everything shown to the admin
+  // uses gradeLabel(id, settings) so a rename is reflected here too.
+  const GRADES = [...gradeScaleFrom(settings).map(g => ({ value: g.id, label: g.label })),
+    { value: WITHOUT, label: gradeLabel(WITHOUT, settings) }];
 
   // ── shared filters ────────────────────────────────────────────────
   const sel = { categoryIds: [], houseIds: [], classIds: [], stages: [], typeIds: [], tierIds: [] };
@@ -276,12 +282,11 @@ async function resultReportsCard() {
   const pickedRanks = new Set();
   const pickedGrades = new Set();
   const rankRow = chipRow(ranks.map(r => ({ value: r, label: ordinal(r) })), pickedRanks, paint);
-  const gradeRow = chipRow(GRADES.map(g => ({ value: g, label: g })), pickedGrades, paint);
+  const gradeRow = chipRow(GRADES, pickedGrades, paint);
 
   const oneRank = select([{ value: "", label: "Any rank" },
     ...ranks.map(r => ({ value: String(r), label: ordinal(r) }))]);
-  const oneGrade = select([{ value: "", label: "Any grade" },
-    ...GRADES.map(g => ({ value: g, label: g }))]);
+  const oneGrade = select([{ value: "", label: "Any grade" }, ...GRADES]);
   oneRank.addEventListener("change", paint);
   oneGrade.addEventListener("change", paint);
 
@@ -304,7 +309,7 @@ async function resultReportsCard() {
           { label: "Rank", value: r => ordinal(r.rank) },
           { label: "Chest", key: "chestNumber" }, { label: "Name", key: "name" },
           { label: "House", key: "houseName" }, { label: "Category", key: "categoryName" },
-          { label: "Event", key: "eventName" }, { label: "Grade", key: "grade" },
+          { label: "Event", key: "eventName" }, { label: "Grade", value: r => gradeLabel(r.grade, settings) },
           { label: "Points", key: "points" }
         ]};
       }, pickedRanks.size ? `ranks ${[...pickedRanks].sort((a,b)=>a-b).join(", ")}` : "all placements"),
@@ -312,7 +317,7 @@ async function resultReportsCard() {
       reportPack("Grade-wise", () => {
         const out = gradeList(rows, { grades: [...pickedGrades] });
         return { name: "grade-list", rows: out, columns: [
-          { label: "Grade", key: "grade" }, { label: "Chest", key: "chestNumber" },
+          { label: "Grade", value: r => gradeLabel(r.grade, settings) }, { label: "Chest", key: "chestNumber" },
           { label: "Name", key: "name" }, { label: "House", key: "houseName" },
           { label: "Event", key: "eventName" },
           { label: "Rank", value: r => r.rank ? ordinal(r.rank) : "" },
@@ -324,19 +329,20 @@ async function resultReportsCard() {
         const out = rankGradeList(rows, { rank: oneRank.value || null, grade: oneGrade.value || null });
         return { name: "rank-grade", rows: out, columns: [
           { label: "Rank", value: r => r.rank ? ordinal(r.rank) : "" },
-          { label: "Grade", key: "grade" }, { label: "Chest", key: "chestNumber" },
+          { label: "Grade", value: r => gradeLabel(r.grade, settings) }, { label: "Chest", key: "chestNumber" },
           { label: "Name", key: "name" }, { label: "House", key: "houseName" },
           { label: "Event", key: "eventName" }
         ]};
       }, (oneRank.value ? ordinal(+oneRank.value) : "any rank") + " + " + (oneGrade.value || "any grade")),
 
       reportPack("Non-rank holders", () => {
-        const out = nonRankHolders(rows, { ranks: [...pickedRanks], includeAbsent });
+        const out = nonRankHolders(rows, { ranks: [...pickedRanks], includeAbsent, gradeOrder });
         return { name: "non-rank-holders", rows: out, columns: [
           { label: "Chest", key: "chestNumber" }, { label: "Name", key: "name" },
           { label: "House", key: "houseName" }, { label: "Category", key: "categoryName" },
           { label: "Events", key: "eventCount" }, { label: "Which", key: "eventList" },
-          { label: "Best grade", key: "bestGrade" }, { label: "Points", key: "points" }
+          { label: "Best grade", value: r => r.bestGrade ? gradeLabel(r.bestGrade, settings) : "" },
+          { label: "Points", key: "points" }
         ]};
       }, "counts " + (pickedRanks.size ? [...pickedRanks].sort((a,b)=>a-b).map(ordinal).join(", ") : "1st, 2nd, 3rd") + " as holding a rank"),
 
@@ -347,7 +353,8 @@ async function resultReportsCard() {
           { label: "House", key: "houseName" }, { label: "Category", key: "categoryName" },
           { label: "Events", key: "events" }, { label: "Placed", key: "placed" },
           { label: "1st", key: "firsts" }, { label: "2nd", key: "seconds" }, { label: "3rd", key: "thirds" },
-          { label: "Absent", key: "absent" }, { label: "Grades", key: "gradeList" },
+          { label: "Absent", key: "absent" },
+          { label: "Grades", value: r => (r.grades || []).map(g => gradeLabel(g, settings)).join(", ") },
           { label: "Points", key: "points" }
         ]};
       }, "one row per participant"),

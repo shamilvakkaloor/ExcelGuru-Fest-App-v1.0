@@ -14,7 +14,9 @@
 
 <script type="module">
 import { gradeFor, denseRank, computeResults, finalizeBlockers, aggregate,
-         studentScore, rankLeaderboard, averageOf } from "./js/domain/scoring.js";
+         studentScore, rankLeaderboard, averageOf,
+         gradeScaleFrom, gradeLabel } from "./js/domain/scoring.js";
+import { nonRankHolders } from "./js/domain/reports.js";
 import { checkCaps, shortfalls, applyCounts } from "./js/domain/limits.js";
 import { resolvePoints, ladderKey, computeDirectResults, directFinalizeBlockers } from "./js/domain/scoring.js";
 import { limitsForCategory, counterKeys, maxFor, recountParticipant,
@@ -55,6 +57,44 @@ check("84.9% falls to B", gradeFor(84.9, TH), "B");
 check("50% is exactly a C", gradeFor(50, TH), "C");
 check("49% is Without", gradeFor(49, TH), "Without");
 check("0% is Without, not Absent", gradeFor(0, TH), "Without");
+
+/* Custom grade scales — v8.8 */
+const CUSTOM_SCALE = [
+  { id: "Aplus", label: "A+", minPercent: 95 },
+  { id: "A", label: "A", minPercent: 85 },
+  { id: "D", label: "D", minPercent: 40 }
+];
+check("gradeFor accepts a custom scale directly", gradeFor(97, CUSTOM_SCALE), "Aplus");
+check("a custom scale falls through to Without below its lowest rung",
+  gradeFor(30, CUSTOM_SCALE), "Without");
+check("gradeScaleFrom reads a saved custom scale, highest first",
+  gradeScaleFrom({ gradeScale: [{ id: "D", label: "D", minPercent: 40 }, { id: "Aplus", label: "A+", minPercent: 95 }] })
+    .map(g => g.id), ["Aplus", "D"]);
+check("gradeScaleFrom falls back to legacy aMin/bMin/cMin when no scale is saved",
+  gradeScaleFrom({ gradeThresholds: TH }).map(g => g.id), ["A", "B", "C"]);
+check("gradeScaleFrom falls back to the built-in default with neither",
+  gradeScaleFrom({}).map(g => g.id), ["A", "B", "C"]);
+check("gradeLabel renders a rename without touching the stored id",
+  gradeLabel("C", { gradeScale: [{ id: "C", label: "Satisfactory", minPercent: 50 }] }), "Satisfactory");
+check("gradeLabel falls back to the id itself for an unrecognised grade",
+  gradeLabel("Z", { gradeScale: [] }), "Z");
+check("gradeLabel honours a renamed Without", gradeLabel("Without", { withoutLabel: "Fail" }), "Fail");
+check("Absent is never treated as a configurable grade",
+  gradeLabel("Absent", { gradeScale: [{ id: "Absent", label: "should never win", minPercent: 0 }] }), "Absent");
+
+/* nonRankHolders' best-grade order — must follow the fest's own scale */
+check("best grade uses the custom order given, not an assumed A/B/C",
+  nonRankHolders(
+    [{ participantId: "p1", name: "X", rank: null, isAbsent: false, grade: "D", points: 1 },
+     { participantId: "p1", name: "X", rank: null, isAbsent: false, grade: "Aplus", points: 1 }],
+    { gradeOrder: ["Aplus", "A", "D", "Without"] }
+  )[0].bestGrade, "Aplus");
+check("a grade outside the given order does not crash and sorts last",
+  nonRankHolders(
+    [{ participantId: "p1", name: "X", rank: null, isAbsent: false, grade: "Mystery", points: 1 },
+     { participantId: "p1", name: "X", rank: null, isAbsent: false, grade: "A", points: 1 }],
+    { gradeOrder: ["A", "B", "C"] }
+  )[0].bestGrade, "A");
 
 /* Dense ranking */
 check("ties share a rank and the next score follows on",

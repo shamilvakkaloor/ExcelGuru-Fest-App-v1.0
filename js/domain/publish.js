@@ -8,7 +8,7 @@
 import { getAll, getOne, put, batchWrite, where, serverTimestamp } from "../lib/db.js";
 import { computeResults, computeDirectResults, finalizeBlockers, directFinalizeBlockers,
          resolvePoints, ladderKey, aggregate, studentScore, rankLeaderboard,
-         tallyBoard } from "./scoring.js";
+         tallyBoard, gradeScaleFrom } from "./scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, EVENT_CLASSES, publicRankLimit, rankIsPublic,
          effectiveResultMode } from "./constants.js";
 import { wallClockToEpoch } from "../lib/timezone.js";
@@ -140,7 +140,7 @@ export async function computeEventResult(eventId) {
     ? computeDirectResults(entries, { rankPoints, gradePoints, awardsGradePoints })
     : computeResults(entries, {
         scoreScale:  Number(cfg.settings.scoreScale) || 100,
-        thresholds:  cfg.settings.gradeThresholds,
+        thresholds:  gradeScaleFrom(cfg.settings),
         rankPoints, gradePoints, awardsGradePoints
       });
 
@@ -452,6 +452,11 @@ export async function rebuildPublicSnapshots() {
       rankLimit: cfg.rankLimit,
       talentBoardLimit: Number(cfg.settings.talentBoardLimit) || 0,
       showGradesForUnranked: !!cfg.settings.showGradesForUnranked,
+      // The fest's own grade names, so a public page can show them without
+      // a second document read — the pattern every other setting here
+      // already follows.
+      gradeScale: gradeScaleFrom(cfg.settings),
+      withoutLabel: cfg.settings.withoutLabel || "Without",
       rankArt: cfg.settings.rankArt || {},
       houseStyle: Object.fromEntries(houses.map(h =>
         [h.id, { color: h.color || null, logoData: h.logoData || null }]))

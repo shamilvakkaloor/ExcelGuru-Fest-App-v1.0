@@ -88,7 +88,7 @@ export function rankGradeList(rows, { rank, grade } = {}) {
  * entirely — they are a rank holder, even if they also ran three other
  * events without placing.
  */
-export function nonRankHolders(rows, { ranks = [], includeAbsent = false } = {}) {
+export function nonRankHolders(rows, { ranks = [], includeAbsent = false, gradeOrder = ["A", "B", "C", "Without"] } = {}) {
   const want = (ranks.length ? ranks : [1, 2, 3]).map(Number);
   const holders = new Set(
     rows.filter(r => !r.isAbsent && r.rank && want.includes(Number(r.rank)))
@@ -106,8 +106,12 @@ export function nonRankHolders(rows, { ranks = [], includeAbsent = false } = {})
     cur.events.push(r.eventName);
     cur.points += r.points || 0;
     if (r.grade && r.grade !== "Absent") {
-      const order = { A: 1, B: 2, C: 3, Without: 4 };
-      if (!cur.bestGrade || (order[r.grade] || 9) < (order[cur.bestGrade] || 9)) cur.bestGrade = r.grade;
+      // Best-to-worst, so it holds for any custom scale: gradeOrder is the
+      // fest's own grades highest first, Without last. A grade this fest
+      // does not currently define (e.g. from data recorded before a rename
+      // or removal) sorts after everything the fest does define.
+      const rankOf = id => { const i = gradeOrder.indexOf(id); return i === -1 ? gradeOrder.length : i; };
+      if (!cur.bestGrade || rankOf(r.grade) < rankOf(cur.bestGrade)) cur.bestGrade = r.grade;
     }
     byParticipant.set(r.participantId, cur);
   }

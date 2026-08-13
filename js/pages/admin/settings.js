@@ -3,7 +3,7 @@ import { el, card, field, input, select, checkbox, button, table, toast, guard,
 import { getOne, getAll, put, add, patch, remove, where } from "../../lib/db.js";
 import { DEFAULTS, EVENT_CLASSES, POOL_LABEL, CHEST_FORMATS, CHEST_ALLOCATIONS,
          rankCountFromLadder, RESULT_POLICIES } from "../../domain/constants.js";
-import { availableTieBreakers } from "../../domain/scoring.js";
+import { availableTieBreakers, gradeScaleFrom, WITHOUT } from "../../domain/scoring.js";
 import { queueRepublish } from "../../domain/republish.js";
 import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timezone.js";
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
@@ -50,15 +50,23 @@ export default async function settings(root, query = {}) {
 
 /* ── Fest details ──────────────────────────────────────────────────── */
 async function basicTab(panel) {
-  const s = { ...DEFAULTS.festSettings, ...(await getOne("config", "festSettings") || {}) };
+  const [s0, results] = await Promise.all([
+    getOne("config", "festSettings"), getAll("results").catch(() => [])
+  ]);
+  const s = { ...DEFAULTS.festSettings, ...(s0 || {}) };
+
+  // Grades already stamped on a finalized result cannot be deleted out from
+  // under it — only renamed. Absent is its own flag, never a grade id, so
+  // it never appears here and never blocks a removal.
+  const usedGradeIds = new Set();
+  for (const r of results) for (const e of r.entries || []) {
+    if (e.grade && e.grade !== "Absent") usedGradeIds.add(e.grade);
+  }
 
   const festName  = input({ value: s.festName });
   const subtitle  = input({ value: s.subtitle || "" });
   const school    = input({ value: s.schoolName || "" });
   const scale     = input({ type: "number", min: 1, value: s.scoreScale });
-  const aMin      = input({ type: "number", min: 0, max: 100, value: s.gradeThresholds.aMin });
-  const bMin      = input({ type: "number", min: 0, max: 100, value: s.gradeThresholds.bMin });
-  const cMin      = input({ type: "number", min: 0, max: 100, value: s.gradeThresholds.cMin });
   const regStart  = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.start) });
   const regEnd    = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.end) });
 
@@ -167,14 +175,81 @@ async function basicTab(panel) {
     ])
   ]), "Identity"));
 
+  /* ── Grade scale ──────────────────────────────────────────────────
+   * Grades are editable: add A+ or D, rename any of them, move a
+   * threshold. The ID is what results and the points table are keyed by,
+   * so renaming only ever touches the label — see domain/scoring.js. */
+  let gradeScale = gradeScaleFrom(s).map(g => ({ ...g }));
+  let withoutLabel = s.withoutLabel || "Without";
+  const gradeRows = el("div");
+  const gradeWarn = el("div");
+
+  function paintGrades() {
+    gradeRows.innerHTML = "";
+    gradeScale.sort((a, b) => b.minPercent - a.minPercent);
+    gradeScale.forEach((g, i) => {
+      const label = input({ value: g.label });
+      const min = input({ type: "number", min: 0, max: 100, value: g.minPercent });
+      label.addEventListener("input", () => g.label = label.value);
+      min.addEventListener("change", () => { g.minPercent = Number(min.value); paintGrades(); });
+      gradeRows.appendChild(el("div.grid.grid-3", { style: "align-items:end;gap:.6rem;margin-bottom:.5rem" }, [
+        field("Name", label),
+        field("At least (%)", min),
+        el("div", {}, button("Remove", {
+          class: "btn-sm btn-danger",
+          // The ID is stamped on every finalized result, so dropping a
+          // grade that results already use would strand them. The editor
+          // refuses; renaming is always safe and is what is usually meant.
+          disabled: usedGradeIds.has(g.id),
+          title: usedGradeIds.has(g.id)
+            ? "Results already use this grade. Rename it instead."
+            : "",
+          onclick: () => { gradeScale.splice(i, 1); paintGrades(); }
+        }))
+      ]));
+    });
+
+    const mins = gradeScale.map(g => g.minPercent);
+    const descending = mins.every((v, i) => i === 0 || mins[i - 1] > v);
+    gradeWarn.innerHTML = "";
+    if (!descending) {
+      gradeWarn.appendChild(notice("danger",
+        "Thresholds must descend, each grade above the next. Saving is blocked until they do."));
+    }
+  }
+
+  const newGradeName = input({ placeholder: "e.g. A+" });
+  const newGradeMin  = input({ type: "number", min: 0, max: 100, placeholder: "95" });
+
+  const withoutInput = input({ value: withoutLabel });
+  withoutInput.addEventListener("input", () => withoutLabel = withoutInput.value);
+
   panel.appendChild(card(el("div", {}, [
-    el("p.hint", { text: "One set of thresholds shared by all four event classes. A score above zero but below the C threshold is graded Without." }),
-    el("div.grid.grid-3", {}, [
-      field("A — at least (%)", aMin),
-      field("B — at least (%)", bMin),
-      field("C — at least (%)", cMin)
-    ])
-  ]), "Grade thresholds"));
+    el("p.hint", { text: "One scale shared by all four event classes, highest first. A score that reaches no threshold takes the bottom grade below — including a genuine 0%, which is graded, not absent." }),
+    gradeRows,
+    gradeWarn,
+    el("div.grid.grid-3", { style: "align-items:end;gap:.6rem" }, [
+      field("Add a grade", newGradeName),
+      field("At least (%)", newGradeMin),
+      el("div", {}, button("Add", { class: "btn-sm", onclick: () => {
+        const name = newGradeName.value.trim();
+        const min = Number(newGradeMin.value);
+        if (!name) { toast("Give the grade a name.", true); return; }
+        if (isNaN(min) || min < 0 || min > 100) { toast("Give it a percentage between 0 and 100.", true); return; }
+        // The id is derived once and then frozen; the label stays editable.
+        const id = name.replace(/[^A-Za-z0-9+_-]/g, "") || ("g" + Date.now());
+        if (gradeScale.some(x => x.id === id)) { toast("There is already a grade with that name.", true); return; }
+        gradeScale.push({ id, label: name, minPercent: min });
+        newGradeName.value = ""; newGradeMin.value = "";
+        paintGrades();
+      }}))
+    ]),
+    el("hr", { style: "margin:1rem 0;border:0;border-top:1px solid var(--line)" }),
+    field("Name for a score below every threshold", withoutInput,
+      "Renaming this is safe — stored results keep their meaning."),
+    el("p.hint", { text: "Points for each grade are set in Points & grades. Renaming a grade never changes what past results are worth; removing one that results already use is refused." })
+  ]), "Grades"));
+  paintGrades();
 
   panel.appendChild(card(el("div", {}, [
     el("p.hint", { text: "The default window for every event. An individual event can override it." }),
@@ -207,14 +282,22 @@ async function basicTab(panel) {
   ]), "Entry requirements"));
 
   panel.appendChild(el("div.btn-row", {}, button("Save settings", { class: "btn-accent", onclick: guard(async () => {
-    const a = Number(aMin.value), b = Number(bMin.value), c = Number(cMin.value);
-    if (!(a > b && b > c)) { toast("Thresholds must descend: A above B above C.", true); return; }
+    if (!gradeScale.length) { toast("Add at least one grade.", true); return; }
+    const mins = gradeScale.map(g => g.minPercent);
+    if (!mins.every((v, i) => i === 0 || mins[i - 1] > v)) {
+      toast("Grade thresholds must descend — fix the order above before saving.", true); return;
+    }
+    if (gradeScale.some(g => isNaN(g.minPercent) || g.minPercent < 0 || g.minPercent > 100)) {
+      toast("Every grade needs a threshold between 0 and 100.", true); return;
+    }
+    for (const g of gradeScale) if (!g.label.trim()) { toast("Every grade needs a name.", true); return; }
     await put("config", "festSettings", {
       festName: festName.value.trim() || "Our Fest",
       subtitle: subtitle.value.trim(),
       schoolName: school.value.trim(),
       scoreScale: Number(scale.value) || 100,
-      gradeThresholds: { aMin: a, bMin: b, cMin: c },
+      gradeScale: gradeScale.map(g => ({ id: g.id, label: g.label.trim(), minPercent: Number(g.minPercent) })),
+      withoutLabel: withoutLabel.trim() || "Without",
       registrationWindow: { start: fromLocalInput(regStart.value), end: fromLocalInput(regEnd.value) },
       blindJudgingDefault: blind,
       gradelessDefault: gradeless,
@@ -517,12 +600,20 @@ async function pointsTab(panel) {
   ]);
   const s = { ...DEFAULTS.festSettings, ...(settings || {}) };
   const gp = { ...DEFAULTS.gradePoints, ...(gradePoints || {}) };
-  const th = s.gradeThresholds || DEFAULTS.festSettings.gradeThresholds;
-  let axes = { ...DEFAULTS.festSettings.pointsAxes, ...(s.pointsAxes || {}) };
-
-  const gpA = input({ type: "number", value: gp.A });
-  const gpB = input({ type: "number", value: gp.B });
-  const gpC = input({ type: "number", value: gp.C });
+  // The fest's own grades, highest first — Grades on the Fest details tab is
+  // where these are named and thresholded. Points are assigned to whatever
+  // that list currently is; a grade added there and never given points here
+  // simply defaults to 0, same as any other missing key always has.
+  const gradeScale = gradeScaleFrom(s);
+  const gradeInputs = gradeScale.map(g => ({
+    id: g.id, label: g.label, minPercent: g.minPercent,
+    input: input({ type: "number", value: gp[g.id] ?? 0 })
+  }));
+  const readGradePoints = () => {
+    const out = { [WITHOUT]: 0 };
+    for (const g of gradeInputs) out[g.id] = Number(g.input.value) || 0;
+    return out;
+  };
 
   panel.appendChild(card(el("div", {}, [
     checkbox("Award points by Event class", true, () => {}, { disabled: true }),
@@ -562,11 +653,14 @@ async function pointsTab(panel) {
   }
   function updatePreview() {
     const first = classLadders[cls].rankPoints[1] ?? 0;
+    const top = gradeInputs[0];
+    if (!top) { preview.textContent = ""; return; }
+    const g = Number(top.input.value) || 0;
     preview.textContent =
-      `Preview — ${EVENT_CLASSES.find(c => c.id === cls).label}, 1st place, grade A: ` +
-      `${first} rank + ${Number(gpA.value) || 0} grade = ${first + (Number(gpA.value) || 0)} points`;
+      `Preview — ${EVENT_CLASSES.find(c => c.id === cls).label}, 1st place, grade ${top.label}: ` +
+      `${first} rank + ${g} grade = ${first + g} points`;
   }
-  gpA.addEventListener("input", updatePreview);
+  gradeInputs.forEach(g => g.input.addEventListener("input", updatePreview));
 
   panel.appendChild(card(el("div", {}, [
     el("p.hint", { text: "Every event class has its own rank ladder. This is the fallback used whenever an event's named point source has no ladder of its own." }),
@@ -601,14 +695,14 @@ async function pointsTab(panel) {
     axisBox.innerHTML = "";
     if (axes.stage) {
       axisBox.appendChild(axisLadderCard("Rank points — by Stage",
-        [{ id: "onStage", label: "On stage" }, { id: "offStage", label: "Off stage" }], stageLadders, gp, th));
+        [{ id: "onStage", label: "On stage" }, { id: "offStage", label: "Off stage" }], stageLadders, gp, gradeScale));
     }
     if (axes.type && s.useTypeTier) {
       if (!types.length) {
         axisBox.appendChild(notice("warn", "No Types have been added yet — add them on the Type & Tier tab."));
       } else {
         axisBox.appendChild(axisLadderCard("Rank points — by Type",
-          types.map(t => ({ id: t.id, label: t.name })), typeLadders, gp, th));
+          types.map(t => ({ id: t.id, label: t.name })), typeLadders, gp, gradeScale));
       }
     }
     if (axes.tier && s.useTypeTier) {
@@ -616,18 +710,16 @@ async function pointsTab(panel) {
         axisBox.appendChild(notice("warn", "No Tiers have been added yet — add them on the Type & Tier tab."));
       } else {
         axisBox.appendChild(axisLadderCard("Rank points — by Tier",
-          tiers.map(t => ({ id: t.id, label: t.name })), tierLadders, gp, th));
+          tiers.map(t => ({ id: t.id, label: t.name })), tierLadders, gp, gradeScale));
       }
     }
   }
 
   panel.appendChild(card(el("div", {}, [
-    el("div.grid.grid-3", {}, [
-      field(`A (at least ${th.aMin}%)`, gpA),
-      field(`B (at least ${th.bMin}%)`, gpB),
-      field(`C (at least ${th.cMin}%)`, gpC)
-    ]),
-    notice("info", "Without is fixed at 0 grade points. An entry graded Without still keeps any rank points it earned. This table is the default for every ladder that does not define its own."),
+    gradeInputs.length
+      ? el("div.grid.grid-3", {}, gradeInputs.map(g => field(`${g.label} (at least ${g.minPercent}%)`, g.input)))
+      : notice("warn", "No grades are set up yet — add them on the Fest details tab first."),
+    notice("info", `${s.withoutLabel || "Without"} is fixed at 0 grade points. An entry graded that way still keeps any rank points it earned. This table is the default for every ladder that does not define its own.`),
     preview
   ]), "Grade points — shared default"));
 
@@ -641,9 +733,7 @@ async function pointsTab(panel) {
     if (axes.type) for (const [id, l] of Object.entries(typeLadders)) await put("pointsConfig", "type_" + id, ladderPayload(l));
     if (axes.tier) for (const [id, l] of Object.entries(tierLadders)) await put("pointsConfig", "tier_" + id, ladderPayload(l));
 
-    await put("config", "gradePoints", {
-      A: Number(gpA.value) || 0, B: Number(gpB.value) || 0, C: Number(gpC.value) || 0, Without: 0
-    });
+    await put("config", "gradePoints", readGradePoints());
     await patch("config", "festSettings", { pointsAxes: axes });
     queueRepublish({ results: true });
     toast("Points saved and standings rebuilt.");
@@ -686,7 +776,7 @@ function renderLadderEditor(box, ladderState, opts, onChange) {
 /** A tab strip across the values of one axis (Stage, or every configured
  * Type, or every configured Tier), each with its own ladder editor and an
  * optional own-grade-points override. */
-function axisLadderCard(heading, values, laddersByValue, sharedGrade, thresholds) {
+function axisLadderCard(heading, values, laddersByValue, sharedGrade, gradeScale) {
   let active = values[0]?.id;
   const tabs = el("div.tabs");
   const body = el("div");
@@ -702,22 +792,27 @@ function axisLadderCard(heading, values, laddersByValue, sharedGrade, thresholds
     body.appendChild(ladderBox);
     renderLadderEditor(ladderBox, state, {}, null);
 
+    // A grade added since this ladder last set its own points reads the
+    // shared default until this ladder's own points are edited and saved.
+    const readOwn = () => {
+      const out = { [WITHOUT]: 0 };
+      for (const g of gradeScale) out[g.id] = Number(ownInputs[g.id]?.value ?? sharedGrade[g.id] ?? 0) || 0;
+      return out;
+    };
     let ownGrades = !!state.gradePoints;
-    const gA = input({ type: "number", value: state.gradePoints?.A ?? sharedGrade.A });
-    const gB = input({ type: "number", value: state.gradePoints?.B ?? sharedGrade.B });
-    const gC = input({ type: "number", value: state.gradePoints?.C ?? sharedGrade.C });
-    const gradeGrid = el("div.grid.grid-3", { style: ownGrades ? "" : "display:none" }, [
-      field(`A (${thresholds.aMin}%+)`, gA), field(`B (${thresholds.bMin}%+)`, gB), field(`C (${thresholds.cMin}%+)`, gC)
-    ]);
+    const ownInputs = {};
+    for (const g of gradeScale) {
+      ownInputs[g.id] = input({ type: "number", value: state.gradePoints?.[g.id] ?? sharedGrade[g.id] ?? 0 });
+      ownInputs[g.id].addEventListener("input", () => { if (ownGrades) state.gradePoints = readOwn(); });
+    }
+    const gradeGrid = el("div.grid.grid-3", { style: ownGrades ? "" : "display:none" },
+      gradeScale.map(g => field(`${g.label} (${g.minPercent}%+)`, ownInputs[g.id])));
     const toggle = checkbox(values.find(v => v.id === active).label + " uses its own grade points", ownGrades, v => {
       ownGrades = v;
       gradeGrid.style.display = v ? "" : "none";
-      state.gradePoints = v ? { A: Number(gA.value) || 0, B: Number(gB.value) || 0, C: Number(gC.value) || 0, Without: 0 } : null;
+      state.gradePoints = v ? readOwn() : null;
     });
-    [gA, gB, gC].forEach(i => i.addEventListener("input", () => {
-      if (ownGrades) state.gradePoints = { A: Number(gA.value) || 0, B: Number(gB.value) || 0, C: Number(gC.value) || 0, Without: 0 };
-    }));
-    body.append(el("p.hint", { text: "Leave grade points off to use the shared A/B/C table below." }),
+    body.append(el("p.hint", { text: "Leave grade points off to use the shared table below." }),
       toggle, gradeGrid);
   }
   paint();

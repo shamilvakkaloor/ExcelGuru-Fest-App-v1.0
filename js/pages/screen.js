@@ -6,6 +6,7 @@
 import { el } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { classLabel, rankIsPublic } from "../domain/constants.js";
+import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { currentlyRunning } from "./home.js";
 
@@ -80,7 +81,8 @@ export default async function screenPage(root) {
         title: ev.eventName,
         sub: [ev.categoryName, classLabel(ev.eventClass)].filter(Boolean).join(" · "),
         rows: top.map(e => ({
-          rank: e.rank, main: (e.names || []).join(", "), sub: e.houseName, value: e.grade || ""
+          rank: e.rank, main: (e.names || []).join(", "), sub: e.houseName,
+          value: e.grade ? gradeLabel(e.grade, settings) : ""
         }))
       });
     }

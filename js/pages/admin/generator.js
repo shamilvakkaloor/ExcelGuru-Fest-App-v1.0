@@ -12,7 +12,7 @@ import { loadTemplate, TEMPLATE_LIST, PLACEHOLDERS, fillTokens } from "../../dom
 import { renderCanvas, renderPageHTML, previewData } from "../../lib/designRender.js";
 import { compressImage } from "../../lib/photo.js";
 import { PUBLISH_STATUS, classLabel, EVENT_CLASSES } from "../../domain/constants.js";
-import { highestRankAwarded } from "../../domain/scoring.js";
+import { highestRankAwarded, gradeLabel } from "../../domain/scoring.js";
 
 export default async function generator(root) {
   const wrapper = el("div");
@@ -425,7 +425,7 @@ export default async function generator(root) {
                     eventName: res.eventName, eventClass: res.eventClass,
                     categoryName: categories.find(c => c.id === res.categoryId)?.name || "",
                     typeName: typeName[res.typeId] || "", tierName: tierName[res.tierId] || "",
-                    rank: e.rank, grade: e.grade, isAbsent: e.isAbsent
+                    rank: e.rank, grade: e.grade ? gradeLabel(e.grade, settings) : e.grade, isAbsent: e.isAbsent
                   });
                 });
               }
@@ -494,7 +494,7 @@ export default async function generator(root) {
                       house: e.houseName || "", category: p.categoryName || "", class: p.className || "",
                       photo: p.photoData || "",
                       type: typeName[res.typeId] || "", tier: tierName[res.tierId] || "",
-                      event: res.eventName, rank: placeLabel(e.rank), grade: e.grade || "",
+                      event: res.eventName, rank: placeLabel(e.rank), grade: e.grade ? gradeLabel(e.grade, settings) : "",
                       results: `${res.eventName} — ${placeLabel(e.rank)}`
                     }));
                   }
@@ -604,10 +604,10 @@ function singleDialog(design, published, typeName, tierName) {
             tier: first ? (tierName[first.res.tierId] || "") : "",
             event: first?.res.eventName || "",
             rank: first?.e.rank ? placeLabel(first.e.rank) : "",
-            grade: first?.e.grade || "",
+            grade: first?.e.grade ? gradeLabel(first.e.grade, settings) : "",
             results: entries.map(({ res, e }) =>
               `${res.eventName} — ${e.isAbsent ? "Absent" : (e.rank ? placeLabel(e.rank) : "Participated")}` +
-              (e.grade && !e.isAbsent ? ` (${e.grade})` : "")).join("\n")
+              (e.grade && !e.isAbsent ? ` (${gradeLabel(e.grade, settings)})` : "")).join("\n")
           });
           printDocument({
             title: p.name, bare: true, landscape: design.page.w > design.page.h,

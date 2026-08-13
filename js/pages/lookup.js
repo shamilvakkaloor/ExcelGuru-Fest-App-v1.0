@@ -7,11 +7,17 @@ import { topbar } from "../app.js";
 import { queryParams } from "../lib/router.js";
 import { chestSortKey, normalizeChest } from "../domain/chest.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
+import { gradeLabel } from "../domain/scoring.js";
 
 export default async function lookupPage(root) {
   root.appendChild(topbar());
   const wrap = el("div.wrap.wrap-narrow");
   root.appendChild(wrap);
+
+  // Fetched once for the page, not per search result: config/festSettings is
+  // cached by lib/db.js, but that cache is per page-load — one read here
+  // beats one per card.
+  const settings = await getOne("config", "festSettings").catch(() => null);
 
   const box = input({ placeholder: "Chest number or name", autocomplete: "off" });
   const out = el("div");
@@ -51,7 +57,7 @@ export default async function lookupPage(root) {
 
     out.innerHTML = "";
     if (!matches.length) { out.appendChild(empty("No match", "Check the spelling or the chest number.")); return; }
-    for (const p of matches) out.appendChild(await renderCard(p));
+    for (const p of matches) out.appendChild(await renderCard(p, settings));
   }, 350);
 
   box.addEventListener("input", run);
@@ -61,7 +67,7 @@ export default async function lookupPage(root) {
   box.focus();
 }
 
-async function renderCard(p) {
+async function renderCard(p, settings) {
   const pub = await getOne("participantPublic", p.id).catch(() => null);
   const events = Object.entries(pub?.events || {}).map(([id, e]) => ({ id, ...e }));
 
@@ -103,7 +109,7 @@ async function renderCard(p) {
         ? rankNode(e.rank, { size: 30, rankArt })
         : el("span.rank-medal", { text: "#" + e.rank }));
     }
-    if (e.grade) bits.push(badge(e.grade));
+    if (e.grade) bits.push(badge(gradeLabel(e.grade, settings)));
     if (!bits.length) bits.push(el("span.hint", { style: "margin:0", text: "Participated" }));
     return el("div.btn-row", {}, bits);
   };

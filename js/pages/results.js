@@ -5,6 +5,7 @@ import { el, card, table, empty, badge, button, notice, filterBar } from "../lib
 import { getOne, getAll } from "../lib/db.js";
 import { topbar } from "../app.js";
 import { POOL_LABEL, classLabel, EVENT_CLASSES, rankIsPublic } from "../domain/constants.js";
+import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { printDocument, htmlTable } from "../lib/pdf.js";
 import { toCSV, downloadText } from "../lib/csv.js";
@@ -193,7 +194,7 @@ export default async function resultsPage(root) {
                 { key: "rank", label: "Rank", render: rankCell },
                 { key: "names", label: "Participant", render: r => (r.names || []).join(", ") },
                 { key: "houseName", label: "House", render: houseTag },
-                { key: "grade", label: "Grade", render: r => badge(r.grade, gradeKind(r.grade)) },
+                { key: "grade", label: "Grade", render: r => badge(gradeLabel(r.grade, board), gradeKind(r.grade)) },
                 { key: "totalPoints", label: "Points", num: true }
               ], shown)
             : el("div.hint", { text: "No placements to show." }),
@@ -201,7 +202,7 @@ export default async function resultsPage(root) {
             (ev.eventClass ? " · " + classLabel(ev.eventClass) : ""),
           exportRow(slug(ev.eventName), full,
             [{ label: "Rank", key: "rank" }, { label: "Participant", value: r => (r.names || []).join(", ") },
-             { label: "House", key: "houseName" }, { label: "Grade", key: "grade" }, { label: "Points", key: "totalPoints" }])));
+             { label: "House", key: "houseName" }, { label: "Grade", value: r => gradeLabel(r.grade, board) }, { label: "Points", key: "totalPoints" }])));
       }
     }
   }
