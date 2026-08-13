@@ -66,7 +66,9 @@ export default async function registrations(root) {
       { key: "codeLetter", label: "Code", render: r => r.codeLetter
           ? el("span.code-letter", { text: r.codeLetter }) : badge("Not assigned", "badge-warn") },
       { key: "houseName", label: "House" },
-      { key: "participantNames", label: "Participants", render: r => (r.participantNames || []).join(", ") },
+      { key: "participantNames", label: "Participants", render: r => r.wholeTeam
+          ? el("span.hint", { text: "Whole team" })
+          : (r.participantNames || []).join(", ") },
       { key: "chest", label: "Chest", render: r => el("span.mono", { text: (r.chestNumbers || []).join(", ") }) },
       { key: "act", label: "", render: r => button("Remove", { class: "btn-sm btn-danger", onclick: guard(async () => {
           if (!await confirmDialog("Remove entry", `Remove ${(r.participantNames || []).join(", ")} from ${event.name}?`, "Remove")) return;
@@ -146,7 +148,7 @@ export async function writeJudgingEntries(event, regs, settings = null) {
       .sort((a, b) => a.codeLetter.localeCompare(b.codeLetter))
       .map(r => blind
         ? { regId: r.id, codeLetter: r.codeLetter }
-        : { regId: r.id, codeLetter: r.codeLetter, label: (r.participantNames || []).join(", "), houseName: r.houseName })
+        : { regId: r.id, codeLetter: r.codeLetter, label: r.wholeTeam ? r.houseName : (r.participantNames || []).join(", "), houseName: r.houseName })
   }, false);
 }
 

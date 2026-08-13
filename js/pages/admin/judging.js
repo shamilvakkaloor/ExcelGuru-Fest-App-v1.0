@@ -146,7 +146,7 @@ export default async function judging(root) {
       { key: "codeLetter", label: "Code", render: r => el("span.code-letter", { text: r.codeLetter }) },
       { key: "who", label: "Entry", render: r => event.blindJudging
           ? el("span.hint", { text: "hidden while blind" })
-          : (r.participantNames || []).join(", ") + " · " + r.houseName }
+          : (r.wholeTeam ? "Whole team" : (r.participantNames || []).join(", ")) + " · " + r.houseName }
     ];
 
     if (isDirect) {
@@ -324,7 +324,9 @@ function showComputed(panel, data, trigger, isPreview = false, settings = null) 
     table([
       { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger") : el("span.rank-medal", { text: "#" + r.rank }) },
       { key: "codeLetter", label: "Code", render: r => el("span.mono", { text: r.codeLetter }) },
-      { key: "names", label: "Entry", render: r => (r.participantNames || []).join(", ") },
+      { key: "names", label: "Entry", render: r => (r.participantNames || []).length
+          ? (r.participantNames || []).join(", ")
+          : el("span.hint", { text: r.houseName || "Whole team" }) },
       { key: "houseName", label: "House" },
       { key: "averageScore", label: "Average", num: true, render: r =>
           r.averageScore === null || r.averageScore === undefined

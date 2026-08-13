@@ -55,14 +55,22 @@ async function tallySeed(eventId, houseId) {
  * Throws with a message naming the specific cap when one is hit.
  */
 export async function registerEntry({ event, house, participants, settings, limits, registeredBy, vocab = {} }) {
-  if (!participants.length) throw new Error("Choose at least one participant.");
+  /* v8.8 — a WHOLE-TEAM event has no roster at all: the house contests it
+   * as a unit (a house march-past, a team chant) and earns the points as a
+   * unit. There is nobody to cap, nobody to clash with, and nobody whose
+   * lookup card should list it, so every per-participant rule below is
+   * skipped rather than run against an empty array. */
+  const wholeTeam = !!event.wholeTeam && isGroupClass(event.eventClass);
+
+  if (!wholeTeam && !participants.length) throw new Error("Choose at least one participant.");
   const state = windowState(event, settings);
   if (!state.open) throw new Error(state.reason);
 
   const max = isGroupClass(event.eventClass) ? (event.maxParticipantsPerEntry || 1) : 1;
-  if (participants.length > max) {
+  if (!wholeTeam && participants.length > max) {
     throw new Error(`This event allows at most ${max} participant${max > 1 ? "s" : ""} per entry.`);
   }
+  if (wholeTeam) participants = [];
 
   // Category events only accept participants from that category.
   if (event.categoryId) {
@@ -129,6 +137,9 @@ export async function registerEntry({ event, house, participants, settings, limi
       houseName: house.name,
       categoryId: event.categoryId || null,
       entryNumber: tally.count + 1,
+      // A whole-team entry stores an empty roster and says so, rather than
+      // leaving a consumer to guess why the names are missing.
+      wholeTeam,
       participantIds: participants.map(p => p.id),
       participantNames: participants.map(p => p.name),
       chestNumbers: participants.map(p => p.chestNumber ?? ""),

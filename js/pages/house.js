@@ -175,6 +175,34 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
   const chosen = new Set();
   const group = isGroupClass(event.eventClass);
 
+  /* A whole-team event has no roster to pick, so the participant picker is
+   * replaced by a plain confirmation. Showing an empty, unusable picker
+   * would only invite the question of who to select. */
+  if (event.wholeTeam && group) {
+    modal({
+      title: event.name,
+      body: el("div", {}, [
+        notice("info",
+          `${house.name} enters this as a whole team — there is no participant list. ` +
+          `The points go to the ${(window.__HOUSE_TERM__ || "house").toLowerCase()}, and nothing counts ` +
+          `against anyone's event limits.`)
+      ]),
+      actions: [
+        { label: "Cancel" },
+        { label: "Enter " + house.name, kind: "accent", closes: false, busyLabel: "Entering…",
+          onClick: guard(async close => {
+            await registerEntry({
+              event, house, participants: [], settings, limits,
+              registeredBy: session.name || house.name
+            });
+            toast("Entered."); close(true); refresh();
+          })
+        }
+      ]
+    });
+    return;
+  }
+
   // I20 — for an INDIVIDUAL event, selecting five people creates five
   // separate entries in one pass. v6 allowed exactly one per attempt, so a
   // House Manager reopened this dialog once per participant.
@@ -347,7 +375,9 @@ async function entriesTab(panel, house, refresh) {
 
     listBox.appendChild(card(table([
       { key: "label", label: "Event" },
-      { key: "participantNames", label: "Participants", render: r => (r.participantNames || []).join(", ") },
+      { key: "participantNames", label: "Participants", render: r => r.wholeTeam
+          ? el("span.hint", { text: "Whole team" })
+          : (r.participantNames || []).join(", ") },
       { key: "codeLetter", label: "Code", render: r => r.codeLetter
           ? el("span.code-letter", { text: r.codeLetter }) : el("span.hint", { text: "not yet" }) },
       { key: "act", label: "", render: r => {
@@ -375,7 +405,7 @@ async function entriesTab(panel, house, refresh) {
     ], rows), "Our entries",
       button("Download CSV", { class: "btn-sm", onclick: () => downloadText(house.name + "-entries.csv", toCSV([
         { label: "Event", key: "label" }, { label: "Code letter", key: "codeLetter" },
-        { label: "Participants", value: r => (r.participantNames || []).join(" / ") }
+        { label: "Participants", value: r => r.wholeTeam ? "Whole team" : (r.participantNames || []).join(" / ") }
       ], rows)) })));
   }
 }

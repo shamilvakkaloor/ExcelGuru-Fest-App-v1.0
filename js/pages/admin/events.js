@@ -264,6 +264,14 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     el("div.hint", { text: "The event is still judged, ranked and published as normal — its points simply do not count towards house totals or any leaderboard. For exhibition or invitational items." })
   ]);
 
+  let wholeTeam = !!existing?.wholeTeam;
+  const wholeTeamBox = el("fieldset", {}, [
+    el("legend", { text: "Whole-team event" }),
+    checkbox("The whole team contests this — no individual participants", wholeTeam,
+      v => { wholeTeam = v; syncClass(); }),
+    el("div.hint", { text: "For a march-past, team chant or similar. The house registers once with no roster and earns the points as a unit; nothing counts against any participant's event caps. Group events only." })
+  ]);
+
   const catField = field("Category", cat, "Ignored for general events.");
   const perEntryBox = field("Maximum participants per entry", perEntry);
   const minBox = field("Minimum entries per house", minHouse,
@@ -290,6 +298,11 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     // I31 — minimums are hidden entirely when the fest has them switched off.
     // An always-visible field that is always blank is noise.
     minBox.style.display = settings?.useMinEntryCaps ? "" : "none";
+    // Whole-team only makes sense for a group event, and a per-entry
+    // participant maximum is meaningless once there is no roster.
+    wholeTeamBox.style.display = group ? "" : "none";
+    if (!group) wholeTeam = false;
+    perEntryBox.style.display = (group && !wholeTeam) ? "" : "none";
   }
   cls.addEventListener("change", syncClass);
 
@@ -304,6 +317,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       classBox,
       pointsBox,
       resultBox,
+      wholeTeamBox,
       capBox,
       subBox,
       el("fieldset", {}, [
@@ -338,6 +352,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             awardsGradePoints: awardsGrade,
             excludeFromTotals,
             resultMode: resultMode.value || "scored",
+            wholeTeam: isGroupClass(cls.value) ? wholeTeam : false,
             maxParticipantsPerEntry: isGroupClass(cls.value) ? Math.max(1, Number(perEntry.value) || 1) : 1,
             // Blank / 0 stores null, which every consumer reads as "no cap".
             maxEntriesPerHouse: perHouse.value === "" ? null : (Number(perHouse.value) || null),
