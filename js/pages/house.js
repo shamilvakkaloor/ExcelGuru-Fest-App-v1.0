@@ -518,8 +518,8 @@ async function subsTab(panel, house) {
   const eventById = Object.fromEntries(events.map(e => [e.id, e]));
 
   panel.appendChild(notice("info",
-    "Once registration closes you can no longer withdraw and re-register — ask for a substitution instead, " +
-    "from the Our entries tab. An organiser approves it. This stays possible until code letters are assigned."));
+    "Substitutions are only open for events an Admin has switched them on for, from the Our entries tab. " +
+    "An organiser approves each request. This stays possible until code letters are assigned."));
 
   const decided = rows.filter(r => r.status !== SUB_STATUS.PENDING);
   const rejected = decided.filter(r => r.status === SUB_STATUS.REJECTED);
@@ -554,6 +554,7 @@ function subDialog(registration, event, house, settings, refresh) {
   }));
   const outSel = select(current.map(p => ({ value: p.id, label: p.name })));
   const inSel = select([{ value: "", label: "Loading…" }]);
+  const reasonInput = el("textarea", { rows: 2 });
   const status = el("div");
 
   // Eligible replacements: same house, right category, not already in the
@@ -582,12 +583,14 @@ function subDialog(registration, event, house, settings, refresh) {
       el("p.hint", { text: `${event.name}. An organiser has to approve this before it takes effect.` }),
       field("Replace", outSel),
       field("With", inSel),
+      field("Reason", reasonInput, "Why this substitution is needed — shown to the Admin reviewing it."),
       status
     ]),
     actions: [
       { label: "Cancel" },
       { label: "Send request", kind: "accent", closes: false, busyLabel: "Sending…", onClick: guard(async close => {
           if (!inSel.value) { toast("Choose a replacement.", true); return false; }
+          if (!reasonInput.value.trim()) { toast("Describe the reason for this substitution.", true); return false; }
           const people = await getAll("participants", where("houseId", "==", house.id));
           const outgoing = people.find(p => p.id === outSel.value);
           const incoming = people.find(p => p.id === inSel.value);
@@ -595,7 +598,7 @@ function subDialog(registration, event, house, settings, refresh) {
 
           await requestSubstitution({
             registration, event, outgoing, incoming, house, settings,
-            requestedBy: house.name
+            requestedBy: house.name, reason: reasonInput.value
           });
           toast("Sent for approval.");
           close(true); refresh();

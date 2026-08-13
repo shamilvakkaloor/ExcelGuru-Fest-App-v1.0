@@ -269,6 +269,13 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     minBox
   ]);
 
+  let substitutionOpen = !!existing?.substitutionOpen;
+  const subBox = el("fieldset", {}, [
+    el("legend", { text: "Substitutions" }),
+    checkbox("Allow House Managers to request a substitution for this event", substitutionOpen, v => substitutionOpen = v),
+    el("div.hint", { text: "Off by default. Turning this on lets a House Manager ask to replace any current participant in one of their entries — Admin still approves or rejects each request. Closes automatically once code letters are assigned." })
+  ]);
+
   function syncClass() {
     const group = isGroupClass(cls.value);
     perEntryBox.style.display = group ? "" : "none";
@@ -291,6 +298,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       pointsBox,
       resultBox,
       capBox,
+      subBox,
       el("fieldset", {}, [
         el("legend", { text: "Registration window override" }),
         el("div.hint", { text: "Leave blank to use the fest-wide window." }),
@@ -327,6 +335,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             maxEntriesPerHouse: perHouse.value === "" ? null : (Number(perHouse.value) || null),
             minEntriesPerHouse: minHouse.value === "" ? null : (Number(minHouse.value) || null),
             blindJudging: blind,
+            substitutionOpen,
             registrationStart: fromLocalInput(regStart.value),
             registrationEnd: fromLocalInput(regEnd.value),
             status: existing?.status || "open"

@@ -9,7 +9,8 @@ import { getAll, getOne, put, batchWrite, where, serverTimestamp } from "../lib/
 import { computeResults, computeDirectResults, finalizeBlockers, directFinalizeBlockers,
          resolvePoints, ladderKey, aggregate, studentScore, rankLeaderboard,
          tallyBoard } from "./scoring.js";
-import { PUBLISH_STATUS, DEFAULTS, EVENT_CLASSES, publicRankLimit, rankIsPublic } from "./constants.js";
+import { PUBLISH_STATUS, DEFAULTS, EVENT_CLASSES, publicRankLimit, rankIsPublic,
+         effectiveResultMode } from "./constants.js";
 import { wallClockToEpoch } from "../lib/timezone.js";
 
 /** Load the four config documents every calculation needs. */

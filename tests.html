@@ -435,12 +435,12 @@ check("the same wall clock differs across a DST boundary",
   [Date.parse("2026-03-28T12:00:00Z"), Date.parse("2026-03-29T11:00:00Z")]);
 
 /* Substitutions — the window */
-check("substitution is refused while registration is still open",
-  substitutionWindow({}, {}, { end: Date.now() + 86400000 }).open, false);
-check("substitution opens once the deadline passes",
-  substitutionWindow({}, {}, { end: Date.now() - 86400000 }).open, true);
-check("a code letter closes the window for good",
-  substitutionWindow({ codeLetter: "C" }, {}, { end: Date.now() - 86400000 }).open, false);
+check("substitution is refused until an Admin opens it for the event",
+  substitutionWindow({}, {}, {}).open, false);
+check("substitution opens once an Admin turns it on for the event",
+  substitutionWindow({}, { substitutionOpen: true }, {}).open, true);
+check("a code letter closes the window for good, even when open",
+  substitutionWindow({ codeLetter: "C" }, { substitutionOpen: true }, {}).open, false);
 check("pending requests are counted",
   pendingCount([{ status: "pending" }, { status: "approved" }, { status: "pending" }]), 2);
 

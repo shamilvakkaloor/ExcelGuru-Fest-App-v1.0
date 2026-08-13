@@ -1,13 +1,13 @@
 // Substitutions — swapping a participant inside an existing entry.
 //
-// WHY THE WINDOW IS NARROW
-// It opens when the registration deadline passes and closes when code
-// letters are assigned. Before the deadline a House Manager can simply
-// withdraw and re-register, needing nobody's approval — a whole approval
-// workflow for something they can already do alone would be ceremony. After
-// code letters exist the running order is fixed and judges may be holding
-// sheets, so a name change is a result correction for an Admin in Judging,
-// not a substitution.
+// WHY THE WINDOW IS ADMIN-CONTROLLED
+// Substitution is closed by default, event by event. An Admin opens it on
+// the events where they want to allow it — there is no automatic trigger
+// tied to the registration deadline any more, and no restriction on which
+// participant may be replaced once it is open. After code letters exist the
+// running order is fixed and judges may be holding sheets, so a name change
+// is a result correction for an Admin in Judging, not a substitution — that
+// one gate never lifts, regardless of the event's substitutionOpen flag.
 //
 // WHY A CAP BREACH IS REFUSED OUTRIGHT
 // Caps are enforced when an entry is created, so a breach cannot arise
@@ -17,7 +17,6 @@
 import { db, docRef, getOne, getAll, add, patch, put, remove, where,
          runTransaction, serverTimestamp } from "../lib/db.js";
 import { checkCaps, applyCounts, limitsForCategory } from "./limits.js";
-import { windowState } from "./registration.js";
 
 export const SUB_STATUS = {
   PENDING:  "pending",
@@ -35,17 +34,18 @@ export function substitutionWindow(registration, event, settings, now = Date.now
   if (registration.codeLetter) {
     return { open: false, reason: "Code letters have been assigned — ask an Admin to correct this in Judging." };
   }
-  const reg = windowState(event, settings, now);
-  if (reg.open) {
-    return { open: false, reason: "Registration is still open — withdraw and re-register instead." };
+  if (!event.substitutionOpen) {
+    return { open: false, reason: "Substitutions are not open for this event — ask an Admin to open them." };
   }
   return { open: true, reason: null };
 }
 
 /** A House Manager asks for a swap. Creates a pending request only. */
-export async function requestSubstitution({ registration, event, outgoing, incoming, house, settings, requestedBy }) {
+export async function requestSubstitution({ registration, event, outgoing, incoming, house, settings, requestedBy, reason }) {
   const win = substitutionWindow(registration, event, settings);
   if (!win.open) throw new Error(win.reason);
+
+  if (!reason || !reason.trim()) throw new Error("Describe the reason for this substitution.");
 
   if (registration.houseId !== house.id) throw new Error("That entry belongs to another house.");
   if (!(registration.participantIds || []).includes(outgoing.id)) {
@@ -60,7 +60,16 @@ export async function requestSubstitution({ registration, event, outgoing, incom
   }
 
   // One open request per entry keeps the approval queue unambiguous.
+  //
+  // The houseId filter here is not optional decoration: firestore.rules
+  // scopes a House Manager's read of `substitutions` to their own house
+  // (resource.data.houseId == refId()), and Firestore rejects an entire
+  // list query with permission-denied if it cannot prove every possible
+  // result satisfies that rule from the query's own filters alone — an
+  // unfiltered-by-house query fails even when the true result would be
+  // empty or valid.
   const existing = await getAll("substitutions",
+    where("houseId", "==", house.id),
     where("registrationId", "==", registration.id), where("status", "==", SUB_STATUS.PENDING));
   if (existing.length) throw new Error("A substitution for this entry is already awaiting approval.");
 
@@ -77,6 +86,7 @@ export async function requestSubstitution({ registration, event, outgoing, incom
     status: SUB_STATUS.PENDING,
     requestedBy: requestedBy || house.name,
     requestedAt: serverTimestamp(),
+    requestReason: reason.trim(),
     decidedBy: null,
     decidedAt: null,
     reason: null

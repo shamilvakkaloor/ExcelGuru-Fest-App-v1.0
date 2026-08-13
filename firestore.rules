@@ -171,6 +171,11 @@ service cloud.firestore {
     // for their own house, and only with status "pending". Any write that
     // sets an outcome is staff-only. That split is the whole point of the
     // workflow, so it is enforced here rather than trusted to the UI.
+    //
+    // Substitution is closed by default per event — an Admin opens it on
+    // the events they choose (events/{eventId}.substitutionOpen). The UI
+    // hides the request button when it's closed; this re-checks the same
+    // flag so a hand-crafted write can't route around that.
     match /substitutions/{id} {
       allow read: if isStaff()
                   || (isHouse() && resource.data.houseId == refId());
@@ -178,7 +183,8 @@ service cloud.firestore {
       allow create: if isStaff()
                     || (isHouse()
                         && request.resource.data.houseId == refId()
-                        && request.resource.data.status == "pending");
+                        && request.resource.data.status == "pending"
+                        && get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.substitutionOpen == true);
 
       // Approving or rejecting is a staff act. A House Manager cannot edit
       // a request once it is in the queue — withdrawing an ask is done by

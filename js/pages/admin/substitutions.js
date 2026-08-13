@@ -37,8 +37,9 @@ export default async function substitutions(root) {
 
     panel.innerHTML = "";
     panel.appendChild(notice("info",
-      "House Managers request a swap once registration has closed. It stays possible until code letters " +
-      "are assigned — after that the running order is fixed and a name change is a result correction in Judging."));
+      "House Managers can request a swap only on events you've opened for substitution (Events → edit event). " +
+      "It stays possible until code letters are assigned — after that the running order is fixed and a name " +
+      "change is a result correction in Judging."));
 
     const pending = rows.filter(r => r.status === SUB_STATUS.PENDING);
     const decided = rows.filter(r => r.status !== SUB_STATUS.PENDING)
@@ -50,7 +51,10 @@ export default async function substitutions(root) {
       { key: "swap", label: "Swap", render: r => el("div", {}, [
           el("div", {}, [el("strong", { text: r.outgoingName }), " → ",
                          el("strong", { text: r.incomingName })]),
-          el("div.hint", { style: "margin:0", text: "requested by " + (r.requestedBy || "—") })
+          el("div.hint", { style: "margin:0", text: "requested by " + (r.requestedBy || "—") }),
+          r.requestReason
+            ? el("div.hint", { style: "margin:0", text: "Reason: " + r.requestReason })
+            : null
         ])},
       { key: "act", label: "", render: r => el("div.btn-row", {}, [
           button("Approve", { class: "btn-sm btn-accent", onclick: guard(async () => {
