@@ -258,10 +258,11 @@ export async function unpublishEvent(eventId) {
  */
 export async function rebuildPublicSnapshots() {
   const cfg = await loadConfig();
-  const [events, houses, categories, results, types, tiers] = await Promise.all([
+  const [events, houses, categories, results, types, tiers, adjustments] = await Promise.all([
     getAll("events"), getAll("houses"), getAll("categories"),
     getAll("results", where("publishStatus", "==", PUBLISH_STATUS.PUBLISHED)),
-    getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => [])
+    getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => []),
+    getAll("adjustments").catch(() => [])
   ]);
   // Only public boards enter a snapshot; staff-only boards never leave the
   // admin screens.
@@ -305,7 +306,7 @@ export async function rebuildPublicSnapshots() {
   }
 
   // ── Totals ────────────────────────────────────────────────────────
-  const { housePoints, participants } = aggregate(events, results, houses);
+  const { housePoints, participants } = aggregate(events, results, houses, adjustments);
 
   const houseRows = rankLeaderboard(houses.map(h => ({
     id: h.id, name: h.name, total: housePoints[h.id] || 0, pools: {}

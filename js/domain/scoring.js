@@ -251,12 +251,38 @@ export function finalizeBlockers(entries) {
  *    entry points. These pools drive the Student Talent leaderboard only and
  *    are never rolled back into House totals, so there is no double counting.
  */
-export function aggregate(events, resultDocs, houses) {
+export function aggregate(events, resultDocs, houses, adjustments = []) {
   const housePoints = {};
   const participants = {};
   const eventById = Object.fromEntries(events.map(e => [e.id, e]));
 
+  // The legacy single number on the house record still counts, so fests
+  // that used it before the adjustments ledger existed are unaffected.
   for (const h of houses) housePoints[h.id] = Number(h.adjustmentPoints || 0);
+
+  /* Discipline and other manual adjustments — each one a record carrying
+   * its own reason and description, rather than a single opaque number.
+   * Applied here, alongside earned points, so one total is the only total
+   * anybody has to reconcile. */
+  for (const adj of adjustments || []) {
+    const pts = Number(adj.points || 0);
+    if (!pts) continue;
+    if (adj.scope === "participant" && adj.targetId) {
+      if (!participants[adj.targetId]) {
+        participants[adj.targetId] = {
+          categoryIndividualPoints: 0, categoryGroupPoints: 0,
+          generalIndividualPoints: 0, generalGroupPoints: 0
+        };
+      }
+      participants[adj.targetId].adjustmentPoints =
+        (participants[adj.targetId].adjustmentPoints || 0) + pts;
+      // A participant adjustment also moves their house, since a house
+      // total is the sum of what its people did.
+      if (adj.houseId) housePoints[adj.houseId] = (housePoints[adj.houseId] || 0) + pts;
+    } else if (adj.targetId) {
+      housePoints[adj.targetId] = (housePoints[adj.targetId] || 0) + pts;
+    }
+  }
 
   for (const res of resultDocs) {
     const ev = eventById[res.id];
@@ -407,6 +433,10 @@ export function studentScore(pools, cfg) {
   if (cfg.includeCategoryGroupPoints)     total += pools.categoryGroupPoints || 0;
   if (cfg.includeGeneralIndividualPoints) total += pools.generalIndividualPoints || 0;
   if (cfg.includeGeneralGroupPoints)      total += pools.generalGroupPoints || 0;
+  // Always counted, never behind a pool toggle: an adjustment is a
+  // deliberate decision about this person, not a class of points a fest
+  // might choose to leave out of the reckoning.
+  total += pools.adjustmentPoints || 0;
   return total;
 }
 

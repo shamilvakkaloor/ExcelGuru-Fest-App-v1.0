@@ -192,6 +192,17 @@ service cloud.firestore {
       allow update, delete: if isStaff();
     }
 
+    // v8.8 — manual point adjustments (discipline, bonuses, corrections).
+    // Admin-only to WRITE: moving a house total by hand is the single most
+    // consequential non-publish act in the app, and a Co-Admin who can score
+    // but not publish should not be able to do it either. Publicly readable
+    // because the totals they feed are public, and a deduction the affected
+    // house cannot see is one it cannot query.
+    match /adjustments/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // v8.8 — titles. Hand-awarded, not tied to a scored event, so they carry
     // no publish gate of their own — an Admin decides when to award one and
     // that decision is immediately what the public sees.

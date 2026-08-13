@@ -168,6 +168,33 @@ check("an excluded event is left off a custom leaderboard",
     [{ id: "e2", entries: [{ participantIds: ["p1"], participantNames: ["A"], totalPoints: 99 }] }],
     { e2: { id: "e2", eventClass: "categoryIndividual", excludeFromTotals: true } }).length, 0);
 
+/* Manual adjustments — v8.8 */
+(() => {
+  const events = [{ id: "e1", eventClass: "categoryIndividual" }];
+  const results = [{ id: "e1", entries: [{ houseId: "red", participantIds: ["p1"], totalPoints: 10 }] }];
+  const houses = [{ id: "red", name: "Red", adjustmentPoints: 0 }];
+
+  const houseAdj = aggregate(events, results, houses,
+    [{ scope: "house", targetId: "red", points: -4 }]);
+  check("a house adjustment moves the house total", houseAdj.housePoints.red, 6);
+
+  const partAdj = aggregate(events, results, houses,
+    [{ scope: "participant", targetId: "p1", houseId: "red", points: -3 }]);
+  check("a participant adjustment lands in their own pool",
+    partAdj.participants.p1.adjustmentPoints, -3);
+  check("a participant adjustment also moves their house",
+    partAdj.housePoints.red, 7);
+
+  check("a zero adjustment is ignored rather than stored as noise",
+    aggregate(events, results, houses, [{ scope: "house", targetId: "red", points: 0 }]).housePoints.red, 10);
+
+  check("the legacy adjustmentPoints field still counts",
+    aggregate(events, results, [{ id: "red", name: "Red", adjustmentPoints: 5 }], []).housePoints.red, 15);
+
+  check("adjustments count in the student score regardless of pool toggles",
+    studentScore({ categoryIndividualPoints: 10, adjustmentPoints: -3 }, {}), 7);
+})();
+
 /* Category breakdown — v8.8 */
 (() => {
   const events = [
