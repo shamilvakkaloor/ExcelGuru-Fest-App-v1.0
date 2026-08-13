@@ -160,6 +160,12 @@ export const DEFAULTS = {
     manualUrl: "",
     manualLabel: "Fest manual",
     contactsVisible: false,   // v8.8 — the public Contact page is opt-in
+    // v8.8 — House Managers adding their own participants. Off by default:
+    // most fests want the roster centrally controlled. The window is
+    // separate from the event registration window, because "who is in my
+    // house" and "which events they enter" close at different moments.
+    houseAddParticipants: false,
+    houseAddWindow: { start: null, end: null },
     // The fest's own timezone, captured from the Admin's browser at setup.
     // Schedule times are wall-clock in THIS zone, not the reader's.
     // IANA zone name, e.g. "Asia/Kolkata". Resolved per date so daylight

@@ -74,6 +74,9 @@ async function basicTab(panel) {
   const manualLabel = input({ value: s.manualLabel || "Fest manual", placeholder: "Fest manual" });
   const regStart  = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.start) });
   const regEnd    = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.end) });
+  const houseAddStart = input({ type: "datetime-local", value: toLocalInput(s.houseAddWindow?.start) });
+  const houseAddEnd   = input({ type: "datetime-local", value: toLocalInput(s.houseAddWindow?.end) });
+  let houseAdd = !!s.houseAddParticipants;
 
   let blind = !!s.blindJudgingDefault;
   let gradeless = !!s.gradelessDefault;
@@ -279,6 +282,16 @@ async function basicTab(panel) {
     el("div.grid.grid-2", {}, [
       field("Registration opens", regStart),
       field("Registration deadline", regEnd)
+    ]),
+    el("hr", { style: "border:0;border-top:1px solid var(--line);margin:1rem 0" }),
+    checkbox("House Managers may add their own participants", houseAdd, v => houseAdd = v),
+    el("div.hint", { text:
+      "Lets a House Manager add people to their own house only, during the window below. This is a " +
+      "separate window from event registration, because “who is in my house” and “which events they " +
+      "enter” usually close at different moments. Enforced in the security rules, not just hidden." }),
+    el("div.grid.grid-2", {}, [
+      field("Adding opens", houseAddStart),
+      field("Adding closes", houseAddEnd)
     ])
   ]), "Registration window"));
 
@@ -331,6 +344,8 @@ async function basicTab(panel) {
       gradeScale: gradeScale.map(g => ({ id: g.id, label: g.label.trim(), minPercent: Number(g.minPercent) })),
       withoutLabel: withoutLabel.trim() || "Without",
       registrationWindow: { start: fromLocalInput(regStart.value), end: fromLocalInput(regEnd.value) },
+      houseAddParticipants: houseAdd,
+      houseAddWindow: { start: fromLocalInput(houseAddStart.value), end: fromLocalInput(houseAddEnd.value) },
       blindJudgingDefault: blind,
       gradelessDefault: gradeless,
       scheduleVisible: schedVisible,

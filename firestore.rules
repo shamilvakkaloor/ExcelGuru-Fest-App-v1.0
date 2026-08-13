@@ -267,6 +267,22 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    /* v8.8 — a House Manager may add participants to their OWN house, and
+     * only while the Admin has opened that window.
+     *
+     * Every clause is load-bearing: without the houseId check a manager
+     * could add people to a rival house, and without the window check the
+     * roster could be grown after code letters were drawn. eventCounts must
+     * start empty so a new participant cannot arrive pre-loaded with
+     * entries that never went through the cap transaction. */
+    function houseAddOpen() {
+      let s = settings();
+      return s.houseAddParticipants == true
+        && (s.houseAddWindow == null
+            || ((s.houseAddWindow.start == null || request.time >= timestamp.value(s.houseAddWindow.start))
+             && (s.houseAddWindow.end == null   || request.time <= timestamp.value(s.houseAddWindow.end))));
+    }
+
     // ── Participants ─────────────────────────────────────────────────
     // Publicly readable because the lookup page searches them by chest
     // number and name. Only staff may create or edit.
@@ -277,7 +293,15 @@ service cloud.firestore {
     // the app, so a hand-crafted write cannot exceed it.
     match /participants/{pid} {
       allow read: if true;
-      allow create, delete: if isStaff();
+      allow create: if isStaff()
+                    || (isHouse()
+                        && houseAddOpen()
+                        && request.resource.data.houseId == refId()
+                        // A new participant starts with nothing entered. Any
+                        // other starting value would be entries that never
+                        // passed through the cap transaction.
+                        && request.resource.data.eventCounts.overall == 0);
+      allow delete: if isStaff();
       allow update: if isStaff()
                     || (isHouse()
                         && resource.data.houseId == refId()

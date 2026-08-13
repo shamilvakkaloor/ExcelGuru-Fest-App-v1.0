@@ -3,16 +3,17 @@
 import { el, card, field, input, select, button, table, toast, guard, notice,
          empty, badge, modal, confirmDialog, loading, filterBar, uniqOptions } from "../lib/ui.js";
 import { avatar } from "../lib/photo.js";
-import { getAll, getOne, where } from "../lib/db.js";
+import { getAll, getOne, add, where } from "../lib/db.js";
 import { appShell } from "../lib/shell.js";
 import { session } from "../lib/session.js";
 import { registerEntry, registerMany, withdrawEntry, windowState, canWithdraw, countByEvent }
   from "../domain/registration.js";
 import { substitutionWindow, requestSubstitution, SUB_STATUS } from "../domain/substitution.js";
-import { DEFAULTS, classLabel, isGroupClass, isGeneralClass, eventLabel,
+import { DEFAULTS, GENDERS, classLabel, isGroupClass, isGeneralClass, eventLabel,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, entryCompletion,
          typeTierFilters, eventFilterKeys } from "../domain/constants.js";
-import { compareChest } from "../domain/chest.js";
+import { compareChest, allocateChest, takenChestNumbers, readChestCounter,
+         raiseChestCounter, chestSortKey } from "../domain/chest.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { shortfalls, limitsForCategory } from "../domain/limits.js";
 import { toCSV, downloadText } from "../lib/csv.js";
@@ -420,12 +421,32 @@ async function entriesTab(panel, house, refresh) {
   }
 }
 
-async function peopleTab(panel, house) {
-  const [people, limits, types, tiers] = await Promise.all([
+async function peopleTab(panel, house, refresh) {
+  const [people, limits, types, tiers, settings, categories] = await Promise.all([
     getAll("participants", where("houseId", "==", house.id)),
     getOne("config", "participantLimits"),
-    getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => [])
+    getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => []),
+    getOne("config", "festSettings").catch(() => null),
+    getAll("categories").catch(() => [])
   ]);
+
+  /* Adding is Admin-opt-in and time-boxed. The same two conditions are
+   * enforced in firestore.rules — this only decides whether to offer the
+   * button, so a manager is never shown an action that would be refused. */
+  const cfgS = { ...DEFAULTS.festSettings, ...(settings || {}) };
+  const w = cfgS.houseAddWindow || {};
+  const now = Date.now();
+  const addOpen = !!cfgS.houseAddParticipants
+    && (!w.start || now >= w.start)
+    && (!w.end || now <= w.end);
+
+  if (addOpen) {
+    panel.appendChild(card(el("div", {}, [
+      el("p.hint", { text: "You can add people to your own house while this window is open. Chest numbers are allocated automatically." }),
+      el("div.btn-row", {}, button("Add participant", { class: "btn-accent",
+        onclick: () => houseAddDialog(house, categories, cfgS, refresh) }))
+    ]), "Add to " + house.name));
+  }
   const lim = { ...DEFAULTS.participantLimits, ...(limits || {}) };
   const vocab = {
     types: Object.fromEntries(types.map(t => [t.id, t.name])),
@@ -458,6 +479,66 @@ async function peopleTab(panel, house) {
       title: house.name + " — participants", subtitle: window.__FEST_NAME__ || "",
       bodyHTML: htmlTable(columns, rows) }) })
   ]));
+}
+
+/**
+ * A House Manager adding one of their own people.
+ *
+ * Chest allocation reuses domain/chest.js exactly as the Admin importer
+ * does, so a manager-added participant is numbered by the same rules as
+ * every other — there is no second numbering scheme to keep in step.
+ */
+function houseAddDialog(house, categories, cfg, refresh) {
+  const name = input({ placeholder: "Full name" });
+  const cat  = select(categories.map(c => ({ value: c.id, label: c.name })));
+  const cls  = input({ placeholder: "Class / grade" });
+  const gender = select(GENDERS);
+
+  modal({
+    title: "Add to " + house.name,
+    body: el("div", {}, [
+      field("Name", name),
+      field("Category", cat),
+      field("Class", cls),
+      field("Gender", gender),
+      el("p.hint", { text: "The chest number is allocated automatically from your house's range or the shared sequence." })
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Add", kind: "accent", closes: false, busyLabel: "Adding…", onClick: guard(async close => {
+          if (!name.value.trim()) { toast("Enter a name.", true); return false; }
+          if (!cat.value) { toast("Choose a category.", true); return false; }
+
+          const [taken, counter] = await Promise.all([takenChestNumbers(), readChestCounter()]);
+          const res = allocateChest({
+            explicit: null, house, houses: [house], settings: cfg, taken, counter
+          });
+
+          await add("participants", {
+            name: name.value.trim(),
+            nameLower: name.value.trim().toLowerCase(),
+            chestNumber: res.value,
+            chestSort: chestSortKey(res.value),
+            houseId: house.id,
+            houseName: house.name,
+            categoryId: cat.value,
+            categoryName: categories.find(c => c.id === cat.value)?.name || "",
+            className: cls.value.trim(),
+            gender: gender.value || null,
+            photoData: null,
+            // Must be zero: the security rule refuses anything else, because
+            // a non-zero start would be entries that never passed the cap
+            // transaction.
+            eventCounts: { overall: 0 }
+          });
+          if (res.counter > counter) await raiseChestCounter(res.counter);
+
+          toast("Added " + name.value.trim() + " — chest " + res.value);
+          close(true); refresh();
+        })
+      }
+    ]
+  });
 }
 
 /**
