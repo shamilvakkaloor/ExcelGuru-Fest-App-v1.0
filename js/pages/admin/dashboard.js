@@ -1,6 +1,6 @@
 import { el, card, empty, badge, button, notice } from "../../lib/ui.js";
 import { getAll, getOne, where } from "../../lib/db.js";
-import { PUBLISH_STATUS } from "../../domain/constants.js";
+import { PUBLISH_STATUS, housePluralTerm } from "../../domain/constants.js";
 import { is, session } from "../../lib/session.js";
 
 export default async function dashboard(root) {
@@ -17,7 +17,7 @@ export default async function dashboard(root) {
   root.appendChild(el("div.grid.grid-3", { style: "margin-bottom:1rem" }, [
     stat(participants.length, "Participants"),
     stat(events.length, "Events"),
-    stat(houses.length, "Houses"),
+    stat(houses.length, housePluralTerm(settings)),
     stat(finalized, "Finalized, not public"),
     stat(published, "Published")
   ]));

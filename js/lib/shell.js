@@ -45,6 +45,26 @@ export function applyLogoScale(scale) {
   document.documentElement.style.setProperty("--logo-scale", String(pct / 100));
 }
 
+/**
+ * Set the House term globally, the same boot-time-global pattern as
+ * applyFestName. The nav is built synchronously with no settings read of
+ * its own, so a window global is what lets it show a rename without
+ * becoming async.
+ */
+export function applyHouseTerm(singular, plural) {
+  window.__HOUSE_TERM__ = (singular || "").trim() || "House";
+  window.__HOUSE_TERM_PLURAL__ = (plural || "").trim() || "Houses";
+}
+
+/** Swap the two nav labels that literally say "House"/"Houses". Scoped to
+ *  exactly those two strings — no general templating, so nothing else in
+ *  the nav can be accidentally rewritten by a coincidental match. */
+function navLabel(label) {
+  if (label === "Houses") return window.__HOUSE_TERM_PLURAL__ || "Houses";
+  if (label === "House") return window.__HOUSE_TERM__ || "House";
+  return label;
+}
+
 export function applyFestName(festName) {
   const name = (festName || "").trim();
   window.__FEST_NAME__ = name || "Fest Tabulation";
@@ -284,7 +304,7 @@ export function appShell(root, { title, breadcrumb } = {}) {
           href: "#" + it.to,
           "aria-current": isActive ? "page" : null,
           onclick: () => frame.classList.remove("nav-open")
-        }, [icon(it.icon || "list", 17), el("span", { text: it.label })]));
+        }, [icon(it.icon || "list", 17), el("span", { text: navLabel(it.label) })]));
 
         // Children stay expanded while their parent section is open, which
         // is what makes a section's internal tabs addressable from the nav.
@@ -296,7 +316,7 @@ export function appShell(root, { title, breadcrumb } = {}) {
             const on = c.to.split("?")[0] === path
               && (query.tab ? query.tab === cTab : cTab === defaultTabFor(base));
             sub.appendChild(el("a.navsubitem" + (on ? ".on" : ""), {
-              href: "#" + c.to, text: c.label,
+              href: "#" + c.to, text: navLabel(c.label),
               onclick: () => frame.classList.remove("nav-open")
             }));
           }
@@ -408,5 +428,6 @@ function initials(name) {
 }
 
 export function roleLabel(r) {
-  return { admin: "Admin", coAdmin: "Co-Admin", judge: "Judge", house: "House Manager" }[r] || "";
+  return { admin: "Admin", coAdmin: "Co-Admin", judge: "Judge",
+    house: (window.__HOUSE_TERM__ || "House") + " Manager" }[r] || "";
 }

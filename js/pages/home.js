@@ -6,7 +6,7 @@ import { el, card, badge, button, empty, loading } from "../lib/ui.js";
 import { getOne, getAll, where } from "../lib/db.js";
 import { topbar, homeForRole } from "../app.js";
 import { session } from "../lib/session.js";
-import { classLabel, rankIsPublic } from "../domain/constants.js";
+import { classLabel, rankIsPublic, houseTerm, housePluralTerm } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 
@@ -79,7 +79,7 @@ export default async function homePage(root) {
           el("div.hbar", {}, bar)
         ]);
       })),
-      usingChampionship ? "Championship standings" : "House standings",
+      usingChampionship ? "Championship standings" : housePluralTerm(settings) + " standings",
       el("a.btn.btn-sm", { href: "#/results", text: "Full table" })));
   }
 
@@ -124,7 +124,7 @@ export default async function homePage(root) {
   /* ── Navigation tiles ─────────────────────────────────────────── */
   wrap.appendChild(el("h2", { text: "Explore", style: "margin-top:1.4rem" }));
   wrap.appendChild(el("div.home-tiles", {}, [
-    tile("#/results", "Results & leaderboards", "House totals, student talent board and every event table."),
+    tile("#/results", "Results & leaderboards", houseTerm(settings) + " totals, student talent board and every event table."),
     tile("#/lookup", "Find a participant", "Search by chest number or name to see events and results."),
     tile("#/schedule", "Schedule", "The full programme by venue and time."),
     tile("#/screen", "Big screen mode", "Rotating display for a projector or hall screen.")
@@ -133,7 +133,7 @@ export default async function homePage(root) {
   /* ── Quick stats ──────────────────────────────────────────────── */
   wrap.appendChild(el("div.grid.grid-3", { style: "margin-top:1.2rem" }, [
     stat(board?.eventCount ?? 0, "Events published"),
-    stat(houses.length, "Houses competing"),
+    stat(houses.length, housePluralTerm(settings) + " competing"),
     stat(board?.students?.length ?? 0, "Participants scoring")
   ]));
 

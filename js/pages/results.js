@@ -38,13 +38,17 @@ export default async function resultsPage(root) {
   const talentLimit = Number(board?.talentBoardLimit) || 0;
   const rankArt = board?.rankArt || {};
   const houseStyle = board?.houseStyle || {};
+  // The snapshot carries the fest's own word for "House" so this page needs
+  // no second document read to show a rename.
+  const hTerm = board?.houseTerm || "House";
+  const hPlural = board?.housePluralTerm || "Houses";
 
   // v8 — public custom boards get their own tab, under their own name.
   const boards = board?.boards || [];
   // The whole leaderboard tab set only makes sense once results exist; a
   // fest that has only awarded titles so far gets just that one tab.
   const TABS = board?.eventCount
-    ? [["houses", "House rankings"], ["students", "Student talent"],
+    ? [["houses", hPlural + " rankings"], ["students", "Student talent"],
        ...boards.map(b => ["board:" + b.id, b.name]), ["events", "By event"],
        ...(titles.length ? [["titles", "Titles"]] : [])]
     : [["titles", "Titles"]];
@@ -98,13 +102,13 @@ export default async function resultsPage(root) {
       { key: "rank", label: "Rank", render: rankCell },
       { key: "name", label: "Participant" },
       { key: "chestNumber", label: "Chest", render: r => el("span.mono", { text: r.chestNumber || "" }) },
-      { key: "houseName", label: "House", render: houseTag },
+      { key: "houseName", label: hTerm, render: houseTag },
       { key: "events", label: "Events", num: true },
       { key: "total", label: "Points", num: true }
     ], shown), b.name + (cap && rows.length > cap ? ` — top ${cap}` : ""),
       exportRow(slug(b.name), rows,
         [{ label: "Rank", key: "rank" }, { label: "Name", key: "name" },
-         { label: "Chest", key: "chestNumber" }, { label: "House", key: "houseName" },
+         { label: "Chest", key: "chestNumber" }, { label: hTerm, key: "houseName" },
          { label: "Events", key: "events" }, { label: "Points", key: "total" }])));
   }
 
@@ -131,13 +135,13 @@ export default async function resultsPage(root) {
     if (mode === "percentage" && champ.length) {
       panel.appendChild(card(table([
         { key: "rank", label: "Rank", render: rankCell },
-        { key: "name", label: "House", render: houseTag },
+        { key: "name", label: hTerm, render: houseTag },
         { key: "percent", label: "%", num: true, render: r => r.percent.toFixed(1) + "%" },
         { key: "points", label: "Points", num: true },
         { key: "maxEarnable", label: "Max earnable", num: true }
-      ], champ), "Championship — house rankings",
+      ], champ), "Championship — " + hPlural.toLowerCase() + " rankings",
         exportRow("house-rankings", champ,
-          [{ label: "Rank", key: "rank" }, { label: "House", key: "name" }, { label: "%", key: "percent" },
+          [{ label: "Rank", key: "rank" }, { label: hTerm, key: "name" }, { label: "%", key: "percent" },
            { label: "Points", key: "points" }, { label: "Max earnable", key: "maxEarnable" }])));
       panel.appendChild(el("p.hint", { text:
         "Ranked by points earned as a share of the most that house could plausibly have earned — not by raw points." }));
@@ -146,15 +150,15 @@ export default async function resultsPage(root) {
 
     panel.appendChild(card(table([
       { key: "rank", label: "Rank", render: rankCell },
-      { key: "name", label: "House", render: houseTag },
+      { key: "name", label: hTerm, render: houseTag },
       { key: "total", label: "Points", num: true }
-    ], rows), "House rankings", exportRow("house-rankings", rows,
-      [{ label: "Rank", key: "rank" }, { label: "House", key: "name" }, { label: "Points", key: "total" }])));
+    ], rows), hPlural + " rankings", exportRow("house-rankings", rows,
+      [{ label: "Rank", key: "rank" }, { label: hTerm, key: "name" }, { label: "Points", key: "total" }])));
 
     if (mode === "both" && champ.length) {
       panel.appendChild(card(table([
         { key: "rank", label: "Rank", render: rankCell },
-        { key: "name", label: "House", render: houseTag },
+        { key: "name", label: hTerm, render: houseTag },
         { key: "percent", label: "%", num: true, render: r => r.percent.toFixed(1) + "%" },
         { key: "points", label: "Points", num: true },
         { key: "maxEarnable", label: "Max earnable", num: true }
@@ -185,12 +189,12 @@ export default async function resultsPage(root) {
         { key: "rank", label: "Rank", render: rankCell },
         { key: "name", label: "Participant" },
         { key: "chestNumber", label: "Chest", render: r => el("span.mono", { text: r.chestNumber || "" }) },
-        { key: "houseName", label: "House", render: houseTag },
+        { key: "houseName", label: hTerm, render: houseTag },
         { key: "total", label: "Points", num: true }
       ], shown), name + (talentLimit && ranked.length > talentLimit ? ` — top ${talentLimit}` : ""),
         exportRow("talent-" + slug(name), ranked,
           [{ label: "Rank", key: "rank" }, { label: "Name", key: "name" }, { label: "Chest", key: "chestNumber" },
-           { label: "House", key: "houseName" }, { label: "Points", key: "total" }])));
+           { label: hTerm, key: "houseName" }, { label: "Points", key: "total" }])));
     }
   }
 
@@ -249,7 +253,7 @@ export default async function resultsPage(root) {
             ? table([
                 { key: "rank", label: "Rank", render: rankCell },
                 { key: "names", label: "Participant", render: r => (r.names || []).join(", ") },
-                { key: "houseName", label: "House", render: houseTag },
+                { key: "houseName", label: hTerm, render: houseTag },
                 { key: "grade", label: "Grade", render: r => badge(gradeLabel(r.grade, board), gradeKind(r.grade)) },
                 { key: "totalPoints", label: "Points", num: true }
               ], shown)
@@ -258,7 +262,7 @@ export default async function resultsPage(root) {
             (ev.eventClass ? " · " + classLabel(ev.eventClass) : ""),
           exportRow(slug(ev.eventName), full,
             [{ label: "Rank", key: "rank" }, { label: "Participant", value: r => (r.names || []).join(", ") },
-             { label: "House", key: "houseName" }, { label: "Grade", value: r => gradeLabel(r.grade, board) }, { label: "Points", key: "totalPoints" }])));
+             { label: hTerm, key: "houseName" }, { label: "Grade", value: r => gradeLabel(r.grade, board) }, { label: "Points", key: "totalPoints" }])));
       }
     }
   }

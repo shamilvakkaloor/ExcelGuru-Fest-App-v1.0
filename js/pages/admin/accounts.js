@@ -5,13 +5,17 @@ import { createAccount, revokeAccount, reissueLogin, slugify, validatePassword, 
 import { queueRepublish } from "../../domain/republish.js";
 import { overlappingRanges, rangeClash, derivePattern } from "../../domain/chest.js";
 import { compressImage } from "../../lib/photo.js";
-import { DEFAULTS } from "../../domain/constants.js";
+import { DEFAULTS, housePluralTerm } from "../../domain/constants.js";
 
 const TABS = [
   { id: "house",   label: "Houses",    collection: "houses"   },
   { id: "judge",   label: "Judges",    collection: "judges"   },
   { id: "coAdmin", label: "Co-Admins", collection: "coAdmins" }
 ];
+
+// Resolved at render time from the boot-time global applyHouseTerm() sets —
+// the same mechanism the nav panel uses. TABS itself stays static data.
+const tabLabel = t => t.id === "house" ? (window.__HOUSE_TERM_PLURAL__ || "Houses") : t.label;
 
 export default async function accounts(root, query = {}) {
   let tab = TABS.some(t => t.id === query.tab) ? query.tab : "house";
@@ -22,7 +26,7 @@ export default async function accounts(root, query = {}) {
   // B3 — the nav panel carries Houses / Judges / Co-Admins.
   const tabs = el("div.tabs.nav-owned");
   const panel = el("div");
-  TABS.forEach(t => tabs.appendChild(button(t.label, {
+  TABS.forEach(t => tabs.appendChild(button(tabLabel(t), {
     class: t.id === tab ? "active" : "", onclick: () => { tab = t.id; paint(); }
   })));
   root.append(tabs, panel);
@@ -43,16 +47,17 @@ async function renderTab(panel, spec, refresh) {
   const cfg = { ...DEFAULTS.festSettings, ...(settings || {}) };
   const dirBySlug = Object.fromEntries(directory.map(d => [d.slug, d]));
   const isHouse = spec.id === "house";
+  const label = isHouse ? housePluralTerm(cfg) : spec.label;
   const seeded = cfg.chestFormat !== "digits";
   const usesRanges = cfg.chestFormat === "digits" && cfg.chestAllocation === "houseRange";
 
   panel.appendChild(card(el("div.btn-row", {}, [
-    button("Add " + spec.label.replace(/s$/, ""), { class: "btn-accent",
+    button("Add " + label.replace(/s$/, ""), { class: "btn-accent",
       onclick: () => addDialog(spec, records, allHouses, cfg, refresh) }),
     // I19 — the repair described in ARCHITECTURE section 4.5.
     button("Repair logins", {
       onclick: () => repairDialog(spec, records, dirBySlug, refresh) })
-  ]), spec.label));
+  ]), label));
 
   // I19 — a role record without a uid cannot be assigned to anything, because
   // judgeAssignments are keyed by the Auth uid and every rule checks
@@ -60,7 +65,7 @@ async function renderTab(panel, spec, refresh) {
   const missingUid = records.filter(r => !r.uid && dirBySlug[r.slug || slugify(r.name)]);
   if (missingUid.length) {
     panel.appendChild(notice("warn",
-      missingUid.length + " " + spec.label.toLowerCase() + " " +
+      missingUid.length + " " + label.toLowerCase() + " " +
       (missingUid.length > 1 ? "records are" : "record is") +
       " missing their login id. " +
       (spec.id === "judge"
@@ -69,7 +74,7 @@ async function renderTab(panel, spec, refresh) {
       "Press Repair logins to fix it — it is safe to run more than once."));
   }
 
-  if (!records.length) { panel.appendChild(empty("No " + spec.label.toLowerCase() + " yet")); return; }
+  if (!records.length) { panel.appendChild(empty("No " + label.toLowerCase() + " yet")); return; }
 
   if (isHouse && usesRanges) {
     const clashes = overlappingRanges(records);
@@ -235,9 +240,10 @@ function addDialog(spec, existing, houses, cfg, refresh) {
   const pw   = input({ type: "password", autocomplete: "new-password" });
   const pw2  = input({ type: "password", autocomplete: "new-password" });
   const houseBits = spec.id === "house" ? houseFields(null, cfg) : null;
+  const label = spec.id === "house" ? housePluralTerm(cfg) : spec.label;
 
   modal({
-    title: "Add " + spec.label.replace(/s$/, ""),
+    title: "Add " + label.replace(/s$/, ""),
     body: el("div", {}, [
       field("Name", name),
       houseBits ? houseBits.node : null,

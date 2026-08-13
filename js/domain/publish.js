@@ -10,7 +10,7 @@ import { computeResults, computeDirectResults, finalizeBlockers, directFinalizeB
          resolvePoints, ladderKey, aggregate, studentScore, rankLeaderboard,
          tallyBoard, gradeScaleFrom, championshipStandings } from "./scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, EVENT_CLASSES, publicRankLimit, rankIsPublic,
-         effectiveResultMode } from "./constants.js";
+         effectiveResultMode, houseTerm, housePluralTerm } from "./constants.js";
 import { wallClockToEpoch } from "../lib/timezone.js";
 
 /** Load the four config documents every calculation needs. */
@@ -475,6 +475,8 @@ export async function rebuildPublicSnapshots() {
       // already follows.
       gradeScale: gradeScaleFrom(cfg.settings),
       withoutLabel: cfg.settings.withoutLabel || "Without",
+      houseTerm: houseTerm(cfg.settings),
+      housePluralTerm: housePluralTerm(cfg.settings),
       rankArt: cfg.settings.rankArt || {},
       houseStyle: Object.fromEntries(houses.map(h =>
         [h.id, { color: h.color || null, logoData: h.logoData || null }]))

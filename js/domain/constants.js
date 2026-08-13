@@ -13,6 +13,18 @@ export const classLabel = id => CLASS_BY_ID[id]?.label ?? id;
 export const isGroupClass = id => !!CLASS_BY_ID[id]?.group;
 export const isGeneralClass = id => !!CLASS_BY_ID[id]?.general;
 
+/**
+ * The fest's own word for "House" — e.g. "Team", "Zone", "Wing".
+ *
+ * The stored role value is always "house" and every collection is always
+ * `houses`/`houseId`; only display text changes. Call wherever settings is
+ * already loaded. Pages that don't load settings just to render one label
+ * keep the literal word "House" — see lib/shell.js applyHouseTerm() for the
+ * one place this needs no settings object (the nav, via a boot-time global).
+ */
+export const houseTerm = settings => (settings?.houseTermSingular || "House").trim() || "House";
+export const housePluralTerm = settings => (settings?.houseTermPlural || "Houses").trim() || "Houses";
+
 export const STAGES = [
   { value: "onStage",  label: "On stage"  },
   { value: "offStage", label: "Off stage" }

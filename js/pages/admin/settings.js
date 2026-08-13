@@ -9,7 +9,7 @@ import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timez
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
 import { wipeEverything } from "../../domain/reset.js";
 import { compressImage, compressToBudget } from "../../lib/photo.js";
-import { applyFestName, applyLogoScale } from "../../lib/shell.js";
+import { applyFestName, applyLogoScale, applyHouseTerm } from "../../lib/shell.js";
 
 const TABS = [
   ["basic",          "Fest details"],
@@ -67,6 +67,8 @@ async function basicTab(panel) {
   const subtitle  = input({ value: s.subtitle || "" });
   const school    = input({ value: s.schoolName || "" });
   const scale     = input({ type: "number", min: 1, value: s.scoreScale });
+  const houseSingular = input({ value: s.houseTermSingular || "House", placeholder: "House" });
+  const housePlural   = input({ value: s.houseTermPlural || "Houses", placeholder: "Houses" });
   const regStart  = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.start) });
   const regEnd    = input({ type: "datetime-local", value: toLocalInput(s.registrationWindow?.end) });
 
@@ -158,6 +160,11 @@ async function basicTab(panel) {
     field("Subtitle", subtitle),
     field("School / college", school),
     field("Maximum score a judge can give", scale, "Percentages are calculated against this. 100 is typical."),
+    el("fieldset", {}, [
+      el("legend", { text: "Terminology" }),
+      el("div.hint", { text: "Rename “House” across the admin panel, public pages and certificates — e.g. “Team” or “Zone”. Internal labels and code (houseId, the house role) never change, only what's shown." }),
+      el("div.grid.grid-2", {}, [field("Singular", houseSingular), field("Plural", housePlural)])
+    ]),
     el("fieldset", {}, [
       el("legend", { text: "Fest logo" }),
       el("div.hint", { text: "Upload a PNG of your fest typography to show instead of the plain text name, on the home page and top bar. A transparent PNG works best — it sits on both a dark bar and a light page." }),
@@ -296,6 +303,8 @@ async function basicTab(panel) {
       subtitle: subtitle.value.trim(),
       schoolName: school.value.trim(),
       scoreScale: Number(scale.value) || 100,
+      houseTermSingular: houseSingular.value.trim() || "House",
+      houseTermPlural: housePlural.value.trim() || "Houses",
       gradeScale: gradeScale.map(g => ({ id: g.id, label: g.label.trim(), minPercent: Number(g.minPercent) })),
       withoutLabel: withoutLabel.trim() || "Without",
       registrationWindow: { start: fromLocalInput(regStart.value), end: fromLocalInput(regEnd.value) },
@@ -309,6 +318,7 @@ async function basicTab(panel) {
     window.__FEST_LOGO__ = (useLogo && logoData) ? logoData : null;
     applyLogoScale(logoScale);
     applyFestName(festName.value.trim());
+    applyHouseTerm(houseSingular.value.trim(), housePlural.value.trim());
     queueRepublish({ schedule: true });
     toast("Settings saved.");
   })})));
