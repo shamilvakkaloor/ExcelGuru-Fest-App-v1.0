@@ -620,3 +620,164 @@ snapshot architecture (§7 of v7), security rules as the only enforcement
 boundary, blind judging enforced at the storage layer, dense ranking, absence
 never inferred, the house-once/member-each group split, minimums never
 blocking, and chest number formats.
+
+---
+
+## 19. v8.8 — as built
+
+Everything in §§1–18 still holds. This section records what v8.8 added on
+top, and the constraints that shaped each decision. Sections above were
+written as a build spec; this one is written after the fact.
+
+### 19.1 New collections
+
+| Collection | Read | Write | Notes |
+|---|---|---|---|
+| `titles` | public | staff | Hand-awarded, no publish gate — awarding one *is* the publication |
+| `adjustments` | public | **Admin** | Public because the totals it moves are public |
+| `scoreOverrides` | staff | Admin, frozen once published | Replaces the *input*, never the rank |
+| `houseContacts` | staff + own house | Admin | **Holds phone numbers — never public** |
+| `publicContacts` | public | staff | Only the numbers ticked as public |
+| `constraintGroups` | public | Admin | "At most N of these" |
+| `stageManagers` | public | Admin | Account records for the fifth role |
+| `stageArrivals` | staff + stage | staff + stage | Running-order tick. **Not** an absence |
+| `appeals` | staff, own house, assigned judges | house creates, staff decides once | §19.4 |
+| `eventMaterials` | staff, stage, own house | house submits, staff decides | §19.5 |
+| `conversations` + `messages` | participants only | staff starts, participants reply | §19.6 |
+
+### 19.2 The nine-tier cap hierarchy
+
+`overall` → four roll-ups (`group`, `individual`, `category`, `general`) →
+four classes, each optionally split by stage. `category` + `general`
+partition the four classes, and so do `group` + `individual`, so any one
+event is counted by exactly one cap from each pair — never twice by the same
+cap. Every applicable tier is checked; the tightest one blocks.
+
+⚠ **Behaviour change from v8.7.** `maxFor()` used to return null for
+`generalIndividual` and `generalGroup`, so the two General cap boxes in
+Settings were accepted and then silently ignored. They now apply. A fest
+that had values sitting in those boxes will start enforcing them.
+
+### 19.3 Group entries are teams
+
+A group entry carries `teamLabel`, computed once at registration:
+`"Red"` where a house may field one team, `"Red A"` / `"Red B"` where it may
+field several (including where no cap is set, since a second team can appear
+at any time and renaming the first afterwards would be worse).
+
+Stored rather than derived, because a substitution changes the roster and a
+cap can be edited later — an entry that renamed itself afterwards would look
+like a different entry to anyone holding a printed sheet.
+
+### 19.4 Appeals
+
+Window opens automatically at publish, closes itself after
+`appealWindowHours`. Requires `results.publishedAtMs` — plain epoch
+milliseconds stored alongside the existing server timestamp, because
+Security Rules can only compare `request.time` against a value they can
+convert themselves. Events published before v8.8 have no such field and
+therefore no window; both the rule and `appealWindowState()` independently
+reach that same answer.
+
+**A decision never moves points.** Upheld/Overturned is recorded with a
+written reason; correcting an overturned result is a separate Score Override
+or Adjustment. A third path that wrote scores directly would be a way to move
+points with no reason attached — the exact thing those two mechanisms exist
+to prevent.
+
+The active-appeal limit is **queried, not tallied**: a house may hold N open
+at once, and an Overturned appeal stops counting so being right frees the
+slot. Deliberately not a rules-enforced tally document — appeals are rare and
+every one is read by a human before anything follows from it, so a
+double-submission race is a nuisance an Admin notices, not a silent overrun.
+Same reasoning as constraint groups (§19.7).
+
+### 19.5 Event material
+
+Per-event opt-in, named by `event.materialLabel` ("Song title", "Prop list").
+House submits one item per entry; staff approves oldest-first.
+
+An approved title reaches a judge **through `judgingEntries`**, never by
+reading `eventMaterials` — the same indirection the event description already
+relies on, and the reason blind judging is enforced by what is stored rather
+than what the UI hides. Shown even on a blind event: it describes the
+performance, not the performer.
+
+Stage can read `eventMaterials`, because assigning code letters rewrites
+`judgingEntries`, and a Stage Manager re-lettering after an approval must not
+blank the material back out.
+
+### 19.6 Messaging
+
+Off by default. Staff starts a conversation, personal or group, across any
+role; every participant may reply.
+
+Access is decided by the **query**, not by a `get()` per document:
+`participantUids array-contains request.auth.uid`, matching the rule's
+`request.auth.uid in resource.data.participantUids`. A `get()`-gated list
+query is what failed for substitutions in v8.7 — Firestore cannot statically
+prove a per-document rule holds across an unfiltered query and rejects the
+whole thing.
+
+The only live listener in the app, and therefore the only continuous read
+cost. There is no push notification and cannot be one: Cloud Functions need
+billing.
+
+⚠ A Co-Admin cannot message the **Admin** by name. There is no queryable list
+of Admin accounts — the model is one Admin created at setup — and `users`,
+the role document itself, is readable only by its owner and an Admin. Every
+other pairing works.
+
+### 19.7 Constraint groups and reserved places
+
+Both need a *query*, and the Web SDK cannot query inside a transaction — the
+same constraint that produced the `entryCounts` tally. Both are therefore
+evaluated **before** the transaction, and two simultaneous submissions could
+each see room and both commit. That is a far milder failure than the cap race
+the tally exists to prevent: a group is a fairness rule, not a bound on
+points. Closing it properly would mean a tally document per
+(participant, group). Documented rather than left to be discovered.
+
+### 19.8 Leaderboard qualification
+
+Three opt-in gates on **membership**, never on the sum: a qualifying
+participant's total is still every point the board's axis filters matched.
+Rank-or-grade N times; participant-category scope (`entryCategoryId`, the
+participant's own category — distinct from the pre-existing `categoryIds`,
+which scopes by the *event's*); and mutual exclusion.
+
+Mutual exclusion is resolved by the **caller**, not by `tallyBoard()`:
+`rebuildPublicSnapshots()` walks boards in `sortOrder` remembering who topped
+each, so a board can exclude whoever tops an earlier one. Referencing itself
+or a later board is a documented no-op.
+
+⚠ `entryCategoryId` is new on stored result rows. An event finalized before
+v8.8 does not carry it, so a category-scoped board shows nobody from that
+event until it is **finalized** again — re-publishing alone is not enough.
+
+### 19.9 The fifth role — Stage Manager
+
+Two jobs: assign code letters, and tick entries in as they go on. Cannot
+score, finalize or publish.
+
+Reads registrations in full — they have to call the right people to the
+stage, and blind judging is enforced against *judges* through
+`judgingEntries`, not against everyone. May update **only** the three
+`codeLetter*` fields (`affectedKeys().hasOnly`), and only before publish;
+without that narrowing, "may update a registration" would also mean moving an
+entry to another house.
+
+`stageArrivals` is its own collection rather than a field on the registration
+or an `entryFlag`. **Absence moves points; arrival does not.** Keeping them
+apart means no later rule change here can be mistaken for the power to mark
+somebody absent.
+
+### 19.10 Testing
+
+`tests.html` is now **213 assertions**, still pure logic and still needing no
+Firebase connection.
+
+⚠ The pass/fail summary had been computed mid-file since a point in this
+file's history where that was the end — every `check()` added below it, which
+by v8.8 was most of the suite, rendered its own row but was left out of the
+total. The count was never really 149. Fixed by moving the summary last.

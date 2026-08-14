@@ -18,7 +18,7 @@ The short version:
 1. Create a Firebase project, turn on Firestore and Email/Password auth
 2. Paste your config into `config.js`
 3. Paste `firestore.rules` into the Firestore Rules tab
-4. Add the two composite indexes
+4. Add the composite indexes (the app links you straight to any it still wants)
 5. Drag this folder onto <https://app.netlify.com/drop>
 6. Open the URL and run first-time setup
 
@@ -49,11 +49,38 @@ else. This is enforced by what is stored, not by what the interface hides.
 | Co-Admin | Everything except publishing and account/settings changes |
 | Judge | Score their assigned events, mark absences |
 | House Manager | Register their house's participants, withdraw before code letters |
+| Stage Manager | Assign code letters and tick entries in as they go on. Cannot score, finalize or publish |
 | Public | Published results, participant lookup, schedule, slideshow |
 
-**Also included** — participant event-count caps with a compliance report,
-CSV import and export throughout, a drag-to-reorder schedule builder with
-clash detection, print-to-PDF for every report, and a projector slideshow.
+**Group entries are teams, not lists of names.** A group entry is shown as
+"Red", or "Red A" / "Red B" where a house may field more than one — so a
+substitution mid-fest does not make the same entry look like a different one.
+
+**Also included** — participant event-count caps across nine tiers with a
+compliance report, CSV import and export throughout, a drag-to-reorder
+schedule builder with clash detection, certificate and poster generation with
+a canvas editor, participant ID cards, print-to-PDF for every report, and a
+projector slideshow.
+
+### Optional, and off until you switch them on
+
+Every one of these is invisible — no nav item, no tab, no behaviour change —
+until an Admin enables it. An existing fest upgrades with nothing altered.
+
+| Feature | Turn on at |
+|---|---|
+| Appeals against a published result | Settings → Appeals |
+| Messaging between accounts | Settings → Fest details |
+| Event material (song titles and the like) | Events → edit an event |
+| Substitutions | Events → edit an event |
+| Whole-team events (no roster) | Events → edit an event |
+| Entry constraint groups ("at most N of these") | Settings → Entry constraints |
+| Custom leaderboards, with qualification rules | Settings → Leaderboard |
+| Rank-only (gradeless) scoring | Settings → Fest details |
+| Custom grade names and thresholds | Settings → Fest details |
+| Renaming "House" to Team, Zone, … | Settings → Fest details |
+| Public contact directory | Settings → Fest details |
+| House Managers adding their own participants | Settings → Fest details |
 
 ---
 
@@ -61,13 +88,27 @@ clash detection, print-to-PDF for every report, and a projector slideshow.
 
 - [`CLAUDE.md`](./CLAUDE.md) — conventions and the constraints that must hold
 - [`docs/decisions/`](./docs/decisions/) — why it is built this way
-- [`tests.html`](./tests.html) — open in a browser; 30 checks on the scoring logic
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — the full data model and scoring rules
+- [`DEPLOY-CHECKLIST.md`](./DEPLOY-CHECKLIST.md) — read before upgrading a fest
+  that is already running
+- [`tests.html`](./tests.html) — open in a browser; 213 checks on the scoring
+  logic, no Firebase connection needed
 
 Stack: vanilla ES modules, Firebase SDK 11 from CDN, Firestore, Firebase Auth.
 No npm, no bundler, no framework.
 
 ## Not included
 
-Certificate and poster generation (the "Generator Studio") was deliberately
-left out of this build. The seam for it is clean — it would read the same
-`results` and `participants` data and add one admin screen.
+**No push notifications, and no scheduled or server-side anything.** Cloud
+Functions, Cloud Storage and Cloud Scheduler all require a billing account, so
+none are used. Three consequences worth knowing before you rely on something:
+
+- Messages appear live while the Messages tab is open. They cannot reach
+  anyone who is not looking at it.
+- The fest manual is a Google Drive **link**, not an upload. A Firestore
+  document caps at 1 MiB and there is no file storage.
+- The appeal fee is a **screenshot** of the transfer, not a payment
+  integration.
+
+Photos and logos are stored as base64 inside Firestore documents, resized in
+the browser, for the same reason.

@@ -69,32 +69,29 @@ This step is what makes the app safe. Do not skip it.
 - Open `firestore.rules` from this folder, copy the whole file, paste it in
 - **Publish**
 
-### 6. Add the two database indexes
+### 6. Add the database indexes
 
-Firestore needs an index for two queries the app runs.
+**The short version: you can skip this entire step.** When the app runs a
+query that needs an index it does not have, Firestore refuses it and the
+error carries a link that creates exactly the right index in one click.
+Following that link when it appears is quicker and less error-prone than
+typing these tables in by hand, and it never creates one you do not need.
+
+Create them up front only if you would rather not hit an error mid-fest.
 
 - **Firestore Database → Indexes** tab → **Composite** → Create index
 - If you are asked to choose an index type, pick **Structured**. (Vector
   indexes are for AI embedding similarity search and are not used here.)
+- Query scope is **Collection** for all of them.
 
-Index 1:
-| | |
-|---|---|
-| Collection ID | `registrations` |
-| Field 1 | `eventId` — Ascending |
-| Field 2 | `houseId` — Ascending |
-| Query scope | Collection |
+| Collection ID | Fields, all Ascending | Needed for |
+|---|---|---|
+| `registrations` | `eventId`, `houseId` | Registration — always |
+| `scores` | `eventId`, `judgeUid` | Judging — always |
+| `substitutions` | `houseId`, `registrationId`, `status` | Only if you enable substitutions |
+| `eventMaterials` | `houseId`, `registrationId` | Only if you enable event material |
 
-Index 2:
-| | |
-|---|---|
-| Collection ID | `scores` |
-| Field 1 | `eventId` — Ascending |
-| Field 2 | `judgeUid` — Ascending |
-| Query scope | Collection |
-
-Each takes a minute or two to build. If you skip this, the app will tell you
-which index is missing and give you a link that creates it in one click.
+Each takes a minute or two to build.
 
 ---
 
@@ -170,16 +167,21 @@ Work through these in order — later screens depend on earlier ones.
 
 | # | Screen | What to do |
 |---|---|---|
-| 1 | Settings → Fest details | Grade thresholds, max judge score, registration window |
-| 2 | Settings → Categories | Sub-Junior, Junior, Senior, and so on |
+| 1 | Settings → Fest details | Grades, max judge score, registration window. Also where you rename "House" to Team or Zone if you want to, and where the optional extras live |
+| 2 | Settings → Categories | Sub-Junior, Junior, Senior, and so on. If you want categories assigned automatically, set each one's class range or date-of-birth range here |
 | 3 | Settings → Points & grades | Rank ladder for each of the four event classes, plus the shared grade points |
 | 4 | Settings → Participant limits | Caps on how many events one participant may enter. Optionally different per category — a participant is always measured against **their own** category |
-| 5 | Settings → Leaderboard | Which point pools count towards the Student Talent board |
-| 6 | Accounts | Create Houses, Judges and Co-Admins. Each gets a password you hand over directly. Houses can own a chest number range (Blue 100–199) so a chest number reads as a house |
-| 7 | Events | Add competition items, or import a CSV |
-| 8 | Participants | Add students, or import a CSV |
-| 9 | Schedule | Venues and timings. Leave "visible to public" off until you are ready |
-| 10 | — | Give House Managers their passwords; registration is open |
+| 5 | Settings → Entry constraints | Optional. "At most N of these events" over a set you draw by hand — no cap can express that |
+| 6 | Settings → Leaderboard | Which point pools count towards the Student Talent board, plus any extra named boards |
+| 7 | Accounts | Create Houses, Judges, Co-Admins and Stage Managers. Each gets a password you hand over directly. Houses can own a chest number range (Blue 100–199) so a chest number reads as a house |
+| 8 | Events | Add competition items, or import a CSV |
+| 9 | Participants | Add students, or import a CSV |
+| 10 | Schedule | Venues and timings. Leave "visible to public" off until you are ready |
+| 11 | — | Give House Managers their passwords; registration is open |
+
+Leave the optional features off for a first fest. Every one of them is
+listed in the README and each is a single switch you can flip later —
+turning one on mid-fest changes nothing that already happened.
 
 ---
 
@@ -199,6 +201,12 @@ Work through these in order — later screens depend on earlier ones.
    shuffles the entries and gives each a letter. Do this once registration
    for that event is settled — assigning letters locks House Managers out of
    withdrawing.
+
+   A **Stage Manager** account can do this too, from their own panel, along
+   with ticking each entry in as it goes on so nobody is called twice. That
+   tick is a running-order aid only — it is *not* an absence, and it is
+   stored separately so it can never be mistaken for one. Only a judge or
+   Admin marks somebody Absent, which is the thing that moves points.
 2. **Registrations** → **Assign judges** for the event.
 3. Judges log in on their phones and score. Scores save as they type. A judge
    can check **My schedule** in their own panel to see when and where each of
@@ -245,8 +253,33 @@ Fine. The Judging screen gives Admin a single column to fill in.
 **We need to undo a publish.**
 Results → Unpublish. It disappears from the public pages immediately.
 
+**A house is disputing a published result.**
+Only if you enabled Settings → Appeals. A House Manager then gets an Appeals
+tab and can dispute any of their own published results within the window you
+set, attaching a screenshot as proof the appeal fee was paid — there is no
+payment gateway on the free tier, so a screenshot stands in for a receipt.
+
+You decide each one **Upheld** (the result stands) or **Overturned** (it was
+wrong), with a written reason the house can see. Deciding an appeal does not
+itself change any score: correct an overturned one afterwards with a Score
+Override in Judging, or an Adjustment. That separation is deliberate — every
+route that moves points carries a reason, and an appeal decision that quietly
+moved points on its own would not.
+
+A house may have a limited number of appeals open at once (you set the
+number). An appeal that is **Overturned** stops counting against that limit,
+so a house that turns out to be right is never blocked from raising the next
+one.
+
+The window opens by itself the moment a result is published and closes by
+itself — there is no switch to remember. Note that events published *before*
+you upgraded carry no publish timestamp, so their window reads as closed;
+publish such an event again to open one.
+
 **How do I add points manually for a house?**
-Accounts → Houses → Edit → Adjustment points. Negatives deduct.
+Accounts → Houses → Edit → Adjustment points. Negatives deduct. For anything
+finer, Admin → Adjustments takes a reason and applies to a house or a single
+participant.
 
 **Someone forgot their password.**
 Accounts → find them → **Password** → set a new one and tell them directly.
@@ -284,6 +317,30 @@ The banner just tells you that catch-up is happening; it clears itself in a
 second or two. If it ever says the update **could not be** completed, press
 the **Publish now** button on the banner — if that also fails, it's usually
 the security rules (Part 1, step 5) not being current.
+
+**We need each entry to submit a song title before the event.**
+Events → edit the event → **Event material**, and name what you are asking
+for ("Song title", "Prop list"). House Managers then get a box against that
+entry in **Our entries**; you approve or reject each in Admin → **Event
+material**, oldest first. Once approved it shows to the judge beside the code
+letter — never with the house's name attached, even on a blind event, so
+asking for it costs nothing in fairness.
+
+**Can staff and house managers message each other in the app?**
+Only if you enabled Settings → Fest details → Messaging. An Admin or Co-Admin
+starts a conversation — personal or group — with anyone across any role, and
+everyone in it can reply. Nobody sees a conversation they were not added to.
+
+Be clear-eyed about what it is not: there are no push notifications, because
+those need a server. A message appears live while the recipient has the
+Messages tab open, and not otherwise. It is useful for a control room, not
+for reaching somebody who is not looking.
+
+**Two houses both entered a group event — how do I tell the entries apart?**
+By team name. A group entry is shown as "Red", or "Red A" and "Red B" where
+the event lets a house field more than one. The name is fixed when the entry
+is created, so a substitution part-way through does not make it look like a
+different entry on a sheet you already printed.
 
 **Why can I not edit an event?**
 Published events are locked. Unpublish it on the Results screen first —
@@ -372,6 +429,13 @@ instead of every result row. That design is what keeps the numbers this low.
 (it refreshes every two minutes), and repeatedly deleting large collections
 (20,000 deletes per day).
 
+**Messaging is the one feature that reads continuously.** It is the only part
+of the app that holds a live listener open rather than reading once: every
+new message bills a read to everyone with that conversation on screen. For a
+handful of organisers in a control room that is nothing. Leaving Messages
+open on twenty machines all day is a different matter — if you enable it,
+enable it for the people who need it and close the tab otherwise.
+
 Check usage any time under Firestore → Usage.
 
 ---
@@ -381,8 +445,28 @@ Check usage any time under Firestore → Usage.
 **"Could not start" on a white page.**
 `config.js` still has placeholder values, or Firestore is not enabled.
 
-**"Missing or insufficient permissions."**
-The rules were not pasted, or were pasted incompletely. Redo step 5.
+**"Missing or insufficient permissions." / "You do not have permission."**
+Nine times out of ten the rules were not pasted, or were pasted from an older
+copy of `firestore.rules` than the code you are running. Redo step 5 with the
+file from *this* folder.
+
+This is the single most common failure when upgrading rather than installing
+fresh: the app gains a feature, that feature needs a new collection, and the
+rules still live in the console describe the previous version. The symptom is
+always the same regardless of which feature is missing its rule, so check
+this before assuming the feature itself is broken.
+
+**A feature I read about is nowhere in the app.**
+Most of them ship switched off — see the table in the README. Nothing appears
+in any menu until an Admin enables it in Settings, which is deliberate: an
+existing fest upgrades with nothing visibly changed.
+
+**A House Manager sees no Appeals tab, or "the window has closed" on a result
+that was just published.**
+Appeals must be enabled first (Settings → Appeals). If it is on and the window
+still reads as closed, the result was published *before* you upgraded — it
+carries no publish timestamp, so there is nothing to measure a window from.
+Publish that event again.
 
 **"The database needs an index for this query."**
 Do step 6, or click the link in the browser console — it creates the exact
