@@ -193,7 +193,11 @@ export const DEFAULTS = {
     // "open appeals" switch to remember to flip.
     appealsEnabled: false,
     appealWindowHours: 24,
-    appealMaxActive: 2
+    appealMaxActive: 2,
+
+    // v8.8 — messaging. Off by default: nothing about the nav or any
+    // account changes until an Admin turns it on.
+    messagingEnabled: false
   },
   gradePoints: { A: 5, B: 3, C: 1, Without: 0 },
   participantLimits: {

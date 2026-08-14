@@ -76,7 +76,13 @@ export function applyFestName(festName) {
  * expanded while their parent is the active section, which is how Festie
  * exposes Teams/Sections/Analytics under Candidate.
  */
-const AREAS = [
+// A function, not a static array — v8.8 added feature toggles
+// (window.__APPEALS_ENABLED__ and friends) that are only known once
+// boot() has read festSettings, which happens after this module is
+// first imported. Rebuilding fresh on every call is what lets a nav item
+// reflect a toggle set moments after the page loaded, instead of
+// whatever the flag happened to be at module-evaluation time.
+function buildAreas() { return [
   {
     id: "fest", label: "Fest", icon: "trophy", roles: ["admin", "coAdmin"],
     groups: [{
@@ -99,7 +105,10 @@ const AREAS = [
         { label: "Adjustments",  icon: "sliders", to: "/admin/adjustments", adminOnly: true },
         { label: "Appeals",      icon: "shield", to: "/admin/appeals" }
       ]
-    }]
+    }, ...(window.__MESSAGING_ENABLED__ ? [{
+      label: "Communication",
+      items: [{ label: "Messages", icon: "mail", to: "/messages" }]
+    }] : [])]
   },
   {
     id: "people", label: "People", icon: "users", roles: ["admin", "coAdmin"],
@@ -159,7 +168,10 @@ const AREAS = [
   },
   {
     id: "judge", label: "Judging", icon: "gavel", roles: ["judge"],
-    groups: [{ label: "My work", items: [{ label: "Score events", icon: "gavel", to: "/judge" }] }]
+    groups: [{ label: "My work", items: [
+      { label: "Score events", icon: "gavel", to: "/judge" },
+      ...(window.__MESSAGING_ENABLED__ ? [{ label: "Messages", icon: "mail", to: "/messages" }] : [])
+    ] }]
   },
   {
     id: "house", label: "My house", icon: "users", roles: ["house"],
@@ -168,7 +180,8 @@ const AREAS = [
       items: [
         { label: "Register",     icon: "clipboard", to: "/house" },
         { label: "Schedule",     icon: "calendar",  to: "/schedule" },
-        { label: "Public results", icon: "trophy",  to: "/results" }
+        { label: "Public results", icon: "trophy",  to: "/results" },
+        ...(window.__MESSAGING_ENABLED__ ? [{ label: "Messages", icon: "mail", to: "/messages" }] : [])
       ]
     }]
   },
@@ -178,14 +191,15 @@ const AREAS = [
       label: "On the day",
       items: [
         { label: "Run the stage", icon: "monitor",  to: "/stage" },
-        { label: "Schedule",      icon: "calendar", to: "/schedule" }
+        { label: "Schedule",      icon: "calendar", to: "/schedule" },
+        ...(window.__MESSAGING_ENABLED__ ? [{ label: "Messages", icon: "mail", to: "/messages" }] : [])
       ]
     }]
   }
-];
+]; }
 
 const visibleAreas = () =>
-  AREAS.filter(a => a.roles.includes(session.role));
+  buildAreas().filter(a => a.roles.includes(session.role));
 
 /** Which area owns the path currently open. */
 function activeArea(path, query) {

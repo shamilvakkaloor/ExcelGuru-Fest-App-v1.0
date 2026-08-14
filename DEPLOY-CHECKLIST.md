@@ -33,6 +33,7 @@ New or changed rules in v8.8:
 | `appeals` | staff, the filing house, judges on their own events | House files; staff decides once, terminally | Appeal system |
 | `judgeAssignments` | *(changed)* | now also House (read only) | Filing an appeal denormalises the assigned judges onto it |
 | `eventMaterials` | staff, Stage, the submitting house | House submits (event must have it enabled); staff decides | Event material approval workflow |
+| `conversations` + `messages` | staff, and only its own participants otherwise | staff starts; any participant replies | Messaging |
 
 ## 2. Add the composite index ⚠ REQUIRED IF USING SUBSTITUTIONS
 
@@ -80,6 +81,7 @@ with nothing visibly changed until it opts in.
 | Appeals | Settings → **Appeals** |
 | Event material | Events → edit an event → **Event material** |
 | Leaderboard qualification | Settings → Leaderboard → edit a **custom leaderboard** |
+| Messaging | Settings → Fest details → **Messaging between accounts** |
 
 ---
 
@@ -96,6 +98,10 @@ with nothing visibly changed until it opts in.
 - **Phone numbers left unticked are not merely hidden.** They live in a
   staff-only collection and never reach any public document. That is why
   they are not stored on the house record, which is world-readable.
+- **Messaging has no push notification.** No Cloud Functions on the free
+  tier means no server-side fan-out — a new message appears only while
+  the recipient's Messages tab is open (it updates live), not as an
+  alert elsewhere. Tell people to keep the tab open, or check back.
 - **A board scoped to a participant category needs events re-finalized.**
   `entryCategoryId` (the participant's own category, as opposed to the
   event's) was added to the stored result row in v8.8. An event finalized

@@ -605,6 +605,50 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // v8.8 — messaging. Admin-toggleable and off by default; a House,
+    // Judge or Stage Manager account can neither find nor be found by one
+    // until an Admin or Co-Admin actually starts a conversation with them,
+    // and even then only the participants of THAT conversation can read it.
+    //
+    // Only staff creates a conversation ("admin initiates"). Once it
+    // exists, any participant may send a message and update the
+    // lastMessage* preview — that preview is what makes the conversation
+    // LIST need no extra read of anyone's messages subcollection.
+    match /conversations/{id} {
+      allow read: if isStaff()
+                  || (signedIn() && request.auth.uid in resource.data.participantUids);
+
+      allow create: if isStaff()
+                    && settings().messagingEnabled == true
+                    && request.auth.uid in request.resource.data.participantUids
+                    && request.resource.data.participantUids.size() >= 2;
+
+      // Participants may only ever touch the preview fields — everything
+      // else about a conversation (who is in it, its name, its type) is
+      // fixed at creation. Widening membership after the fact is a new
+      // conversation in this design, not an edit to an old one.
+      allow update: if (isStaff() || (signedIn() && request.auth.uid in resource.data.participantUids))
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(["lastMessageAt", "lastMessageText", "lastMessageBy"]);
+
+      allow delete: if isAdmin();
+
+      match /messages/{msgId} {
+        allow read: if isStaff() || (signedIn() && inConversation(id));
+        // A message cannot be edited or withdrawn once sent — the same
+        // finality a printed sheet has. senderUid must be the caller's own,
+        // so nobody can post as someone else in a chat they belong to.
+        allow create: if (isStaff() || signedIn())
+                      && inConversation(id)
+                      && request.resource.data.senderUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+    function inConversation(convId) {
+      return request.auth.uid in
+        get(/databases/$(database)/documents/conversations/$(convId)).data.participantUids;
+    }
+
     // Anything not named above is denied.
     match /{document=**} {
       allow read, write: if false;

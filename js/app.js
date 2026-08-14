@@ -106,6 +106,7 @@ async function boot() {
   window.__FEST_LOGO__ = settings?.useLogo && settings?.logoData ? settings.logoData : null;
   window.__CONTACTS_VISIBLE__ = !!settings?.contactsVisible;
   window.__APPEALS_ENABLED__ = !!settings?.appealsEnabled;
+  window.__MESSAGING_ENABLED__ = !!settings?.messagingEnabled;
   window.__NEEDS_SETUP__ = !settings;
   window.__APP_VERSION__ = APP_VERSION;
 
@@ -125,6 +126,10 @@ async function boot() {
   // and there is no reason for every other role to carry that.
   route("/stage",     requireRole(["stage"],
     (root) => import("./pages/stage.js").then(m => m.default(root))));
+  // Every signed-in role can reach this — messaging is cross-role by
+  // design, not owned by any one area. The page itself checks the
+  // feature flag and session state.
+  route("/messages",  (root) => import("./pages/messages.js").then(m => m.default(root)));
   route("/admin/:section", requireRole(["admin", "coAdmin"], adminPage));
   route("/admin",     requireRole(["admin", "coAdmin"], (r, p, q) => adminPage(r, { section: "dashboard" }, q)));
 

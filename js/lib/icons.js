@@ -32,7 +32,8 @@ const P = {
   alert:     '<path d="M12 4.2 21 19H3z"/><path d="M12 10v4M12 16.6v.3"/>',
   sun:       '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9 5.3 5.3"/>',
   moon:      '<path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/>',
-  key:       '<circle cx="8.2" cy="12" r="3.7"/><path d="M11.9 12H21"/><path d="M17.6 12v3.2M20.2 12v2.2"/>'
+  key:       '<circle cx="8.2" cy="12" r="3.7"/><path d="M11.9 12H21"/><path d="M17.6 12v3.2M20.2 12v2.2"/>',
+  mail:      '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3.5 6.5 8.5 7 8.5-7"/>'
 };
 
 /** icon("gear", 18) → an <svg> node that inherits colour and size. */

@@ -101,6 +101,7 @@ async function basicTab(panel) {
   let gradeless = !!s.gradelessDefault;
   let schedVisible = !!s.scheduleVisible;
   let contactsVisible = !!s.contactsVisible;
+  let messaging = !!s.messagingEnabled;
   // I31 — the master switch for minimum entries per house. Most fests never
   // set minimums, and a field that is always blank is noise on the Events
   // screen, so the whole feature is opt-in.
@@ -326,7 +327,12 @@ async function basicTab(panel) {
     el("div.hint", { text:
       "Adds a Contact tab to the public site. Only numbers ticked as public on each house " +
       "(Accounts → edit a house) ever appear there — everything else stays staff-only, so an " +
-      "unticked number is not merely hidden but unreadable without a login." })
+      "unticked number is not merely hidden but unreadable without a login." }),
+    checkbox("Messaging between accounts", messaging, v => messaging = v),
+    el("div.hint", { text:
+      "Adds a Messages area to every role's nav once turned on. An Admin or Co-Admin starts a personal " +
+      "or group conversation across any role; everyone already in one can reply. Nobody sees a " +
+      "conversation they were not added to." })
   ]), "Visibility"));
 
   panel.appendChild(card(el("div", {}, [
@@ -375,6 +381,7 @@ async function basicTab(panel) {
       gradelessDefault: gradeless,
       scheduleVisible: schedVisible,
       contactsVisible,
+      messagingEnabled: messaging,
       useMinEntryCaps: useMinCaps,
       resultPolicy: resultPolicy.value,
       logoData, useLogo: useLogo && !!logoData, logoScale
@@ -384,6 +391,7 @@ async function basicTab(panel) {
     applyFestName(festName.value.trim());
     applyHouseTerm(houseSingular.value.trim(), housePlural.value.trim());
     window.__CONTACTS_VISIBLE__ = contactsVisible;
+    window.__MESSAGING_ENABLED__ = messaging;
     await rebuildContactSnapshot().catch(() => {});
     queueRepublish({ schedule: true });
     toast("Settings saved.");
