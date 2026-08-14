@@ -956,38 +956,96 @@ async function limitsTab(panel) {
       field("Minimum events overall", num("overallMin", cur.overallMin))
     ]), "Overall total — counts every event, General included"));
 
+    /* ── The four roll-ups ────────────────────────────────────────
+     * Each spans two classes. Every level of the hierarchy is checked,
+     * so the tightest applicable cap is the one that blocks. */
+    let useRollups = !!cur.useRollupCaps;
+    const rollupBox = el("div");
+    const ROLLUPS = [
+      ["group",      "All group events",      "Category Group + General Group"],
+      ["individual", "All individual events", "Category Individual + General Individual"],
+      ["category",   "All Category events",   "Category Individual + Category Group"],
+      ["general",    "All General events",    "General Individual + General Group"]
+    ];
+    for (const [key, label, spans] of ROLLUPS) {
+      const c = cur[key] || {};
+      rollupBox.appendChild(el("div", { style: "margin-bottom:.7rem" }, [
+        el("div", {}, [el("strong", { text: label }), " ",
+          el("span.hint", { text: spans })]),
+        el("div.grid.grid-2", {}, [
+          field("Maximum", num(key + ".max", c.max)),
+          field("Minimum", num(key + ".min", c.min))
+        ])
+      ]));
+    }
+    const rollupCard = card(el("div", {}, [
+      checkbox("Use combined caps", useRollups, v => {
+        useRollups = v; rollupBox.style.display = v ? "" : "none";
+      }),
+      el("div.hint", { text:
+        "Caps that span two classes at once. Every cap in the hierarchy is checked, so the tightest one " +
+        "that applies is what blocks a registration — a combined cap can refuse an entry the individual " +
+        "class cap would have allowed, and the other way round." }),
+      rollupBox
+    ]), "Combined caps");
+    rollupBox.style.display = useRollups ? "" : "none";
+    refs["useRollupCaps"] = { get value() { return useRollups; } };
+    editorBox.appendChild(rollupCard);
+
+    // All four classes, each independently splittable by stage.
     for (const cls of EVENT_CLASSES) {
-      // General classes have no per-category cap: a General event only ever
-      // touches the overall total.
-      if (cls.general) continue;
       const cfg = cur[cls.id] || {};
-      const splittable = cls.id === "categoryIndividual";
       const box = el("div");
       let split = !!cfg.splitByStage;
 
-      const flat = el("div.grid.grid-2", {}, [
-        field("Maximum", num(cls.id + ".max", cfg.max)),
-        field("Minimum", num(cls.id + ".min", cfg.min))
-      ]);
-      const bystage = el("div.grid.grid-2", {}, [
+      /* The max/min inputs are created ONCE and reused in both layouts.
+       * num() registers a ref by path, so building them twice would leave
+       * refs pointing at whichever copy was constructed last — a detached
+       * node in the layout not currently shown, and a silently dropped
+       * value on save. Appending moves the same node instead. */
+      const maxInput = num(cls.id + ".max", cfg.max);
+      const minInput = num(cls.id + ".min", cfg.min);
+      const maxField = field("Maximum", maxInput);
+      const minField = field("Minimum", minInput);
+
+      const flat = el("div.grid.grid-2");
+      // When split, the class max still applies ACROSS both stages — the
+      // "additionally" case: on-stage 2, off-stage 2, no more than 3 total.
+      const stageGrid = el("div.grid.grid-2", {}, [
         field("On-stage maximum",  num(cls.id + ".onStageMax",  cfg.onStageMax)),
         field("On-stage minimum",  num(cls.id + ".onStageMin",  cfg.onStageMin)),
         field("Off-stage maximum", num(cls.id + ".offStageMax", cfg.offStageMax)),
         field("Off-stage minimum", num(cls.id + ".offStageMin", cfg.offStageMin))
       ]);
+      const combinedGrid = el("div.grid.grid-2", { style: "margin-top:.5rem" });
+      const bystage = el("div", {}, [
+        stageGrid, combinedGrid,
+        el("div.hint", { text: "The combined pair caps both stages together — leave blank for no overall limit on this class." })
+      ]);
 
       function paintCls() {
         box.innerHTML = "";
-        if (splittable) box.appendChild(checkbox("Split by stage", split, v => { split = v; paintCls(); }));
-        box.appendChild(split && splittable ? bystage : flat);
+        box.appendChild(checkbox("Split by stage", split, v => { split = v; paintCls(); }));
+        if (split) {
+          combinedGrid.innerHTML = "";
+          // Relabelled in place, since the same field means "across both
+          // stages" once the class is split.
+          maxField.querySelector("span, div")?.replaceChildren("Combined maximum");
+          minField.querySelector("span, div")?.replaceChildren("Combined minimum");
+          combinedGrid.append(maxField, minField);
+          box.appendChild(bystage);
+        } else {
+          flat.innerHTML = "";
+          maxField.querySelector("span, div")?.replaceChildren("Maximum");
+          minField.querySelector("span, div")?.replaceChildren("Minimum");
+          flat.append(maxField, minField);
+          box.appendChild(flat);
+        }
       }
       refs[cls.id + ".splitByStage"] = { get value() { return split; } };
       paintCls();
       editorBox.appendChild(card(box, cls.label));
     }
-
-    editorBox.appendChild(el("p.hint", {
-      text: "General Individual and General Group have no limits of their own — a General event counts only towards the overall total." }));
 
     // ── Type / Tier caps ─────────────────────────────────────────
     let useType = !!cur.useTypeCaps, useTier = !!cur.useTierCaps;
@@ -1042,11 +1100,16 @@ async function limitsTab(panel) {
 
         const set = {
           overallMax: val("overallMax"), overallMin: val("overallMin"),
+          useRollupCaps: !!refs["useRollupCaps"]?.value,
           useTypeCaps: useType, useTierCaps: useTier,
           typeCaps: {}, tierCaps: {}
         };
+        for (const key of ["group", "individual", "category", "general"]) {
+          set[key] = { max: val(key + ".max"), min: val(key + ".min") };
+        }
+        // All four classes now, General included — they are no longer
+        // written as empty objects, because their caps actually enforce.
         for (const cls of EVENT_CLASSES) {
-          if (cls.general) { set[cls.id] = {}; continue; }
           set[cls.id] = {
             splitByStage: !!refs[cls.id + ".splitByStage"]?.value,
             max: val(cls.id + ".max"), min: val(cls.id + ".min"),
@@ -1073,8 +1136,16 @@ async function limitsTab(panel) {
           perCategory !== !!lim.perCategory ||
           !!before.useTypeCaps !== useType ||
           !!before.useTierCaps !== useTier ||
-          EVENT_CLASSES.some(c => !c.general &&
+          // Every class can split now, so the General two are no longer
+          // skipped — turning a split on for General Group changes the
+          // counter keys exactly as it does for Category Individual.
+          EVENT_CLASSES.some(c =>
             !!(before[c.id] || {}).splitByStage !== !!set[c.id].splitByStage);
+        /* Toggling the roll-up caps is deliberately NOT a shape change.
+         * Roll-up counters accrue whether or not the caps are enforced —
+         * see domain/limits.js counterKeys() — precisely so that switching
+         * them on mid-fest finds correct counts already in place instead of
+         * starting from zero and waving through everyone already over. */
 
         if (hasRegistrations && shapeChanged) {
           // A dead-end message is no help — link to the fix.

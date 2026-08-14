@@ -337,8 +337,16 @@ const ev = { eventClass: "categoryIndividual", stage: "onStage" };
 check("under the cap is allowed", checkCaps({ overall: 0 }, ev, LIM), null);
 check("at the stage cap is blocked",
   checkCaps({ overall: 1, "categoryIndividual.onStage": 1 }, ev, LIM)?.includes("on-stage"), true);
-check("registering increments both the overall and stage counters",
-  applyCounts({}, ev, LIM, +1), { overall: 1, categoryIndividual: 1, "categoryIndividual.onStage": 1 });
+/* Roll-up counters are kept even with useRollupCaps OFF, and that is
+ * deliberate: if they were only counted while enabled, an Admin switching
+ * roll-ups on mid-fest would start from zero and let everyone already over
+ * the new cap straight through. Count always, cap conditionally. */
+check("registering increments the overall, class, stage and roll-up counters",
+  applyCounts({}, ev, LIM, +1),
+  { overall: 1, categoryIndividual: 1, "categoryIndividual.onStage": 1,
+    "rollup:individual": 1, "rollup:category": 1 });
+check("roll-up counters accrue even while roll-up caps are switched off",
+  maxFor("rollup:individual", LIM), null);
 check("a shortfall is reported against a configured minimum",
   shortfalls({ overall: 1 }, LIM).map(s => s.key), ["overall", "categoryGroup"]);
 
@@ -600,13 +608,92 @@ check("a participant is measured against their own category",
 const V86_CAT = { eventClass: "categoryIndividual", stage: "onStage", typeId: "speech" };
 const V86_GEN = { eventClass: "generalIndividual", stage: "onStage", typeId: "speech" };
 
-check("a General event never touches a category's class cap",
-  maxFor("generalIndividual", V86_JR), null);
-check("a Category event does",  maxFor("categoryIndividual", V86_JR), 4);
+check("a Category event reads its class cap",  maxFor("categoryIndividual", V86_JR), 4);
 check("a General event still counts toward Type",
   counterKeys(V86_GEN, V86_JR).includes("type:speech"), true);
-check("a General event does not add a class counter key",
+check("a General event does not add another class's counter key",
   counterKeys(V86_GEN, V86_JR).includes("categoryIndividual"), false);
+
+/* ── v8.8 — the nine-cap hierarchy ─────────────────────────────────── */
+const CAPS88 = {
+  overallMax: 20,
+  useRollupCaps: true,
+  group: { max: 4 }, individual: { max: 6 },
+  category: { max: 5 }, general: { max: 3 },
+  categoryIndividual: { splitByStage: true, max: 3, onStageMax: 2, offStageMax: 2 },
+  categoryGroup:      { splitByStage: true, max: 3, onStageMax: 1, offStageMax: 2 },
+  generalIndividual:  { max: 2 },
+  generalGroup:       { splitByStage: false, max: 1 }
+};
+const CI_ON  = { eventClass: "categoryIndividual", stage: "onStage" };
+const CG_OFF = { eventClass: "categoryGroup", stage: "offStage" };
+const GI_ON  = { eventClass: "generalIndividual", stage: "onStage" };
+const GG_ON  = { eventClass: "generalGroup", stage: "onStage" };
+
+// ⚠ behaviour change — these two were silently inert before v8.8.
+check("a General Individual cap now actually enforces",
+  maxFor("generalIndividual", CAPS88), 2);
+check("a General Group cap now actually enforces",
+  maxFor("generalGroup", CAPS88), 1);
+
+check("every class belongs to exactly two roll-ups", [
+  counterKeys(CI_ON,  CAPS88).filter(k => k.startsWith("rollup:")).sort(),
+  counterKeys(CG_OFF, CAPS88).filter(k => k.startsWith("rollup:")).sort(),
+  counterKeys(GI_ON,  CAPS88).filter(k => k.startsWith("rollup:")).sort(),
+  counterKeys(GG_ON,  CAPS88).filter(k => k.startsWith("rollup:")).sort()
+], [
+  ["rollup:category", "rollup:individual"],
+  ["rollup:category", "rollup:group"],
+  ["rollup:general", "rollup:individual"],
+  ["rollup:general", "rollup:group"]
+]);
+
+check("a group event counts to the group roll-up but not the individual one",
+  [counterKeys(CG_OFF, CAPS88).includes("rollup:group"),
+   counterKeys(CG_OFF, CAPS88).includes("rollup:individual")], [true, false]);
+
+check("group events can now split by stage too",
+  counterKeys(CG_OFF, CAPS88).includes("categoryGroup.offStage"), true);
+check("a class with splitByStage off adds no stage key",
+  counterKeys(GG_ON, CAPS88).includes("generalGroup.onStage"), false);
+
+check("a split class still enforces its combined max across both stages",
+  [maxFor("categoryIndividual", CAPS88),
+   maxFor("categoryIndividual.onStage", CAPS88)], [3, 2]);
+
+check("roll-ups are inert until the fest switches them on",
+  maxFor("rollup:group", { ...CAPS88, useRollupCaps: false }), null);
+
+// The tightest applicable cap is what blocks — the whole point of a
+// hierarchy is that every level is checked, not just the most specific.
+check("the roll-up blocks even when the class cap has room", (() => {
+  const counts = { overall: 4, categoryGroup: 1, "rollup:group": 4, "rollup:category": 1 };
+  return !!checkCaps(counts, CG_OFF, CAPS88);
+})(), true);
+check("and the class cap blocks even when the roll-up has room", (() => {
+  const counts = { overall: 3, generalGroup: 1, "rollup:group": 1, "rollup:general": 1 };
+  return !!checkCaps(counts, GG_ON, CAPS88);
+})(), true);
+check("a registration inside every cap is allowed", (() => {
+  const counts = { overall: 1, categoryIndividual: 0, "rollup:individual": 0, "rollup:category": 0 };
+  return checkCaps(counts, CI_ON, CAPS88);
+})(), null);
+
+check("the stage cap blocks while the combined class cap still has room", (() => {
+  const counts = { overall: 2, categoryGroup: 1, "categoryGroup.onStage": 1,
+                   "rollup:group": 1, "rollup:category": 1 };
+  return !!checkCaps(counts, { eventClass: "categoryGroup", stage: "onStage" }, CAPS88);
+})(), true);
+
+check("the compliance report now covers a General minimum", (() => {
+  const lim = { generalIndividual: { min: 2 }, categoryIndividual: {}, categoryGroup: {}, generalGroup: {} };
+  return shortfallsV8({ generalIndividual: 0 }, lim).some(s => s.key === "generalIndividual");
+})(), true);
+check("and a roll-up minimum", (() => {
+  const lim = { useRollupCaps: true, group: { min: 2 },
+                categoryIndividual: {}, categoryGroup: {}, generalIndividual: {}, generalGroup: {} };
+  return shortfallsV8({ "rollup:group": 0 }, lim).some(s => s.key === "rollup:group");
+})(), true);
 check("the Type cap value comes from the participant's own category",
   [maxFor("type:speech", V86_JR), maxFor("type:speech", V86_SR)], [2, 3]);
 

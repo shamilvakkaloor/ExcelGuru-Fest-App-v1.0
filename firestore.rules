@@ -302,6 +302,18 @@ service cloud.firestore {
                         // passed through the cap transaction.
                         && request.resource.data.eventCounts.overall == 0);
       allow delete: if isStaff();
+      /* The `overall` cap is the server-side BACKSTOP, not the whole cap
+       * system. All nine tiers — overall, the four roll-ups and the four
+       * classes with their stage splits — are enforced inside the
+       * registration transaction in domain/registration.js, which is where
+       * they can be checked atomically against the entry tally.
+       *
+       * Only `overall` is re-checked here, deliberately: every extra tier
+       * would mean more get() calls against the rules' budget and more
+       * ways for a legitimate write to be refused by a rule that
+       * disagreed subtly with the transaction. `overall` is the cap that
+       * bounds all the others, so a hand-crafted write still cannot
+       * inflate a participant without limit. */
       allow update: if isStaff()
                     || (isHouse()
                         && resource.data.houseId == refId()

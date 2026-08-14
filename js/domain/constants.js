@@ -175,10 +175,36 @@ export const DEFAULTS = {
   gradePoints: { A: 5, B: 3, C: 1, Without: 0 },
   participantLimits: {
     overallMax: null, overallMin: null,
+
+    /* ── v8.8 — the four ROLL-UP caps ──────────────────────────────────
+     * Each spans two of the four classes, and each is opt-in: a null max
+     * is no cap, so a fest that ignores these is unaffected. They sit
+     * between `overall` and the per-class caps, and every one of them is
+     * checked, so the tightest applicable cap is what blocks.
+     *
+     *   group      = categoryGroup      + generalGroup
+     *   individual = categoryIndividual + generalIndividual
+     *   category   = categoryIndividual + categoryGroup
+     *   general    = generalIndividual  + generalGroup
+     *
+     * Note that `category` and `general` partition the four classes, and
+     * so do `group` and `individual` — the same event is counted by one
+     * cap from each pair, never twice by the same cap.
+     */
+    useRollupCaps: false,
+    group:      { max: null, min: null },
+    individual: { max: null, min: null },
+    category:   { max: null, min: null },
+    general:    { max: null, min: null },
+
+    /* All four classes may now split by stage, not just the two
+     * individual ones. When a class IS split, its own `max` still applies
+     * as the combined cap across both stages — that is the "additionally"
+     * in the spec: on-stage 2, off-stage 2, but no more than 3 in total. */
     categoryIndividual: { splitByStage: false, max: null, min: null, onStageMax: null, onStageMin: null, offStageMax: null, offStageMin: null },
-    categoryGroup:      { max: null, min: null },
+    categoryGroup:      { splitByStage: false, max: null, min: null, onStageMax: null, onStageMin: null, offStageMax: null, offStageMin: null },
     generalIndividual:  { splitByStage: false, max: null, min: null, onStageMax: null, onStageMin: null, offStageMax: null, offStageMin: null },
-    generalGroup:       { max: null, min: null },
+    generalGroup:       { splitByStage: false, max: null, min: null, onStageMax: null, onStageMin: null, offStageMax: null, offStageMin: null },
 
     // ── v8 — per-category overrides ──────────────────────────────────
     // With perCategory off (default), every category shares the caps

@@ -9,11 +9,8 @@
 // category of their own: a Junior participant entering a General event is
 // still a Junior, and is still measured against Junior's rules.
 //
-// Two scopes coexist, deliberately, because they answer different questions:
-//
 //   CLASS CAPS ask "how many Category-Individual events may this person
-//   enter?" — and General events are OUTSIDE that question entirely. A
-//   General entry only ever touches the `overall` counter.
+//   enter?" All four classes now enforce, including the two General ones.
 //
 //   TYPE / TIER CAPS ask "how many Speech programmes may this person enter,
 //   full stop?" — and the answer counts every Speech programme they enter
@@ -21,12 +18,48 @@
 //   category's settings (Junior may allow 2 Speech, Senior 3), but what is
 //   counted against it is not confined to that category's events.
 //
-// So a Junior in a General Speech event increments: overall, and
-// type:<speech>. It does not increment generalIndividual against any
-// category cap, because class caps and General are disjoint.
+//   ROLL-UP CAPS span two classes each — group, individual, category,
+//   general — and count every event, General included.
+//
+// ── ⚠ v8.8 BEHAVIOUR CHANGE: General class caps now bite ─────────────
+//
+// v8.6–8.7 returned null from maxFor() for generalIndividual and
+// generalGroup, on the reasoning that "class caps are a per-category
+// question and General events have no category". The effect was that both
+// caps could be typed into Settings and were then silently ignored.
+//
+// That reasoning does not survive contact with limitsForCategory(), which
+// already answers the category question: it picks WHICH cap set applies
+// from the PARTICIPANT's own category, not the event's. A Junior entering
+// a General Individual event is measured against Junior's General
+// Individual cap, which is coherent and is what the Settings screen has
+// been promising all along.
+//
+// A fest that already has values in those two boxes will find them
+// enforced from this version. That is the intended fix, but it does mean a
+// registration that previously slipped through may now be refused.
 
-const SPLIT_CLASSES = ["categoryIndividual", "generalIndividual"];
-const GENERAL_CLASSES = ["generalIndividual", "generalGroup"];
+// v8.8 — every class may split by stage, not only the individual two.
+const SPLIT_CLASSES = ["categoryIndividual", "categoryGroup", "generalIndividual", "generalGroup"];
+
+/* ── v8.8 — the roll-up caps ──────────────────────────────────────────
+ *
+ * Four caps that each span two classes. They are counted for EVERY event,
+ * General included, because unlike the class caps they are not asking a
+ * per-category question — "how many group events, full stop?" means all of
+ * them. maxFor() returns null unless useRollupCaps is on, so a fest that
+ * never touches them behaves exactly as v8.7 did.
+ *
+ * The two pairs each partition the four classes, so a single event
+ * contributes to exactly one cap from each pair — never twice to the same.
+ */
+const ROLLUP_OF = {
+  categoryIndividual: ["individual", "category"],
+  categoryGroup:      ["group", "category"],
+  generalIndividual:  ["individual", "general"],
+  generalGroup:       ["group", "general"]
+};
+const ROLLUP_KEYS = ["group", "individual", "category", "general"];
 
 /**
  * The limits object that applies to a participant.
@@ -49,24 +82,26 @@ export function limitsForCategory(globalLimits, categoryId) {
  * Counter keys an event contributes to, for a participant governed by
  * `limits`.
  *
- * `overall` always. The class key (and its stage split) only for events
- * belonging to a category — General events are outside class caps. Type
- * and Tier keys whenever those caps are switched on, regardless of class.
+ * `overall` always, then the event's class key and — when that class is
+ * split — its stage key. Then the two roll-ups the class belongs to, and
+ * Type/Tier keys whenever those caps are switched on.
  */
 export function counterKeys(event, limits) {
   const keys = ["overall"];
 
-  if (!GENERAL_CLASSES.includes(event.eventClass)) {
-    keys.push(event.eventClass);
-    const cfg = limits?.[event.eventClass];
-    if (cfg?.splitByStage && SPLIT_CLASSES.includes(event.eventClass)) {
-      keys.push(`${event.eventClass}.${event.stage}`);
-    }
-  } else {
-    // A General event still has its own class counter for reporting, but no
-    // category cap is read against it — maxFor() returns null for these.
-    keys.push(event.eventClass);
+  keys.push(event.eventClass);
+  // The stage split now applies to every class. It is still only counted
+  // when that class actually has splitByStage on, so keys do not appear
+  // for a fest that never enabled it.
+  const cfg = limits?.[event.eventClass];
+  if (cfg?.splitByStage && SPLIT_CLASSES.includes(event.eventClass)) {
+    keys.push(`${event.eventClass}.${event.stage}`);
   }
+
+  /* Roll-ups count EVERY event, General included. They ask "how many group
+   * events, full stop?", which is not a per-category question — so unlike
+   * the class caps they are not disjoint from General. */
+  for (const r of ROLLUP_OF[event.eventClass] || []) keys.push(`rollup:${r}`);
 
   // Type and Tier count everywhere, General included.
   if (limits?.useTypeCaps && event.typeId) keys.push(`type:${event.typeId}`);
@@ -84,12 +119,19 @@ export function maxFor(key, limits) {
 
   if (key.startsWith("type:")) return numOrNull(limits.typeCaps?.[key.slice(5)]?.max);
   if (key.startsWith("tier:")) return numOrNull(limits.tierCaps?.[key.slice(5)]?.max);
+  // Roll-ups are inert until the fest switches them on, so an upgraded
+  // fest with stale zeroes in the document is unaffected.
+  if (key.startsWith("rollup:")) {
+    if (!limits.useRollupCaps) return null;
+    return numOrNull(limits[key.slice(7)]?.max);
+  }
 
   const [cls, stage] = key.split(".");
-  // General events are not measured against a category's class caps.
-  if (GENERAL_CLASSES.includes(cls)) return null;
   const cfg = limits[cls];
   if (!cfg) return null;
+  // A split class still enforces its own `max` across both stages — the
+  // "additionally" in the spec: on-stage 2 and off-stage 2 can still be
+  // capped at 3 combined.
   if (!stage) return numOrNull(cfg.max);
   return numOrNull(stage === "onStage" ? cfg.onStageMax : cfg.offStageMax);
 }
@@ -100,9 +142,12 @@ export function minFor(key, limits) {
 
   if (key.startsWith("type:")) return numOrNull(limits.typeCaps?.[key.slice(5)]?.min);
   if (key.startsWith("tier:")) return numOrNull(limits.tierCaps?.[key.slice(5)]?.min);
+  if (key.startsWith("rollup:")) {
+    if (!limits.useRollupCaps) return null;
+    return numOrNull(limits[key.slice(7)]?.min);
+  }
 
   const [cls, stage] = key.split(".");
-  if (GENERAL_CLASSES.includes(cls)) return null;
   const cfg = limits[cls];
   if (!cfg) return null;
   if (!stage) return numOrNull(cfg.min);
@@ -121,11 +166,17 @@ export const LABEL = {
   categoryGroup: "Category Group events",
   generalIndividual: "General Individual events",
   generalGroup: "General Group events",
-  "categoryIndividual.onStage":  "on-stage Category Individual events",
-  "categoryIndividual.offStage": "off-stage Category Individual events",
-  "generalIndividual.onStage":   "on-stage General Individual events",
-  "generalIndividual.offStage":  "off-stage General Individual events"
+  "rollup:group":      "group events overall",
+  "rollup:individual": "individual events overall",
+  "rollup:category":   "Category events overall",
+  "rollup:general":    "General events overall"
 };
+// Stage labels for all four classes, built rather than listed so a class
+// can never gain a split and silently lose its label.
+for (const c of SPLIT_CLASSES) {
+  LABEL[`${c}.onStage`]  = "on-stage " + LABEL[c];
+  LABEL[`${c}.offStage`] = "off-stage " + LABEL[c];
+}
 
 /** Readable name for any key, including the dynamic Type/Tier ones. */
 export function labelFor(key, vocab = {}) {
@@ -162,8 +213,17 @@ export function applyCounts(counts, event, limits, delta) {
 /** Every configured minimum this participant currently falls short of. */
 export function shortfalls(counts, limits, vocab = {}) {
   const out = [];
-  const keys = ["overall", "categoryIndividual", "categoryGroup",
-    "categoryIndividual.onStage", "categoryIndividual.offStage"];
+  /* Derived, not hand-listed. The old list named five keys and so silently
+   * ignored a minimum set on generalIndividual or on any stage split other
+   * than categoryIndividual's — a shortfall the report was supposed to
+   * catch simply never appeared. Building the list from the same constants
+   * counterKeys() uses means a new cap cannot be added without the report
+   * seeing it. */
+  const keys = ["overall", ...ROLLUP_KEYS.map(r => `rollup:${r}`)];
+  for (const cls of SPLIT_CLASSES) {
+    keys.push(cls);
+    keys.push(`${cls}.onStage`, `${cls}.offStage`);
+  }
 
   for (const key of keys) {
     const [cls] = key.split(".");
