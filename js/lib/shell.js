@@ -23,7 +23,7 @@ import { onRepublish, republishNow, isRepublishing } from "../domain/republish.j
 import { getOne, getAll, where } from "./db.js";
 import { navigate, currentPath, queryParams } from "./router.js";
 
-export const APP_VERSION = "8.7";
+export const APP_VERSION = "9.0";
 
 /** The product name that follows the fest's own name in the browser tab. */
 export const APP_NAME = "ExcelGuru Fest App";
@@ -76,7 +76,7 @@ export function applyFestName(festName) {
  * expanded while their parent is the active section, which is how Festie
  * exposes Teams/Sections/Analytics under Candidate.
  */
-// A function, not a static array — v8.8 added feature toggles
+// A function, not a static array — v9 added feature toggles
 // (window.__APPEALS_ENABLED__ and friends) that are only known once
 // boot() has read festSettings, which happens after this module is
 // first imported. Rebuilding fresh on every call is what lets a nav item

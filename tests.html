@@ -62,7 +62,7 @@ check("50% is exactly a C", gradeFor(50, TH), "C");
 check("49% is Without", gradeFor(49, TH), "Without");
 check("0% is Without, not Absent", gradeFor(0, TH), "Without");
 
-/* Custom grade scales — v8.8 */
+/* Custom grade scales — v9 */
 const CUSTOM_SCALE = [
   { id: "Aplus", label: "A+", minPercent: 95 },
   { id: "A", label: "A", minPercent: 85 },
@@ -156,7 +156,7 @@ check("each group member is credited the full entry points in their own pool",
 check("individual points land in the individual pool",
   agg.participants.p1.categoryIndividualPoints, 15);
 
-/* Events left out of totals — v8.8 */
+/* Events left out of totals — v9 */
 const exclAgg = aggregate(
   [{ id: "e1", eventClass: "categoryIndividual" },
    { id: "e2", eventClass: "categoryIndividual", excludeFromTotals: true }],
@@ -171,7 +171,7 @@ check("an excluded event is left off a custom leaderboard",
     [{ id: "e2", entries: [{ participantIds: ["p1"], participantNames: ["A"], totalPoints: 99 }] }],
     { e2: { id: "e2", eventClass: "categoryIndividual", excludeFromTotals: true } }).length, 0);
 
-/* Registration extensions — v8.8 */
+/* Registration extensions — v9 */
 (() => {
   const PAST = Date.now() - 86400000;
   const FUTURE = Date.now() + 86400000;
@@ -193,7 +193,7 @@ check("an excluded event is left off a custom leaderboard",
     windowState({ registrationStart: FUTURE, registrationExtensions: { red: FUTURE } }, {}, Date.now(), "red").open, false);
 })();
 
-/* Constraint groups — v8.8 */
+/* Constraint groups — v9 */
 (() => {
   const EVENTS = {
     e1: { id: "e1", typeId: "speech" },
@@ -216,7 +216,7 @@ check("an excluded event is left off a custom leaderboard",
   check("a higher max allows more", checkConstraints(EVENTS.e2, [{ ...G, maxEvents: 2 }], ["e1"], EVENTS), null);
 })();
 
-/* Reserved slots in a general group event — v8.8 */
+/* Reserved slots in a general group event — v9 */
 (() => {
   // 6 places; 2 must go to Subjuniors.
   const EV = { reservedSlots: { sub: 2 } };
@@ -235,7 +235,7 @@ check("an excluded event is left off a custom leaderboard",
     reservationBlocker({ event: EV, categoryId: "sen", taken: { sen: 6 }, capacity: 6 }), null);
 })();
 
-/* Automatic category assignment — v8.8 */
+/* Automatic category assignment — v9 */
 (() => {
   const CATS = [
     { id: "sub", name: "Sub-Junior", classFrom: 1, classTo: 3, dobFrom: "2015-01-01", dobTo: "2018-12-31" },
@@ -270,7 +270,7 @@ check("an excluded event is left off a custom leaderboard",
     R({ mode: "class", cls: "5", dob: "2016-06-01" }).clash, false);
 })();
 
-/* Manual adjustments — v8.8 */
+/* Manual adjustments — v9 */
 (() => {
   const events = [{ id: "e1", eventClass: "categoryIndividual" }];
   const results = [{ id: "e1", entries: [{ houseId: "red", participantIds: ["p1"], totalPoints: 10 }] }];
@@ -297,7 +297,7 @@ check("an excluded event is left off a custom leaderboard",
     studentScore({ categoryIndividualPoints: 10, adjustmentPoints: -3 }, {}), 7);
 })();
 
-/* Category breakdown — v8.8 */
+/* Category breakdown — v9 */
 (() => {
   const events = [
     { id: "e1", eventClass: "categoryIndividual", categoryId: "jun" },
@@ -329,7 +329,7 @@ check("an excluded event is left off a custom leaderboard",
   check("blue trails overall despite winning Senior", blue.total, 12);
 })();
 
-/* Championship by percentage — v8.8 */
+/* Championship by percentage — v9 */
 (() => {
   const events = [
     { id: "e1", eventClass: "categoryIndividual", categoryId: "sen", pointsFrom: "class" },
@@ -371,7 +371,7 @@ check("group points are excluded by default",
   studentScore(pools, { includeCategoryGroupPoints: false }), 15);
 check("group points count once toggled on",
   studentScore(pools, { includeCategoryGroupPoints: true }), 30);
-/* Manual tie resolution — v8.8 */
+/* Manual tie resolution — v9 */
 check("a manual place settles a tie the pools cannot",
   rankLeaderboard(
     [{ id: "a", name: "A", total: 10, pools: {} }, { id: "b", name: "B", total: 10, pools: {} }],
@@ -687,7 +687,7 @@ check("a General event still counts toward Type",
 check("a General event does not add another class's counter key",
   counterKeys(V86_GEN, V86_JR).includes("categoryIndividual"), false);
 
-/* ── v8.8 — the nine-cap hierarchy ─────────────────────────────────── */
+/* ── v9 — the nine-cap hierarchy ─────────────────────────────────── */
 const CAPS88 = {
   overallMax: 20,
   useRollupCaps: true,
@@ -703,7 +703,7 @@ const CG_OFF = { eventClass: "categoryGroup", stage: "offStage" };
 const GI_ON  = { eventClass: "generalIndividual", stage: "onStage" };
 const GG_ON  = { eventClass: "generalGroup", stage: "onStage" };
 
-// ⚠ behaviour change — these two were silently inert before v8.8.
+// ⚠ behaviour change — these two were silently inert before v9.
 check("a General Individual cap now actually enforces",
   maxFor("generalIndividual", CAPS88), 2);
 check("a General Group cap now actually enforces",
@@ -825,7 +825,7 @@ check("ticking events replaces the axis filters",
   [boardMatchesEvent({ eventIds: ["e2"], typeIds: ["speech"] }, { id: "e2", typeId: "essay" }),
    boardMatchesEvent({ eventIds: ["e2"] }, { id: "e1", typeId: "speech" })], [true, false]);
 
-/* Boards: qualification constraints — v8.8 */
+/* Boards: qualification constraints — v9 */
 (() => {
   const eventById = { e1: { id: "e1", eventClass: "categoryIndividual" }, e2: { id: "e2", eventClass: "categoryIndividual" } };
   const results = [

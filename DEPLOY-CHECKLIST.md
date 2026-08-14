@@ -1,20 +1,20 @@
-# Deploy checklist — v8.8
+# Deploy checklist — v9
 
-Read this before pushing v8.8 to a live fest. Two of these steps are
+Read this before pushing v9 to a live fest. Two of these steps are
 **mandatory**: the app will appear broken without them.
 
 ---
 
 ## 1. Publish the security rules ⚠ REQUIRED
 
-`firestore.rules` gained several new collections in v8.8. Until the file is
+`firestore.rules` gained several new collections in v9. Until the file is
 published, every feature below fails with *"You do not have permission to do
 that"* — the code is correct, the rules simply are not live yet.
 
 **Firebase console → Firestore Database → Rules → paste the whole of
 `firestore.rules` → Publish.**
 
-New or changed rules in v8.8:
+New or changed rules in v9:
 
 | Collection | Who can read | Who can write | Why |
 |---|---|---|---|
@@ -44,7 +44,7 @@ creates it in one click — open a substitution request once, follow the link.
 
 ## 3. Rebuild the public snapshots
 
-Several v8.8 features are carried inside the public snapshot documents
+Several v9 features are carried inside the public snapshot documents
 (grade names, the House term, the category breakdown, championship
 percentages). They appear only after a rebuild.
 
@@ -54,7 +54,7 @@ percentages). They appear only after a rebuild.
 
 ## What each new feature needs before it does anything
 
-Most of v8.8 is **off by default**, deliberately — an existing fest upgrades
+Most of v9 is **off by default**, deliberately — an existing fest upgrades
 with nothing visibly changed until it opts in.
 
 | Feature | Turn on at |
@@ -92,7 +92,7 @@ with nothing visibly changed until it opts in.
   live in the app. Host it on Drive and set sharing to *Anyone with the
   link*, or visitors hit a request-access screen.
 - **A logo is capped at 1400 px / ~700 KB** and downscaled to fit. Before
-  v8.8 a large logo silently exceeded the 1 MiB document limit and the save
+  v9 a large logo silently exceeded the 1 MiB document limit and the save
   failed with nothing on screen. The cap cannot be removed — past 1 MiB the
   write does not degrade, it fails.
 - **Phone numbers left unticked are not merely hidden.** They live in a
@@ -104,7 +104,7 @@ with nothing visibly changed until it opts in.
   alert elsewhere. Tell people to keep the tab open, or check back.
 - **A board scoped to a participant category needs events re-finalized.**
   `entryCategoryId` (the participant's own category, as opposed to the
-  event's) was added to the stored result row in v8.8. An event finalized
+  event's) was added to the stored result row in v9. An event finalized
   before that upgrade has no such field on its stored entries, so a
   category-scoped custom leaderboard shows nobody from it until the event
   is finalized again. Re-publishing alone is not enough — Results →

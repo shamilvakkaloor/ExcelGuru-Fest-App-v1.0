@@ -623,9 +623,9 @@ blocking, and chest number formats.
 
 ---
 
-## 19. v8.8 — as built
+## 19. v9 — as built
 
-Everything in §§1–18 still holds. This section records what v8.8 added on
+Everything in §§1–18 still holds. This section records what v9 added on
 top, and the constraints that shaped each decision. Sections above were
 written as a build spec; this one is written after the fact.
 
@@ -675,7 +675,7 @@ Window opens automatically at publish, closes itself after
 `appealWindowHours`. Requires `results.publishedAtMs` — plain epoch
 milliseconds stored alongside the existing server timestamp, because
 Security Rules can only compare `request.time` against a value they can
-convert themselves. Events published before v8.8 have no such field and
+convert themselves. Events published before v9 have no such field and
 therefore no window; both the rule and `appealWindowState()` independently
 reach that same answer.
 
@@ -752,7 +752,7 @@ each, so a board can exclude whoever tops an earlier one. Referencing itself
 or a later board is a documented no-op.
 
 ⚠ `entryCategoryId` is new on stored result rows. An event finalized before
-v8.8 does not carry it, so a category-scoped board shows nobody from that
+v9 does not carry it, so a category-scoped board shows nobody from that
 event until it is **finalized** again — re-publishing alone is not enough.
 
 ### 19.9 The fifth role — Stage Manager
@@ -779,5 +779,5 @@ Firebase connection.
 
 ⚠ The pass/fail summary had been computed mid-file since a point in this
 file's history where that was the end — every `check()` added below it, which
-by v8.8 was most of the suite, rendered its own row but was left out of the
+by v9 was most of the suite, rendered its own row but was left out of the
 total. The count was never really 149. Fixed by moving the summary last.

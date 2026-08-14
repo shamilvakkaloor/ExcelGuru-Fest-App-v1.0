@@ -73,7 +73,7 @@ async function tallySeed(eventId, houseId) {
  */
 export async function registerEntry({ event, house, participants, settings, limits, registeredBy,
                                       vocab = {}, constraintGroups = [], eventById = {} }) {
-  /* v8.8 — a WHOLE-TEAM event has no roster at all: the house contests it
+  /* v9 — a WHOLE-TEAM event has no roster at all: the house contests it
    * as a unit (a house march-past, a team chant) and earns the points as a
    * unit. There is nobody to cap, nobody to clash with, and nobody whose
    * lookup card should list it, so every per-participant rule below is
@@ -103,7 +103,7 @@ export async function registerEntry({ event, house, participants, settings, limi
   const seed = await tallySeed(event.id, house.id);
   const regId = `${event.id}_${house.id}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
-  /* ── v8.8 — constraint groups and reserved slots ───────────────────
+  /* ── v9 — constraint groups and reserved slots ───────────────────
    *
    * Both are read BEFORE the transaction, deliberately. Each needs a
    * QUERY (this participant's other registrations; this event's entries

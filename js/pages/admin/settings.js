@@ -1655,7 +1655,7 @@ function boardDialog(existing, vocab, refresh) {
     style: chosenEvents.size ? "" : "display:none"
   });
 
-  /* v8.8 — qualification. All three are opt-in and gate MEMBERSHIP only —
+  /* v9 — qualification. All three are opt-in and gate MEMBERSHIP only —
    * a qualifying participant's total still adds up everything the axis
    * filters above already matched, so a board can never show a total that
    * disagrees with the points actually awarded, only disagree about who

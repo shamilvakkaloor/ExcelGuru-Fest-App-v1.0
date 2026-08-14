@@ -84,7 +84,7 @@ service cloud.firestore {
     function appealWindowOpenFor(res) {
       let s = settings();
       let hours = s.appealWindowHours == null ? 24 : s.appealWindowHours;
-      // publishedAtMs is v8.8. An event published BEFORE this upgrade does
+      // publishedAtMs is v9. An event published BEFORE this upgrade does
       // not carry it, so its window reads as closed — the safe answer, and
       // the same one appealWindowState() reaches in the browser. Publish
       // the event again to open an appeal window on it.
@@ -225,7 +225,7 @@ service cloud.firestore {
       allow update, delete: if isStaff();
     }
 
-    // v8.8 — event material: a song title, a prop list, whatever an event's
+    // v9 — event material: a song title, a prop list, whatever an event's
     // materialLabel asks for. Same shape as substitutions on purpose — a
     // House submits, staff decides, and a House cannot edit a submission
     // once it is in the queue.
@@ -254,7 +254,7 @@ service cloud.firestore {
       allow update, delete: if isStaff();
     }
 
-    /* v8.8 — house contact details.
+    /* v9 — house contact details.
      *
      * A SEPARATE COLLECTION, and that is the whole point. `houses` is
      * publicly readable, and Firestore rules are document-level: there is
@@ -278,7 +278,7 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
-    /* v8.8 — score overrides. Admin-only, and frozen once the event's
+    /* v9 — score overrides. Admin-only, and frozen once the event's
      * result is published, on exactly the same condition as `scores` and
      * `entryFlags`: all three move points, so all three lock together.
      * Without the publish check an Admin could change a mark the public had
@@ -291,7 +291,7 @@ service cloud.firestore {
                         : request.resource.data.eventId);
     }
 
-    /* v8.8 — mutual-exclusion constraint groups. Publicly readable
+    /* v9 — mutual-exclusion constraint groups. Publicly readable
      * because a House Manager's registration path evaluates them, and
      * they describe rules rather than anybody's data. */
     match /constraintGroups/{id} {
@@ -299,7 +299,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // v8.8 — manual point adjustments (discipline, bonuses, corrections).
+    // v9 — manual point adjustments (discipline, bonuses, corrections).
     // Admin-only to WRITE: moving a house total by hand is the single most
     // consequential non-publish act in the app, and a Co-Admin who can score
     // but not publish should not be able to do it either. Publicly readable
@@ -310,7 +310,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // v8.8 — appeals against a published result.
+    // v9 — appeals against a published result.
     //
     // judgeUids is denormalised onto the appeal at filing time so a Judge
     // can find their own with a single array-contains query. A list query
@@ -348,7 +348,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // v8.8 — titles. Hand-awarded, not tied to a scored event, so they carry
+    // v9 — titles. Hand-awarded, not tied to a scored event, so they carry
     // no publish gate of their own — an Admin decides when to award one and
     // that decision is immediately what the public sees.
     match /titles/{id} {
@@ -375,7 +375,7 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
-    /* v8.8 — a House Manager may add participants to their OWN house, and
+    /* v9 — a House Manager may add participants to their OWN house, and
      * only while the Admin has opened that window.
      *
      * Every clause is load-bearing: without the houseId check a manager
@@ -522,7 +522,7 @@ service cloud.firestore {
     }
 
     match /judgeAssignments/{id} {
-      // v8.8 — also House. Filing an appeal denormalises which judges are
+      // v9 — also House. Filing an appeal denormalises which judges are
       // assigned onto the appeal itself (see /appeals below), which means
       // reading this collection by eventId at that moment. Who is judging
       // an event is not the thing blind judging protects — that is
@@ -618,7 +618,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // v8.8 — messaging. Admin-toggleable and off by default; a House,
+    // v9 — messaging. Admin-toggleable and off by default; a House,
     // Judge or Stage Manager account can neither find nor be found by one
     // until an Admin or Co-Admin actually starts a conversation with them,
     // and even then only the participants of THAT conversation can read it.

@@ -21,7 +21,7 @@
 //   ROLL-UP CAPS span two classes each — group, individual, category,
 //   general — and count every event, General included.
 //
-// ── ⚠ v8.8 BEHAVIOUR CHANGE: General class caps now bite ─────────────
+// ── ⚠ v9 BEHAVIOUR CHANGE: General class caps now bite ─────────────
 //
 // v8.6–8.7 returned null from maxFor() for generalIndividual and
 // generalGroup, on the reasoning that "class caps are a per-category
@@ -39,10 +39,10 @@
 // enforced from this version. That is the intended fix, but it does mean a
 // registration that previously slipped through may now be refused.
 
-// v8.8 — every class may split by stage, not only the individual two.
+// v9 — every class may split by stage, not only the individual two.
 const SPLIT_CLASSES = ["categoryIndividual", "categoryGroup", "generalIndividual", "generalGroup"];
 
-/* ── v8.8 — the roll-up caps ──────────────────────────────────────────
+/* ── v9 — the roll-up caps ──────────────────────────────────────────
  *
  * Four caps that each span two classes. They are counted for EVERY event,
  * General included, because unlike the class caps they are not asking a
@@ -202,7 +202,7 @@ export function checkCaps(counts, event, limits, vocab = {}) {
   return null;
 }
 
-/* ── v8.8 — mutual-exclusion constraint groups ────────────────────────
+/* ── v9 — mutual-exclusion constraint groups ────────────────────────
  *
  * "One speech event only" — a named set of events (and/or whole Types)
  * from which a participant may enter at most N. This is not a cap on a
@@ -242,7 +242,7 @@ export function checkConstraints(event, groups, currentEventIds, eventById = {})
   return null;
 }
 
-/* ── v8.8 — reserved slots in a general group event ───────────────────
+/* ── v9 — reserved slots in a general group event ───────────────────
  *
  * Keeps a general group event from being filled entirely by one or two
  * categories. Each reservation says "at least N of this event's places

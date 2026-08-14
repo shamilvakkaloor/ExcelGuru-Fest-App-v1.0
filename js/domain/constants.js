@@ -54,7 +54,7 @@ export const ROLES = [
   { value: "coAdmin", label: "Co-Admin"      },
   { value: "judge",   label: "Judge"         },
   { value: "house",   label: "House Manager" },
-  // v8.8 — a fifth role for the person running the stage: assigns code
+  // v9 — a fifth role for the person running the stage: assigns code
   // letters and ticks entries in as they go on. Deliberately narrow.
   { value: "stage",   label: "Stage Manager" }
 ];
@@ -150,27 +150,27 @@ export const DEFAULTS = {
     // the same way blindJudgingDefault does. Turning it on later does not
     // silently restate what existing events are worth.
     gradelessDefault: false,
-    // v8.8 — renaming "House" (e.g. to "Team", "Zone"). Everywhere that
+    // v9 — renaming "House" (e.g. to "Team", "Zone"). Everywhere that
     // reads this goes through houseTerm()/housePluralTerm() in this file,
     // so a fest that never touches it sees literally "House" — the
     // vocab-substitution pattern Type/Tier already established.
     houseTermSingular: "House",
     houseTermPlural: "Houses",
-    // v8.8 — the fest manual is LINKED, not uploaded. A real manual is
+    // v9 — the fest manual is LINKED, not uploaded. A real manual is
     // several MB and Firestore caps a document at 1 MiB, with no Cloud
     // Storage on the free tier — so the file lives in Drive and the app
     // holds the URL.
     manualUrl: "",
     manualLabel: "Fest manual",
-    contactsVisible: false,   // v8.8 — the public Contact page is opt-in
-    // v8.8 — House Managers adding their own participants. Off by default:
+    contactsVisible: false,   // v9 — the public Contact page is opt-in
+    // v9 — House Managers adding their own participants. Off by default:
     // most fests want the roster centrally controlled. The window is
     // separate from the event registration window, because "who is in my
     // house" and "which events they enter" close at different moments.
     houseAddParticipants: false,
     houseAddWindow: { start: null, end: null },
 
-    /* v8.8 — automatic category assignment.
+    /* v9 — automatic category assignment.
      *
      * "none" (default) keeps the manual dropdown. "class" derives the
      * category from the participant's class/grade, "dob" from their date
@@ -187,7 +187,7 @@ export const DEFAULTS = {
     // saving is handled; see lib/timezone.js.
     festTimeZone: null,
 
-    // v8.8 — appeals against a published result. Off by default: a fest
+    // v9 — appeals against a published result. Off by default: a fest
     // that never turns this on sees no new tab anywhere. The window opens
     // automatically at publish and closes itself; there is no separate
     // "open appeals" switch to remember to flip.
@@ -195,7 +195,7 @@ export const DEFAULTS = {
     appealWindowHours: 24,
     appealMaxActive: 2,
 
-    // v8.8 — messaging. Off by default: nothing about the nav or any
+    // v9 — messaging. Off by default: nothing about the nav or any
     // account changes until an Admin turns it on.
     messagingEnabled: false
   },
@@ -203,7 +203,7 @@ export const DEFAULTS = {
   participantLimits: {
     overallMax: null, overallMin: null,
 
-    /* ── v8.8 — the four ROLL-UP caps ──────────────────────────────────
+    /* ── v9 — the four ROLL-UP caps ──────────────────────────────────
      * Each spans two of the four classes, and each is opt-in: a null max
      * is no cap, so a fest that ignores these is unaffected. They sit
      * between `overall` and the per-class caps, and every one of them is
@@ -251,18 +251,18 @@ export const DEFAULTS = {
     splitByCategory: true,
     tieBreakOrder: ["categoryGroupPoints", "generalIndividualPoints", "generalGroupPoints"],
     useTiebreakers: true,         // v8 — off, ties simply share the same rank
-    // v8.8 — "points" ranks houses by raw total, unchanged default.
+    // v9 — "points" ranks houses by raw total, unchanged default.
     // "percentage" ranks by points earned ÷ maximum earnable, so a house
     // missing a whole category (no Subjuniors, say) is judged only against
     // what it could plausibly contest. "both" shows the raw table with the
     // percentage alongside rather than replacing it.
     championshipMode: "points",
-    // v8.8 — the two built-in boards are renameable, so a fest can call
+    // v9 — the two built-in boards are renameable, so a fest can call
     // them what it actually calls them. Blank falls back to the defaults
     // below rather than showing an empty tab.
     houseBoardName: "",
     talentBoardName: "",
-    // v8.8 — id -> position, set by an Admin to settle a tie the configured
+    // v9 — id -> position, set by an Admin to settle a tie the configured
     // pools cannot (a toss, a judges' decision). Empty for most fests.
     manualHouseOrder: {}
   }
@@ -323,7 +323,7 @@ export function codeLetterAt(index) {
 
 /* ── Team identity for group entries ──────────────────────────────────
  *
- * v8.8 — a group entry is a HOUSE'S TEAM, not a bag of names. Identifying
+ * v9 — a group entry is a HOUSE'S TEAM, not a bag of names. Identifying
  * it by its roster read badly everywhere it appeared ("Aisha, Ravi, Meera,
  * Tom" as a column heading) and broke down entirely when a substitution
  * changed a member mid-fest: the entry appeared to become a different

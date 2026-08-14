@@ -147,7 +147,7 @@ export async function writeJudgingEntries(event, regs, settings = null) {
       .map(rank => ({ rank, label: ordinalPlace(rank) }));
   }
 
-  // v8.8 — approved event material (a song title, and the like) travels
+  // v9 — approved event material (a song title, and the like) travels
   // here too, the same indirection the description already relies on: a
   // judge never reads eventMaterials directly, so material text can never
   // carry a house's identity along with it by accident. Read fresh on

@@ -520,7 +520,7 @@ export function boardMatchesEvent(board, event) {
  * points summed are the ones already stored on each entry — so a board can
  * never disagree with the standings it is drawn from.
  *
- * v8.8 — three qualification constraints, all opt-in and additive to the
+ * v9 — three qualification constraints, all opt-in and additive to the
  * plain point tally above:
  *
  *   QUALIFY (rank/grade, N times). board.qualifyMode is "" (off), "rank"

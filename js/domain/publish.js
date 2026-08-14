@@ -54,7 +54,7 @@ export async function loadEventEntries(eventId) {
   const overrideBy = Object.fromEntries(overrides.map(o => [o.regId, o]));
 
   return regs.map(r => {
-    /* v8.8 — AN OVERRIDE REPLACES THE AVERAGE, NOT THE RANK.
+    /* v9 — AN OVERRIDE REPLACES THE AVERAGE, NOT THE RANK.
      *
      * The overridden value re-enters the ordinary pipeline, so the
      * percentage, the grade, the dense ranking and the points all follow
@@ -519,7 +519,7 @@ export async function rebuildPublicSnapshots() {
       // v8 — public custom boards, tallied from the same published results
       // so they can never disagree with the standings above.
       //
-      // v8.8 — SEQUENTIAL, not a bare map, because a board may exclude
+      // v9 — SEQUENTIAL, not a bare map, because a board may exclude
       // whoever currently tops an earlier one (qualifyExcludesTopOf). Only
       // a board that already ran by the time this one is reached can be
       // referenced — publicBoards is sorted by sortOrder, so an Admin

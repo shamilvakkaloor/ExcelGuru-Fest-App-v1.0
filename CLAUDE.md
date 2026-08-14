@@ -66,7 +66,7 @@ js/pages/              One module per screen; admin screens under pages/admin/
 - **Publish is Admin-only**, enforced in `firestore.rules` on the
   `results.publishStatus` transition, not by hiding a button.
 
-## v8.8 — patterns established, worth following
+## v9 — patterns established, worth following
 
 - **Grades are data, and an ID is forever.** `gradeScale: [{id,label,minPercent}]`
   in festSettings. Results and `config/gradePoints` are keyed by **id**, so a
