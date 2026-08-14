@@ -72,9 +72,22 @@ service cloud.firestore {
     // rules can only compare request.time against a value they can convert
     // themselves, the same reason registration windows are stored as ms.
     function appealWindowOpen(eventId) {
-      let res = get(/databases/$(database)/documents/results/$(eventId)).data;
+      // exists() FIRST, matching resultPublished() above. Without it, a
+      // missing result document makes get() return null and the field
+      // access below a rule EVALUATION ERROR — which reaches the user as
+      // "You do not have permission", not as a clean refusal. The client
+      // already blocks this path, but a rule that errors on absent data is
+      // the exact failure this project has debugged twice already.
+      return exists(/databases/$(database)/documents/results/$(eventId))
+        && appealWindowOpenFor(get(/databases/$(database)/documents/results/$(eventId)).data);
+    }
+    function appealWindowOpenFor(res) {
       let s = settings();
       let hours = s.appealWindowHours == null ? 24 : s.appealWindowHours;
+      // publishedAtMs is v8.8. An event published BEFORE this upgrade does
+      // not carry it, so its window reads as closed — the safe answer, and
+      // the same one appealWindowState() reaches in the browser. Publish
+      // the event again to open an appeal window on it.
       return res.publishStatus == "Published"
         && res.publishedAtMs != null
         && request.time <= timestampOf(res.publishedAtMs + hours * 60 * 60 * 1000);
@@ -638,7 +651,9 @@ service cloud.firestore {
         // A message cannot be edited or withdrawn once sent — the same
         // finality a printed sheet has. senderUid must be the caller's own,
         // so nobody can post as someone else in a chat they belong to.
-        allow create: if (isStaff() || signedIn())
+        // signedIn() alone — isStaff() implied, and membership is what
+        // actually gates this. inConversation() is the real check.
+        allow create: if signedIn()
                       && inConversation(id)
                       && request.resource.data.senderUid == request.auth.uid;
         allow update, delete: if false;
