@@ -578,12 +578,6 @@ check("the old formula was about 10.7 times too large", (() => {
   return Math.round(wrong / right * 10) / 10;
 })(), 10.7);
 
-const summary = document.createElement("div");
-summary.className = "notice notice-" + (fail ? "danger" : "ok");
-summary.style.fontWeight = "600";
-summary.textContent = `${pass} passed, ${fail} failed`;
-out.prepend(summary);
-
 /* ══ v8 — the points model ═══════════════════════════════════════════
  * These are the most important tests in the release: a mistake here moves
  * house standings silently.
@@ -831,6 +825,46 @@ check("ticking events replaces the axis filters",
   [boardMatchesEvent({ eventIds: ["e2"], typeIds: ["speech"] }, { id: "e2", typeId: "essay" }),
    boardMatchesEvent({ eventIds: ["e2"] }, { id: "e1", typeId: "speech" })], [true, false]);
 
+/* Boards: qualification constraints — v8.8 */
+(() => {
+  const eventById = { e1: { id: "e1", eventClass: "categoryIndividual" }, e2: { id: "e2", eventClass: "categoryIndividual" } };
+  const results = [
+    { id: "e1", entries: [
+      { isAbsent: false, totalPoints: 5, rank: 1, grade: "A", entryCategoryId: "junior",
+        participantIds: ["p1"], participantNames: ["Alice"], chestNumbers: ["1"], houseName: "Red" },
+      { isAbsent: false, totalPoints: 3, rank: 2, grade: "B", entryCategoryId: "senior",
+        participantIds: ["p2"], participantNames: ["Bob"], chestNumbers: ["2"], houseName: "Blue" }
+    ]},
+    { id: "e2", entries: [
+      { isAbsent: false, totalPoints: 5, rank: 1, grade: "A", entryCategoryId: "junior",
+        participantIds: ["p2"], participantNames: ["Bob"], chestNumbers: ["2"], houseName: "Blue" },
+      { isAbsent: false, totalPoints: 1, rank: 3, grade: "C", entryCategoryId: "junior",
+        participantIds: ["p1"], participantNames: ["Alice"], chestNumbers: ["1"], houseName: "Red" }
+    ]}
+  ];
+
+  check("with no qualification rule every point counts",
+    tallyBoard({}, results, eventById).map(r => [r.id, r.total]), [["p2", 8], ["p1", 6]]);
+
+  check("qualifying twice in the top 1 excludes everyone when nobody did",
+    tallyBoard({ qualifyMode: "rank", qualifyMaxRank: 1, qualifyMinCount: 2 }, results, eventById).length, 0);
+
+  check("qualifying once in the top 1 keeps a participant's WHOLE total, not just the qualifying entry",
+    tallyBoard({ qualifyMode: "rank", qualifyMaxRank: 1, qualifyMinCount: 1 }, results, eventById)
+      .find(r => r.id === "p1").total, 6);
+
+  check("a grade qualification only admits participants who earned it",
+    tallyBoard({ qualifyMode: "grade", qualifyGrades: ["A"], qualifyMinCount: 1 }, results, eventById)
+      .map(r => r.id).sort(), ["p1", "p2"]);
+
+  check("category scope is the PARTICIPANT'S category per entry, not the event's",
+    tallyBoard({ qualifyCategoryIds: ["junior"] }, results, eventById).map(r => [r.id, r.total]),
+    [["p1", 6], ["p2", 5]]);
+
+  check("mutual exclusion drops the excluded id and leaves the rest ranked",
+    tallyBoard({}, results, eventById, {}, { excludeId: "p1" }).map(r => r.id), ["p2"]);
+})();
+
 /* ══ v8.7 — schedule clashes ═════════════════════════════════════════
  * The clash that actually bites on the day: a person needed in two places
  * at once. Warned, never blocked — real fests overlap deliberately.
@@ -875,6 +909,17 @@ check("slots with no time are ignored",
   findClashes([{ eventId: "e1", dayId: "d1" }, { eventId: "e2", dayId: "d1" }], V87_PEOPLE).length, 0);
 check("a clash summary names the person",
   /Ann/.test(describeClashes(findClashes(V87_SLOTS, V87_PEOPLE))), true);
+
+// The summary must run LAST — it used to sit mid-file, from a point in
+// this file's history where that mid-point was briefly the end. Every
+// check() added below it since then ran and rendered its own PASS/FAIL
+// row, but was silently left out of this total. Moved here so the count
+// can be trusted again.
+const summary = document.createElement("div");
+summary.className = "notice notice-" + (fail ? "danger" : "ok");
+summary.style.fontWeight = "600";
+summary.textContent = `${pass} passed, ${fail} failed`;
+out.prepend(summary);
 </script>
 </body>
 </html>

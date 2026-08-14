@@ -72,6 +72,11 @@ export async function loadEventEntries(eventId) {
       houseId: r.houseId,
       houseName: r.houseName || "",
       categoryId: r.categoryId || null,
+      // The PARTICIPANT'S own category (from the first member), distinct
+      // from categoryId above which is the EVENT's — null for a general
+      // event regardless of who entered it. Board qualification scopes by
+      // who a participant actually is, not which event they scored in.
+      entryCategoryId: r.entryCategoryId || null,
       participantIds: r.participantIds || [],
       participantNames: r.participantNames || [],
       chestNumbers: r.chestNumbers || [],
@@ -174,7 +179,7 @@ export async function computeEventResult(eventId) {
   // time a leaderboard is rebuilt.
   const rows = computed.map(e => ({
     regId: e.regId, houseId: e.houseId, houseName: e.houseName,
-    categoryId: e.categoryId, codeLetter: e.codeLetter,
+    categoryId: e.categoryId, entryCategoryId: e.entryCategoryId || null, codeLetter: e.codeLetter,
     participantIds: e.participantIds, participantNames: e.participantNames,
     chestNumbers: e.chestNumbers,
     teamLabel: e.teamLabel || "", wholeTeam: !!e.wholeTeam,
@@ -513,10 +518,26 @@ export async function rebuildPublicSnapshots() {
       students: studentRows,
       // v8 — public custom boards, tallied from the same published results
       // so they can never disagree with the standings above.
-      boards: publicBoards.map(b => ({
-        id: b.id, name: b.name, rowLimit: b.rowLimit ?? null,
-        rows: tallyBoard(b, results, eventById, meta)
-      })),
+      //
+      // v8.8 — SEQUENTIAL, not a bare map, because a board may exclude
+      // whoever currently tops an earlier one (qualifyExcludesTopOf). Only
+      // a board that already ran by the time this one is reached can be
+      // referenced — publicBoards is sorted by sortOrder, so an Admin
+      // controls the order simply by where a board sits in that list. A
+      // board naming itself, or one later in the order, is a no-op:
+      // documented rather than solved, the same choice made for the
+      // constraint-groups registration race.
+      boards: (() => {
+        const built = [];
+        const topOf = {};
+        for (const b of publicBoards) {
+          const excludeId = b.qualifyExcludesTopOf ? topOf[b.qualifyExcludesTopOf] : undefined;
+          const rows = tallyBoard(b, results, eventById, meta, { excludeId });
+          topOf[b.id] = rows[0]?.id;
+          built.push({ id: b.id, name: b.name, rowLimit: b.rowLimit ?? null, rows });
+        }
+        return built;
+      })(),
       eventCount: results.length,
       rankLimit: cfg.rankLimit,
       talentBoardLimit: Number(cfg.settings.talentBoardLimit) || 0,

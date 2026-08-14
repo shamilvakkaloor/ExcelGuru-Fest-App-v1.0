@@ -1536,25 +1536,30 @@ async function customBoardsCard(panel) {
 
   async function paint() {
     box.innerHTML = "";
-    const [boards, types, tiers, categories] = await Promise.all([
+    const [boards, types, tiers, categories, festSettings] = await Promise.all([
       getAll("leaderboards").catch(() => []),
       getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => []),
-      getAll("categories")
+      getAll("categories"),
+      getOne("config", "festSettings").catch(() => null)
     ]);
+    const sorted = boards.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    const gradeScale = gradeScaleFrom(festSettings || {});
+    const vocab = { types, tiers, categories, boards: sorted, gradeScale };
 
     box.appendChild(card(el("div", {}, [
       el("p.hint", { text:
-        "Extra named boards — \u201cBest in Speech\u201d, \u201cGrade 1 champions\u201d. Each one re-tallies points " +
+        "Extra named boards — “Best in Speech”, “Grade 1 champions”. Each one re-tallies points " +
         "already awarded, so it always reconciles with the main standings. Mark a board public and it appears " +
         "as its own tab on the results page." }),
       el("div.btn-row", {}, button("Add leaderboard", { class: "btn-accent",
-        onclick: () => boardDialog(null, { types, tiers, categories }, paint) })),
+        onclick: () => boardDialog(null, vocab, paint) })),
       boards.length ? table([
         { key: "name", label: "Name" },
         { key: "scope", label: "Counts", render: b => el("div.hint", { style: "margin:0", text: describeBoard(b, { types, tiers, categories }) }) },
+        { key: "qualify", label: "Qualification", render: b => el("div.hint", { style: "margin:0", text: describeQualify(b, sorted, gradeScale) }) },
         { key: "isPublic", label: "Public", render: b => b.isPublic ? badge("Public", "badge-ok") : badge("Staff only", "badge-warn") },
         { key: "act", label: "", render: b => el("div.btn-row", {}, [
-            button("Edit", { class: "btn-sm", onclick: () => boardDialog(b, { types, tiers, categories }, paint) }),
+            button("Edit", { class: "btn-sm", onclick: () => boardDialog(b, vocab, paint) }),
             button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
               if (!await confirmDialog("Delete board", `Delete "${b.name}"?`, "Delete")) return;
               await remove("leaderboards", b.id);
@@ -1562,10 +1567,26 @@ async function customBoardsCard(panel) {
               toast("Deleted."); paint();
             })})
           ])}
-      ], boards.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)))
+      ], sorted)
         : empty("No extra boards yet")
     ]), "Custom leaderboards"));
   }
+}
+
+function describeQualify(b, boards, gradeScale) {
+  const bits = [];
+  if (b.qualifyMode === "rank") {
+    bits.push(`Top ${b.qualifyMaxRank || 1} at least ${Math.max(1, Number(b.qualifyMinCount) || 1)} time(s)`);
+  } else if (b.qualifyMode === "grade") {
+    const names = (b.qualifyGrades || []).map(id => gradeScale.find(g => g.id === id)?.label || id);
+    bits.push(`${names.join("/") || "a grade"} at least ${Math.max(1, Number(b.qualifyMinCount) || 1)} time(s)`);
+  }
+  if (b.qualifyCategoryIds?.length) bits.push("participant category scoped");
+  if (b.qualifyExcludesTopOf) {
+    const other = boards.find(x => x.id === b.qualifyExcludesTopOf);
+    bits.push("excludes top of " + (other?.name || "another board"));
+  }
+  return bits.length ? bits.join(" · ") : "None — every point counts";
 }
 
 function describeBoard(b, vocab) {
@@ -1626,6 +1647,49 @@ function boardDialog(existing, vocab, refresh) {
     style: chosenEvents.size ? "" : "display:none"
   });
 
+  /* v8.8 — qualification. All three are opt-in and gate MEMBERSHIP only —
+   * a qualifying participant's total still adds up everything the axis
+   * filters above already matched, so a board can never show a total that
+   * disagrees with the points actually awarded, only disagree about who
+   * is shown at all. */
+  const qualifyMode = select([
+    { value: "",     label: "None — every point counts" },
+    { value: "rank",  label: "Placed in the top N" },
+    { value: "grade", label: "Earned a specific grade" }
+  ], { value: existing?.qualifyMode || "" });
+  const qualifyMaxRank = input({ type: "number", min: 1, value: existing?.qualifyMaxRank ?? 1, style: "max-width:110px" });
+  const qualifyMinCount = input({ type: "number", min: 1, value: existing?.qualifyMinCount ?? 1, style: "max-width:110px" });
+  const qualifyGrades = pick("Qualifying grade(s)",
+    vocab.gradeScale.map(g => ({ value: g.id, label: g.label })), existing?.qualifyGrades);
+  const rankBox = field("Top N", qualifyMaxRank, "Rank 1 counts as the top 1, and so on.");
+  const countField = field("At least this many times", qualifyMinCount,
+    "How many qualifying entries a participant needs before they appear on this board at all.");
+  function syncQualify() {
+    rankBox.style.display = qualifyMode.value === "rank" ? "" : "none";
+    qualifyGrades.node.style.display = qualifyMode.value === "grade" ? "" : "none";
+    countField.style.display = qualifyMode.value ? "" : "none";
+  }
+  qualifyMode.addEventListener("change", syncQualify);
+
+  const qualifyCats = pick("Restrict to participants in these categories",
+    vocab.categories.map(c => ({ value: c.id, label: c.name })), existing?.qualifyCategoryIds);
+
+  const excludesTopOf = select([
+    { value: "", label: "No exclusion" },
+    ...vocab.boards.filter(b => b.id !== existing?.id).map(b => ({ value: b.id, label: b.name }))
+  ], { value: existing?.qualifyExcludesTopOf || "" });
+
+  const qualifyBox = el("fieldset", {}, [
+    el("legend", { text: "Qualification" }),
+    el("div.hint", { text: "Restricts who APPEARS on this board — a qualifying participant's total is still every point the filters above matched, not only the qualifying entries." }),
+    field("Rule", qualifyMode),
+    rankBox, qualifyGrades.node, countField,
+    qualifyCats.node,
+    vocab.boards.length ? field("Exclude whoever tops", excludesTopOf,
+      "That participant is left off this board entirely, so the next scorer takes the top spot here. Only a board earlier in Sort order can be referenced.") : null
+  ].filter(Boolean));
+  syncQualify();
+
   modal({
     title: existing ? "Edit leaderboard" : "Add leaderboard",
     body: el("div", {}, [
@@ -1637,6 +1701,7 @@ function boardDialog(existing, vocab, refresh) {
         el("div.hint", { text: "Ticking any event here replaces the axis filters above." }),
         eventBox, axisNote
       ]),
+      qualifyBox,
       el("div.grid.grid-2", {}, [field("Sort order", order), field("Rows to show", rowLimit)]),
       checkbox("Show this board on the public results page", isPublic, v => isPublic = v)
     ]),
@@ -1644,13 +1709,22 @@ function boardDialog(existing, vocab, refresh) {
       { label: "Cancel" },
       { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
           if (!name.value.trim()) { toast("Give the board a name.", true); return false; }
+          if (qualifyMode.value === "grade" && !qualifyGrades.get().length) {
+            toast("Pick at least one qualifying grade, or set Rule back to None.", true); return false;
+          }
           const data = {
             name: name.value.trim(),
             stages: stages.get(), typeIds: types.get(), tierIds: tiers.get(),
             categoryIds: cats.get(), classIds: [],
             eventIds: [...chosenEvents],
             isPublic, sortOrder: Number(order.value) || 0,
-            rowLimit: rowLimit.value === "" ? null : (Number(rowLimit.value) || 0)
+            rowLimit: rowLimit.value === "" ? null : (Number(rowLimit.value) || 0),
+            qualifyMode: qualifyMode.value || "",
+            qualifyMaxRank: Math.max(1, Number(qualifyMaxRank.value) || 1),
+            qualifyGrades: qualifyGrades.get(),
+            qualifyMinCount: Math.max(1, Number(qualifyMinCount.value) || 1),
+            qualifyCategoryIds: qualifyCats.get(),
+            qualifyExcludesTopOf: excludesTopOf.value || null
           };
           if (existing) await patch("leaderboards", existing.id, data);
           else await add("leaderboards", data);

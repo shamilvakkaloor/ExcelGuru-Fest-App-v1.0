@@ -79,6 +79,7 @@ with nothing visibly changed until it opts in.
 | Stage Manager | People → Accounts → **Stage Managers** (create a login) |
 | Appeals | Settings → **Appeals** |
 | Event material | Events → edit an event → **Event material** |
+| Leaderboard qualification | Settings → Leaderboard → edit a **custom leaderboard** |
 
 ---
 
@@ -95,3 +96,10 @@ with nothing visibly changed until it opts in.
 - **Phone numbers left unticked are not merely hidden.** They live in a
   staff-only collection and never reach any public document. That is why
   they are not stored on the house record, which is world-readable.
+- **A board scoped to a participant category needs events re-finalized.**
+  `entryCategoryId` (the participant's own category, as opposed to the
+  event's) was added to the stored result row in v8.8. An event finalized
+  before that upgrade has no such field on its stored entries, so a
+  category-scoped custom leaderboard shows nobody from it until the event
+  is finalized again. Re-publishing alone is not enough — Results →
+  **Finalize**, then publish, refreshes the field.

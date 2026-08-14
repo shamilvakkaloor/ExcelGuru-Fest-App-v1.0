@@ -519,9 +519,37 @@ export function boardMatchesEvent(board, event) {
  * `resultDocs` are the same documents the main leaderboard reads, and the
  * points summed are the ones already stored on each entry — so a board can
  * never disagree with the standings it is drawn from.
+ *
+ * v8.8 — three qualification constraints, all opt-in and additive to the
+ * plain point tally above:
+ *
+ *   QUALIFY (rank/grade, N times). board.qualifyMode is "" (off), "rank"
+ *   or "grade". A participant's points still total everything the axis
+ *   filters match, exactly as before — qualification gates MEMBERSHIP, not
+ *   which points are summed, so a board that qualifies never disagrees
+ *   with the SIZE of a total it does show, only with who is shown at all.
+ *
+ *   CATEGORY SCOPE (participant, not event). board.qualifyCategoryIds
+ *   restricts by the PARTICIPANT'S own category (entry.entryCategoryId,
+ *   taken from the entry's first member — the same convention reserved
+ *   slots already uses, and the same limitation: a mixed-category group
+ *   entry is scoped by whoever entered first). This is distinct from the
+ *   existing board.categoryIds, which scopes by the EVENT's category and
+ *   already existed — a general event has none, so that filter alone
+ *   cannot express "Junior participants only" across general events.
+ *
+ *   MUTUAL EXCLUSION is NOT decided in here. `opts.excludeId`, if passed,
+ *   is simply dropped from the totals before ranking — the caller (see
+ *   publish.js) is the one walking boards in sortOrder and deciding who
+ *   currently tops the referenced board, because that is inherently a
+ *   cross-board question this function has no way to answer on its own.
  */
-export function tallyBoard(board, resultDocs, eventById, meta = {}) {
+export function tallyBoard(board, resultDocs, eventById, meta = {}, opts = {}) {
   const totals = new Map();
+  const qualifying = new Map();
+  const mode = board.qualifyMode || "";
+  const minCount = Math.max(1, Number(board.qualifyMinCount) || 1);
+  const catScope = (board.qualifyCategoryIds || []).map(String);
 
   for (const res of resultDocs) {
     const ev = eventById[res.id];
@@ -529,7 +557,14 @@ export function tallyBoard(board, resultDocs, eventById, meta = {}) {
 
     for (const entry of res.entries || []) {
       if (entry.isAbsent) continue;
+      if (catScope.length && !catScope.includes(String(entry.entryCategoryId ?? ""))) continue;
+
       const pts = Number(entry.totalPoints || 0);
+      const meetsQualify =
+        mode === "rank"  ? (entry.rank != null && entry.rank <= (Number(board.qualifyMaxRank) || 1)) :
+        mode === "grade" ? (board.qualifyGrades || []).includes(entry.grade) :
+        false;
+
       // A zero-point entry is still COUNTED here rather than skipped: a
       // participant scoring 0 in one event and 5 in another must total 5,
       // not be dropped from the board entirely. Zero TOTALS are filtered
@@ -546,14 +581,19 @@ export function tallyBoard(board, resultDocs, eventById, meta = {}) {
         cur.total += pts;
         cur.events += 1;
         totals.set(pid, cur);
+        if (meetsQualify) qualifying.set(pid, (qualifying.get(pid) || 0) + 1);
       });
     }
   }
 
   // Dense ranking, same rule as everywhere else in the app. Participants
-  // who ended on nothing are left off, as on the main board.
+  // who ended on nothing are left off, as on the main board — as is anyone
+  // excluded by a mutual-exclusion rule, or who never met the qualifying
+  // count this board asks for.
   const rows = [...totals.values()]
     .filter(r => r.total > 0)
+    .filter(r => r.id !== opts.excludeId)
+    .filter(r => !mode || (qualifying.get(r.id) || 0) >= minCount)
     .sort((a, b) => b.total - a.total || String(a.name).localeCompare(String(b.name)));
   let rank = 0, prev = null;
   return rows.map(r => {
