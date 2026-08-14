@@ -313,12 +313,10 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     minBox
   ]);
 
-  let substitutionOpen = !!existing?.substitutionOpen;
-  const subBox = el("fieldset", {}, [
-    el("legend", { text: "Substitutions" }),
-    checkbox("Allow House Managers to request a substitution for this event", substitutionOpen, v => substitutionOpen = v),
-    el("div.hint", { text: "Off by default. Turning this on lets a House Manager ask to replace any current participant in one of their entries — Admin still approves or rejects each request. Closes automatically once code letters are assigned." })
-  ]);
+  // v9 — substitution permission moved to its own screen (Registrations →
+  // Open substitutions), granted per house rather than as one blanket
+  // switch here that opened the door for every house registered in the
+  // event at once. Nothing to configure on this dialog any more.
 
   let materialsEnabled = !!existing?.materialsEnabled;
   const materialLabel = input({ value: existing?.materialLabel || "Material", placeholder: "e.g. Song title" });
@@ -374,7 +372,6 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       wholeTeamBox,
       reservedFieldset,
       capBox,
-      subBox,
       materialsBox,
       el("fieldset", {}, [
         el("legend", { text: "Registration window override" }),
@@ -416,7 +413,6 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             maxEntriesPerHouse: perHouse.value === "" ? null : (Number(perHouse.value) || null),
             minEntriesPerHouse: minHouse.value === "" ? null : (Number(minHouse.value) || null),
             blindJudging: blind,
-            substitutionOpen,
             materialsEnabled,
             materialLabel: materialLabel.value.trim() || "Material",
             materialWindowStart: fromLocalInput(materialStart.value),

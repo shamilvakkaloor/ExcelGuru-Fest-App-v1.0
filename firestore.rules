@@ -217,12 +217,21 @@ service cloud.firestore {
                     || (isHouse()
                         && request.resource.data.houseId == refId()
                         && request.resource.data.status == "pending"
-                        && get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.substitutionOpen == true);
+                        && substitutionOpenFor(eventDoc(request.resource.data.eventId), refId()));
 
       // Approving or rejecting is a staff act. A House Manager cannot edit
       // a request once it is in the queue — withdrawing an ask is done by
       // the organiser, so the audit trail stays intact.
       allow update, delete: if isStaff();
+    }
+    // v9 — granted per house, not as one blanket switch for every house
+    // registered in the event. substitutionOpenFor is a map of houseId (or
+    // the literal "__all") to true; .get(key, false) reads it safely
+    // whether or not that house has ever been granted anything.
+    function substitutionOpenFor(ev, houseId) {
+      let openFor = ev.substitutionOpenFor;
+      return openFor != null
+        && (openFor.get("__all", false) == true || openFor.get(houseId, false) == true);
     }
 
     // v9 — event material: a song title, a prop list, whatever an event's

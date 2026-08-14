@@ -796,13 +796,17 @@ check("the same wall clock differs across a DST boundary",
    wallClockToEpoch("2026-03-29", "12:00", "Europe/London")],
   [Date.parse("2026-03-28T12:00:00Z"), Date.parse("2026-03-29T11:00:00Z")]);
 
-/* Substitutions — the window */
+/* Substitutions — the window — v9: granted per house, not one event-wide switch */
 check("substitution is refused until an Admin opens it for the event",
-  substitutionWindow({}, {}, {}).open, false);
-check("substitution opens once an Admin turns it on for the event",
-  substitutionWindow({}, { substitutionOpen: true }, {}).open, true);
+  substitutionWindow({ houseId: "red" }, {}, {}).open, false);
+check("opening it for one house does not open it for another",
+  [substitutionWindow({ houseId: "red" }, { substitutionOpenFor: { red: true } }, {}).open,
+   substitutionWindow({ houseId: "blue" }, { substitutionOpenFor: { red: true } }, {}).open],
+  [true, false]);
+check("__all opens it for every house at once",
+  substitutionWindow({ houseId: "blue" }, { substitutionOpenFor: { __all: true } }, {}).open, true);
 check("a code letter closes the window for good, even when open",
-  substitutionWindow({ codeLetter: "C" }, { substitutionOpen: true }, {}).open, false);
+  substitutionWindow({ houseId: "red", codeLetter: "C" }, { substitutionOpenFor: { red: true } }, {}).open, false);
 check("pending requests are counted",
   pendingCount([{ status: "pending" }, { status: "approved" }, { status: "pending" }]), 2);
 

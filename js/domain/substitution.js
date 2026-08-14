@@ -1,13 +1,15 @@
 // Substitutions — swapping a participant inside an existing entry.
 //
-// WHY THE WINDOW IS ADMIN-CONTROLLED
-// Substitution is closed by default, event by event. An Admin opens it on
-// the events where they want to allow it — there is no automatic trigger
-// tied to the registration deadline any more, and no restriction on which
-// participant may be replaced once it is open. After code letters exist the
-// running order is fixed and judges may be holding sheets, so a name change
-// is a result correction for an Admin in Judging, not a substitution — that
-// one gate never lifts, regardless of the event's substitutionOpen flag.
+// WHY THE WINDOW IS ADMIN-CONTROLLED, AND PER HOUSE
+// Substitution is closed by default, event by event, house by house. An
+// Admin grants it on the Registrations screen for the specific house that
+// needs it — "Team Red can swap on this event" — not as a blanket switch
+// that opens the door for every house registered in it. `__all` still
+// exists as an explicit choice for the rare case an Admin genuinely wants
+// every house open at once; it is never the default. After code letters
+// exist the running order is fixed and judges may be holding sheets, so a
+// name change is a result correction for an Admin in Judging, not a
+// substitution — that one gate never lifts, regardless of what is granted.
 //
 // WHY A CAP BREACH IS REFUSED OUTRIGHT
 // Caps are enforced when an entry is created, so a breach cannot arise
@@ -34,8 +36,9 @@ export function substitutionWindow(registration, event, settings, now = Date.now
   if (registration.codeLetter) {
     return { open: false, reason: "Code letters have been assigned — ask an Admin to correct this in Judging." };
   }
-  if (!event.substitutionOpen) {
-    return { open: false, reason: "Substitutions are not open for this event — ask an Admin to open them." };
+  const openFor = event.substitutionOpenFor || {};
+  if (!openFor.__all && !openFor[registration.houseId]) {
+    return { open: false, reason: "Substitutions are not open for your house on this event — ask an Admin to open them." };
   }
   return { open: true, reason: null };
 }

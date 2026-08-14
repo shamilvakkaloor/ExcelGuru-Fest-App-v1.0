@@ -85,9 +85,11 @@ export default async function registrations(root) {
           onclick: guard(() => assignLetters(event, regs, paint))
         }),
         button(`Assign judges (${assigned.length})`, { onclick: () => judgeDialog(event, judges, assigned, catName, paint) }),
-        button("Extend registration", { onclick: () => extensionDialog(event, houses, paint) })
+        button("Extend registration", { onclick: () => extensionDialog(event, houses, paint) }),
+        button("Open substitutions", { onclick: () => substitutionDialog(event, houses, paint) })
       ]),
-      extensionSummary(event, houses)
+      extensionSummary(event, houses),
+      substitutionSummary(event, houses)
     ]), event.name));
 
     if (!regs.length) { panel.appendChild(empty("No entries yet")); return; }
@@ -275,6 +277,67 @@ function extensionDialog(event, houses, refresh) {
       { label: "Cancel" },
       { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
           await patch("events", event.id, { registrationExtensions: ext });
+          toast("Saved."); close(true); refresh();
+        })
+      }
+    ]
+  });
+}
+
+/** A line naming which houses currently hold substitution permission. */
+function substitutionSummary(event, houses) {
+  const openFor = event.substitutionOpenFor || {};
+  const on = Object.entries(openFor).filter(([, v]) => v);
+  if (!on.length) return null;
+  const houseName = Object.fromEntries(houses.map(h => [h.id, h.name]));
+  return el("div.hint", { style: "margin-top:.4rem", text:
+    "Substitutions open for " + on.map(([k]) => k === "__all" ? "every house" : (houseName[k] || k)).join(", ") });
+}
+
+/**
+ * Grant substitution permission — for one house at a time, or every house
+ * at once via the explicit "__all" choice. Never event-wide by default:
+ * the whole point of moving this here is that opening a swap for Team Red
+ * does not also open it for every other house registered in the event.
+ */
+function substitutionDialog(event, houses, refresh) {
+  const openFor = { ...(event.substitutionOpenFor || {}) };
+  const who = select([
+    { value: "__all", label: "Every house" },
+    ...houses.map(h => ({ value: h.id, label: h.name }))
+  ]);
+  const listBox = el("div");
+
+  function paintList() {
+    listBox.innerHTML = "";
+    const rows = Object.entries(openFor).filter(([, v]) => v);
+    if (!rows.length) { listBox.appendChild(el("div.hint", { text: "Substitutions are closed for every house on this event." })); return; }
+    const houseName = Object.fromEntries(houses.map(h => [h.id, h.name]));
+    for (const [key] of rows) {
+      listBox.appendChild(el("div.slot-row", {}, [
+        el("div.body", { text: key === "__all" ? "Every house" : (houseName[key] || key) }),
+        button("Close", { class: "btn-sm btn-danger", onclick: () => { delete openFor[key]; paintList(); } })
+      ]));
+    }
+  }
+  paintList();
+
+  modal({
+    title: "Open substitutions — " + event.name,
+    body: el("div", {}, [
+      el("p.hint", { text:
+        "Lets the house you pick ask to replace any current participant in one of their entries for this " +
+        "event — you still approve or reject each request on the Substitutions screen. Closes automatically " +
+        "once code letters are assigned, regardless of what is granted here." }),
+      el("div.btn-row", {}, [field("House", who),
+        button("Open", { class: "btn-sm", onclick: () => { openFor[who.value] = true; paintList(); } })]),
+      el("hr", { style: "border:0;border-top:1px solid var(--line);margin:1rem 0" }),
+      listBox
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
+          await patch("events", event.id, { substitutionOpenFor: openFor });
           toast("Saved."); close(true); refresh();
         })
       }
