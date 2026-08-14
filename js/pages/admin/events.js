@@ -323,13 +323,19 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   let materialsEnabled = !!existing?.materialsEnabled;
   const materialLabel = input({ value: existing?.materialLabel || "Material", placeholder: "e.g. Song title" });
   const materialLabelField = field("What to call it", materialLabel);
+  const materialStart = input({ type: "datetime-local", value: toLocalInput(existing?.materialWindowStart) });
+  const materialEnd   = input({ type: "datetime-local", value: toLocalInput(existing?.materialWindowEnd) });
+  const materialWindowBox = el("div.grid.grid-2", {}, [field("Opens", materialStart), field("Closes", materialEnd)]);
   materialLabelField.style.display = materialsEnabled ? "" : "none";
+  materialWindowBox.style.display = materialsEnabled ? "" : "none";
   const materialsBox = el("fieldset", {}, [
     el("legend", { text: "Event material" }),
     checkbox("House Managers submit material for each entry — a song title, and the like", materialsEnabled,
-      v => { materialsEnabled = v; materialLabelField.style.display = v ? "" : "none"; }),
+      v => { materialsEnabled = v; materialLabelField.style.display = v ? "" : "none"; materialWindowBox.style.display = v ? "" : "none"; }),
     el("div.hint", { text: "Off by default. Turning this on lets a House Manager submit one item per entry after registering — Admin still approves or rejects each submission, oldest first. Once approved, it is shown to a judge beside the code letter, the same way the event description is." }),
-    materialLabelField
+    materialLabelField,
+    el("div.hint", { text: "Leave both blank to accept submissions for as long as this is switched on. Set either to close the window at a specific time — useful for song titles that need to reach the sound crew before the event runs." }),
+    materialWindowBox
   ]);
 
   function syncClass() {
@@ -413,6 +419,8 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             substitutionOpen,
             materialsEnabled,
             materialLabel: materialLabel.value.trim() || "Material",
+            materialWindowStart: fromLocalInput(materialStart.value),
+            materialWindowEnd: fromLocalInput(materialEnd.value),
             registrationStart: fromLocalInput(regStart.value),
             registrationEnd: fromLocalInput(regEnd.value),
             status: existing?.status || "open"

@@ -13,8 +13,16 @@ import { add, patch, getAll, where, serverTimestamp } from "../lib/db.js";
 
 export const MATERIAL_STATUS = { PENDING: "pending", APPROVED: "approved", REJECTED: "rejected" };
 
-export function materialsWindow(event) {
+export function materialsWindow(event, now = Date.now()) {
   if (!event?.materialsEnabled) return { open: false, reason: "This event does not take a material submission." };
+  // Both blank means open for as long as the feature stays switched on —
+  // the same "blank = no bound" convention the registration window uses.
+  if (event.materialWindowStart && now < event.materialWindowStart) {
+    return { open: false, reason: "Submissions have not opened yet." };
+  }
+  if (event.materialWindowEnd && now > event.materialWindowEnd) {
+    return { open: false, reason: "The submission window has closed." };
+  }
   return { open: true, reason: null };
 }
 

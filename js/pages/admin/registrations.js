@@ -1,7 +1,8 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty,
-         modal, confirmDialog, badge, fmtDateTime, fromLocalInput } from "../../lib/ui.js";
+         modal, confirmDialog, badge, fmtDateTime, fromLocalInput, filterBar } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, batchWrite, where } from "../../lib/db.js";
-import { codeLetterAt, classLabel, isGroupClass, eventLabel, entryLabel } from "../../domain/constants.js";
+import { codeLetterAt, classLabel, isGroupClass, eventLabel, entryLabel,
+         eventFilterKeys, typeTierFilters, EVENT_CLASSES } from "../../domain/constants.js";
 import { registerEntry, withdrawEntry, windowState } from "../../domain/registration.js";
 import { DEFAULTS, effectiveResultMode } from "../../domain/constants.js";
 import { ladderKey } from "../../domain/scoring.js";
@@ -10,24 +11,51 @@ import { session } from "../../lib/session.js";
 export default async function registrations(root) {
   root.appendChild(el("h1", { text: "Registrations" }));
 
-  const [events, houses, settings, limits] = await Promise.all([
-    getAll("events"), getAll("houses"), getOne("config", "festSettings"), getOne("config", "participantLimits")
+  const [events, houses, settings, limits, categories, types, tiers] = await Promise.all([
+    getAll("events"), getAll("houses"), getOne("config", "festSettings"), getOne("config", "participantLimits"),
+    getAll("categories"), getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => [])
   ]);
   const lim = { ...DEFAULTS.participantLimits, ...(limits || {}) };
 
   if (!events.length) { root.appendChild(empty("No events yet", "Create events first.")); return; }
 
-  const categories = await getAll("categories");
   const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
-  const picker = select(events
-    .sort((a, b) => String(a.code).localeCompare(String(b.code)))
-    .map(e => ({ value: e.id, label: eventLabel(e, catName) })));
+  const picker = select([]);
   const panel = el("div");
-  root.appendChild(card(field("Event", picker), "Pick an event"));
-  root.appendChild(panel);
 
+  // A fest with many events makes "pick an event" from one flat
+  // alphabetical list a real chore — the same filter bar every other
+  // event picker in the app already carries (stage.js, house.js,
+  // participants.js).
+  const bar = filterBar({
+    filters: [
+      { key: "filterCategory", label: "Category",
+        options: [...categories.map(c => ({ value: c.id, label: c.name })),
+                  { value: "__general", label: "General" }] },
+      { key: "filterClass", label: "Event class",
+        options: EVENT_CLASSES.filter(c => events.some(e => e.eventClass === c.id))
+          .map(c => ({ value: c.id, label: c.label })) },
+      ...typeTierFilters({ types, tiers, enabled: !!settings?.useTypeTier })
+    ],
+    onChange: fillPicker
+  });
+
+  root.appendChild(card(el("div", {}, [bar.node, field("Event", picker)]), "Pick an event"));
+  root.appendChild(panel);
   picker.addEventListener("change", paint);
-  await paint();
+
+  function fillPicker() {
+    const keep = picker.value;
+    const list = events
+      .map(e => ({ e, ...eventFilterKeys(e) }))
+      .filter(bar.matches).map(x => x.e)
+      .sort((a, b) => String(a.code).localeCompare(String(b.code)));
+    picker.innerHTML = "";
+    for (const e of list) picker.appendChild(el("option", { value: e.id, text: eventLabel(e, catName) }));
+    if (list.some(e => e.id === keep)) picker.value = keep;
+    paint();
+  }
+  fillPicker();
 
   async function paint() {
     const event = events.find(e => e.id === picker.value);

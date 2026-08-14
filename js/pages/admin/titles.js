@@ -40,10 +40,12 @@ export default async function titlesPage(root) {
           el("strong", { text: r.name }),
           el("div.hint", { style: "margin:0", text: r.description || "" })
         ])},
-      { key: "participantName", label: "Awarded to", render: r => el("div", {}, [
-          el("div", { text: r.participantName || "—" }),
-          el("div.hint", { style: "margin:0", text: r.houseName || "" })
-        ])},
+      { key: "participantName", label: "Awarded to", render: r => r.participantId
+          ? el("div", {}, [
+              el("div", { text: r.participantName }),
+              el("div.hint", { style: "margin:0", text: r.houseName || "" })
+            ])
+          : badge("Not assigned yet", "badge-warn") },
       { key: "act", label: "", render: r => el("div.btn-row", {}, [
           button("Edit", { class: "btn-sm", onclick: () => titleDialog(r, paint) }),
           button("Remove", { class: "btn-sm btn-danger", onclick: guard(async () => {
@@ -65,7 +67,13 @@ function titleDialog(existing, refresh) {
   // A simple name/chest search rather than a 600-option <select> — a fest
   // this size makes a plain dropdown unusable, and titles are awarded one
   // at a time, not often enough to need anything fancier.
-  let chosen = existing
+  //
+  // The participant is optional. A title can be created ahead of a
+  // decision — "Best Debater" as a named category with no winner yet —
+  // and assigned by editing it later. `existing.participantId` is the
+  // real signal, not "existing carries a title at all": a title without
+  // a winner still has a name and description to edit.
+  let chosen = existing?.participantId
     ? { id: existing.participantId, name: existing.participantName, houseId: existing.houseId, houseName: existing.houseName }
     : null;
   const searchBox = input({ placeholder: "Search participant by name or chest number", autocomplete: "off" });
@@ -75,7 +83,13 @@ function titleDialog(existing, refresh) {
   function paintChosen() {
     chosenOut.innerHTML = "";
     if (chosen) {
-      chosenOut.appendChild(notice("info", `Awarding to ${chosen.name}${chosen.houseName ? " — " + chosen.houseName : ""}.`));
+      chosenOut.appendChild(el("div.btn-row", {}, [
+        notice("info", `Awarding to ${chosen.name}${chosen.houseName ? " — " + chosen.houseName : ""}.`),
+        button("Clear", { class: "btn-sm", onclick: () => { chosen = null; paintChosen(); } })
+      ]));
+    } else {
+      chosenOut.appendChild(el("div.hint", {
+        text: "No winner chosen yet — save the title as-is and assign one later by editing it." }));
     }
   }
   paintChosen();
@@ -89,7 +103,11 @@ function titleDialog(existing, refresh) {
       orderBy("nameLower"), where("nameLower", ">=", start), where("nameLower", "<=", start + ""), limit(6))
       .catch(() => []);
     const byChest = /\d/.test(term)
-      ? await getAll("participants", where("chestNumber", "==", isNaN(Number(term)) ? term : Number(term)), limit(6)).catch(() => [])
+      // Chest numbers are stored as strings in every format (chest.js) —
+      // querying with Number(term) here compared a number against a
+      // string field, which never matches. A search for a real chest
+      // number silently returned nothing, every time.
+      ? await getAll("participants", where("chestNumber", "==", term), limit(6)).catch(() => [])
       : [];
     const matches = [...byChest, ...byName].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
     if (!matches.length) { searchOut.appendChild(el("div.hint", { text: "No match." })); return; }
@@ -120,14 +138,15 @@ function titleDialog(existing, refresh) {
       { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
           if (!name.value.trim()) { toast("Give the title a name.", true); return false; }
           if (!description.value.trim()) { toast("Add a description — why this title, and how.", true); return false; }
-          if (!chosen) { toast("Search for and choose a participant.", true); return false; }
+          // No participant required — a title can be named ahead of a
+          // decision and assigned later by editing it.
           const data = {
             name: name.value.trim(),
             description: description.value.trim(),
-            participantId: chosen.id,
-            participantName: chosen.name,
-            houseId: chosen.houseId,
-            houseName: chosen.houseName,
+            participantId: chosen?.id ?? null,
+            participantName: chosen?.name ?? "",
+            houseId: chosen?.houseId ?? null,
+            houseName: chosen?.houseName ?? "",
             awardedAt: existing?.awardedAt || Date.now(),
             awardedBy: session.name || ""
           };

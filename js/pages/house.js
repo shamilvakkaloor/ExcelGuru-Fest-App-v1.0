@@ -428,13 +428,21 @@ async function entriesTab(panel, house, refresh) {
           const ev = byId[r.eventId];
           if (!ev?.materialsEnabled) return el("span.hint", { text: "—" });
           const m = materialByReg[r.id];
-          if (!m) return button("Submit " + (ev.materialLabel || "material"), { class: "btn-sm",
-            onclick: () => materialDialog(r, ev, house, refresh) });
+          if (!m) {
+            const win = materialsWindow(ev);
+            return win.open
+              ? button("Submit " + (ev.materialLabel || "material"), { class: "btn-sm",
+                  onclick: () => materialDialog(r, ev, house, refresh) })
+              : el("span.hint", { text: win.reason });
+          }
           if (m.status === MATERIAL_STATUS.REJECTED) {
+            const win = materialsWindow(ev);
             return el("div", {}, [
               badge("Rejected", "badge-danger"),
               m.reason ? el("div.hint", { style: "margin:.2rem 0", text: m.reason }) : null,
-              button("Resubmit", { class: "btn-sm", onclick: () => materialDialog(r, ev, house, refresh) })
+              win.open
+                ? button("Resubmit", { class: "btn-sm", onclick: () => materialDialog(r, ev, house, refresh) })
+                : el("div.hint", { style: "margin:.2rem 0 0", text: win.reason })
             ]);
           }
           return el("div", {}, [

@@ -249,9 +249,19 @@ service cloud.firestore {
                         && request.resource.data.status == "pending"
                         && request.resource.data.title is string
                         && request.resource.data.title.size() > 0
-                        && eventDoc(request.resource.data.eventId).materialsEnabled == true);
+                        && materialWindowOpen(eventDoc(request.resource.data.eventId)));
 
       allow update, delete: if isStaff();
+    }
+    // v9 — an optional start/end on top of materialsEnabled. Unlike the
+    // registration window there is no fest-wide fallback: blank on either
+    // side means unbounded on that side, not "use the fest default",
+    // because there is no sensible fest-wide default for "song title
+    // deadline" the way there is for registration itself.
+    function materialWindowOpen(ev) {
+      return ev.materialsEnabled == true
+        && (ev.materialWindowStart == null || request.time >= timestampOf(ev.materialWindowStart))
+        && (ev.materialWindowEnd == null   || request.time <= timestampOf(ev.materialWindowEnd));
     }
 
     /* v9 — house contact details.

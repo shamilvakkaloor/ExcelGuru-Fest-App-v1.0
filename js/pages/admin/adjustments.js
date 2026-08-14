@@ -130,8 +130,12 @@ function adjustmentDialog(houses, hTerm, refresh) {
     const byName = await getAll("participants",
       orderBy("nameLower"), where("nameLower", ">=", start), where("nameLower", "<=", start + ""), limit(6))
       .catch(() => []);
+    // Chest numbers are stored as strings in every format (chest.js) —
+    // querying with Number(term) compared a number against a string
+    // field, which never matches. A search for a real chest number
+    // silently returned nothing, every time.
     const byChest = /\d/.test(term)
-      ? await getAll("participants", where("chestNumber", "==", isNaN(Number(term)) ? term : Number(term)), limit(6)).catch(() => [])
+      ? await getAll("participants", where("chestNumber", "==", term), limit(6)).catch(() => [])
       : [];
     const matches = [...byChest, ...byName].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
     if (!matches.length) { searchOut.appendChild(el("div.hint", { text: "No match." })); return; }
