@@ -217,6 +217,10 @@ service cloud.firestore {
                     || (isHouse()
                         && request.resource.data.houseId == refId()
                         && request.resource.data.status == "pending"
+                        // exists() FIRST — a stale eventId (event deleted
+                        // after the house's page loaded) must read as a
+                        // clean refusal, not a rules EVALUATION ERROR.
+                        && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId))
                         && substitutionOpenFor(eventDoc(request.resource.data.eventId), refId()));
 
       // Approving or rejecting is a staff act. A House Manager cannot edit
@@ -258,6 +262,9 @@ service cloud.firestore {
                         && request.resource.data.status == "pending"
                         && request.resource.data.title is string
                         && request.resource.data.title.size() > 0
+                        // exists() FIRST — same reason as substitutions
+                        // above: a stale eventId must refuse cleanly.
+                        && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId))
                         && materialWindowOpen(eventDoc(request.resource.data.eventId)));
 
       allow update, delete: if isStaff();
