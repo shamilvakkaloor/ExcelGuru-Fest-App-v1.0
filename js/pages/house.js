@@ -15,6 +15,7 @@ import { DEFAULTS, GENDERS, classLabel, isGroupClass, isGeneralClass, eventLabel
 import { compareChest, allocateChest, takenChestNumbers, readChestCounter,
          raiseChestCounter, chestSortKey } from "../domain/chest.js";
 import { gradeLabel } from "../domain/scoring.js";
+import { resolveCategory } from "../domain/autocategory.js";
 import { shortfalls, limitsForCategory } from "../domain/limits.js";
 import { toCSV, downloadText } from "../lib/csv.js";
 import { printDocument, htmlTable } from "../lib/pdf.js";
@@ -492,17 +493,40 @@ function houseAddDialog(house, categories, cfg, refresh) {
   const name = input({ placeholder: "Full name" });
   const cat  = select(categories.map(c => ({ value: c.id, label: c.name })));
   const cls  = input({ placeholder: "Class / grade" });
+  const dob  = input({ type: "date" });
   const gender = select(GENDERS);
+
+  // Same automatic assignment the Admin form uses, so a manager-added
+  // participant lands in the same category an Admin-added one would.
+  const autoMode = cfg.autoCategory || "none";
+  const autoNote = el("div");
+  function runAuto() {
+    if (autoMode === "none") return;
+    const res = resolveCategory({
+      cls: cls.value, dob: dob.value, categories,
+      mode: autoMode, winner: cfg.autoCategoryWinner || "dob"
+    });
+    autoNote.innerHTML = "";
+    if (!res.reason) return;
+    if (res.categoryId) cat.value = res.categoryId;
+    autoNote.appendChild(notice(res.clash ? "warn" : "info", res.reason));
+  }
+  if (autoMode !== "none") {
+    cls.addEventListener("input", runAuto);
+    dob.addEventListener("change", runAuto);
+  }
 
   modal({
     title: "Add to " + house.name,
     body: el("div", {}, [
       field("Name", name),
-      field("Category", cat),
       field("Class", cls),
+      (autoMode === "dob" || autoMode === "both") ? field("Date of birth", dob) : null,
+      field("Category", cat, autoMode !== "none" ? "Set automatically — you can still change it." : null),
+      autoNote,
       field("Gender", gender),
       el("p.hint", { text: "The chest number is allocated automatically from your house's range or the shared sequence." })
-    ]),
+    ].filter(Boolean)),
     actions: [
       { label: "Cancel" },
       { label: "Add", kind: "accent", closes: false, busyLabel: "Adding…", onClick: guard(async close => {
@@ -524,6 +548,7 @@ function houseAddDialog(house, categories, cfg, refresh) {
             categoryId: cat.value,
             categoryName: categories.find(c => c.id === cat.value)?.name || "",
             className: cls.value.trim(),
+            dob: dob.value || null,
             gender: gender.value || null,
             photoData: null,
             // Must be zero: the security rule refuses anything else, because

@@ -7,6 +7,7 @@ import { allocateChest, allocateChestNumber, takenChestNumbers, readChestCounter
          raiseChestCounter, chestSortKey, normalizeChest, compareChest,
          seedFromValue, hasRange } from "../../domain/chest.js";
 import { GENDERS, LEGACY_GENDERS, DEFAULTS } from "../../domain/constants.js";
+import { resolveCategory } from "../../domain/autocategory.js";
 import { chestCardHTML, CARDS_PER_SHEET } from "../../domain/chestcards.js";
 import { recountParticipant } from "../../domain/limits.js";
 import { printDocument } from "../../lib/pdf.js";
@@ -77,14 +78,15 @@ export default async function participants(root) {
         button("Download template", { onclick: () => downloadText("participants-template.csv", toCSV([
           { label: "chestNumber", key: "chest" }, { label: "name", key: "name" }, { label: "house", key: "house" },
           { label: "category", key: "category" }, { label: "class", key: "cls" },
+          { label: "dob", key: "dob" },
           { label: "gender", key: "gender" }, { label: "photoUrl", key: "photo" }
-        ], [{ chest: "", name: "Ann Mary", house: "Falcons", category: "Junior", cls: "8A", gender: "female", photo: "" },
-            { chest: "250", name: "Rahul K", house: "Eagles", category: "Senior", cls: "11B", gender: "male", photo: "" }])) }),
+        ], [{ chest: "", name: "Ann Mary", house: "Falcons", category: "Junior", cls: "8A", dob: "2011-04-12", gender: "female", photo: "" },
+            { chest: "250", name: "Rahul K", house: "Eagles", category: "Senior", cls: "11B", dob: "2008-09-30", gender: "male", photo: "" }])) }),
         button("Export CSV", { onclick: () => downloadText("participants.csv", toCSV([
           { label: "Chest", key: "chestNumber" }, { label: "Name", key: "name" },
           { label: "House", value: r => houseName[r.houseId] || "" },
           { label: "Category", value: r => catName[r.categoryId] || "" },
-          { label: "Class", key: "className" }, { label: "Gender", key: "gender" }
+          { label: "Class", key: "className" }, { label: "DoB", key: "dob" }, { label: "Gender", key: "gender" }
         ], rows)) })
       ]),
       el("div.grid.grid-2", {}, [field("House", houseFilter), field("Search", searchBox)])
@@ -139,6 +141,34 @@ function participantDialog(existing, houses, categories, cfg, refresh) {
     ...categories.map(c => ({ value: c.id, label: c.name }))], { value: existing?.categoryId || "" });
   const cls   = input({ value: existing?.className || "", placeholder: "e.g. 9B" });
   const gender = select(GENDERS, { value: GENDERS.some(g => g.value === existing?.gender) ? existing.gender : "" });
+
+  /* ── Automatic category ────────────────────────────────────────────
+   * The dropdown stays: automatic assignment SETS it, it does not replace
+   * it. An operator who disagrees with the derived answer can still
+   * override, which matters because the ranges are configuration and
+   * configuration is sometimes wrong. */
+  const autoMode = cfg.autoCategory || "none";
+  const autoOn = autoMode !== "none";
+  const dob = input({ type: "date", value: existing?.dob || "" });
+  const autoNote = el("div");
+
+  function runAuto() {
+    if (!autoOn) return;
+    const res = resolveCategory({
+      cls: cls.value, dob: dob.value, categories,
+      mode: autoMode, winner: cfg.autoCategoryWinner || "dob"
+    });
+    autoNote.innerHTML = "";
+    if (!res.reason) return;
+    if (res.categoryId) cat.value = res.categoryId;
+    // A clash is a warning, not a quiet correction — the losing category
+    // is named in the reason so the operator can see what was overridden.
+    autoNote.appendChild(notice(res.clash ? "warn" : "info", res.reason));
+  }
+  if (autoOn) {
+    cls.addEventListener("input", runAuto);
+    dob.addEventListener("change", runAuto);
+  }
   const picker = photoPicker(existing || {});
   const rangeHint = el("div.hint", { style: "margin:0" });
 
@@ -168,8 +198,17 @@ function participantDialog(existing, houses, categories, cfg, refresh) {
       field("Chest number", chest, seeded
         ? "Blank takes the next number in this house's pattern."
         : "Blank means the next free number is assigned automatically."),
-      field("Category", cat, "Required — category events are restricted by it."),
-      el("div.grid.grid-2", {}, [field("Class / grade", cls), field("Gender (optional)", gender)]),
+      el("div.grid.grid-2", {}, [
+        field("Class / grade", cls),
+        // Only asked for when a rule actually reads it.
+        (autoMode === "dob" || autoMode === "both")
+          ? field("Date of birth", dob) : null
+      ].filter(Boolean)),
+      field("Category", cat, autoOn
+        ? "Set automatically from the fields above. You can still override it."
+        : "Required — category events are restricted by it."),
+      autoNote,
+      el("div.grid.grid-2", {}, [field("Gender (optional)", gender)]),
       el("label.field", {}, [el("span", { text: "Photo" }), picker.node,
         el("div.hint", { text: PHOTO_HELP })])
     ]),
@@ -209,6 +248,7 @@ function participantDialog(existing, houses, categories, cfg, refresh) {
             categoryId: cat.value,
             categoryName: categories.find(c => c.id === cat.value)?.name || "",
             className: cls.value.trim(),
+            dob: dob.value || null,
             gender: gender.value || null,
             ...picker.getValue()
           };
@@ -222,6 +262,7 @@ function participantDialog(existing, houses, categories, cfg, refresh) {
 }
 
 function importDialog(houses, categories, cfg, refresh) {
+  const autoMode = cfg.autoCategory || "none";
   const file = el("input", { type: "file", accept: ".csv,text/csv" });
   const out  = el("div");
   const progress = el("div.hint", { style: "margin:.4rem 0 0" });
@@ -229,7 +270,7 @@ function importDialog(houses, categories, cfg, refresh) {
   modal({
     title: "Import participants from CSV",
     body: el("div", {}, [
-      el("p.hint", { text: "Columns: chestNumber, name, house, category, class, gender, photoUrl. Name, house and category are required. Blank chest numbers follow the house's range or pattern, otherwise the shared sequence." }),
+      el("p.hint", { text: "Columns: chestNumber, name, house, category, class, dob, gender, photoUrl. Name and house are required; category too unless automatic assignment can derive it from class or dob. Blank chest numbers follow the house's range or pattern, otherwise the shared sequence." }),
       field("CSV file", file),
       progress,
       out
@@ -269,8 +310,30 @@ function importDialog(houses, categories, cfg, refresh) {
             const key = (r.house || "").toLowerCase();
             const h = houseByName[key] || houseByCode[key];
             if (!h) { errors.push("Row " + rowNo + ': unknown house "' + r.house + '".'); continue; }
-            const c = catByName[(r.category || "").toLowerCase()];
-            if (!c) { errors.push("Row " + rowNo + ': category is required and "' + (r.category || "") + '" was not found.'); continue; }
+            /* Category: named in the file, or derived when automatic
+             * assignment is on. An explicit name in the CSV always wins —
+             * someone who typed a category meant it, and silently
+             * overruling a stated value would be the worse surprise. */
+            let c = catByName[(r.category || "").toLowerCase()];
+            if (!c && autoMode !== "none") {
+              const res = resolveCategory({
+                cls: r.class || "", dob: r.dob || "", categories,
+                mode: autoMode, winner: cfg.autoCategoryWinner || "dob"
+              });
+              c = res.categoryId ? categories.find(x => x.id === res.categoryId) : null;
+              if (c && res.clash) {
+                // Not an error — the row imports — but the operator is told
+                // which rows were decided by the tie-break rather than
+                // matching cleanly.
+                errors.push("Row " + rowNo + " (imported): " + res.reason);
+              }
+            }
+            if (!c) {
+              errors.push("Row " + rowNo + ": " + (autoMode === "none"
+                ? `category is required and "${r.category || ""}" was not found.`
+                : `no category given, and none could be derived from class "${r.class || ""}" or date of birth "${r.dob || ""}".`));
+              continue;
+            }
 
             const liveHouse = localHouses.find(x => x.id === h.id);
             let chestNumber;
@@ -298,6 +361,7 @@ function importDialog(houses, categories, cfg, refresh) {
               houseId: h.id, houseName: h.name,
               categoryId: c.id, categoryName: c.name,
               className: r.class || "",
+              dob: (r.dob || "").trim() || null,
               // I27 — binary only.
               gender: ["male", "female"].includes(g) ? g : null,
               photoData: null,

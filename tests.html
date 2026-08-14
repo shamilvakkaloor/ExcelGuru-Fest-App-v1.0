@@ -18,6 +18,7 @@ import { gradeFor, denseRank, computeResults, finalizeBlockers, aggregate,
          gradeScaleFrom, gradeLabel } from "./js/domain/scoring.js";
 import { nonRankHolders } from "./js/domain/reports.js";
 import { windowState, registrationWindow } from "./js/domain/registration.js";
+import { resolveCategory, byClass, byDob } from "./js/domain/autocategory.js";
 import { checkCaps, shortfalls, applyCounts } from "./js/domain/limits.js";
 import { resolvePoints, ladderKey, computeDirectResults, directFinalizeBlockers } from "./js/domain/scoring.js";
 import { limitsForCategory, counterKeys, maxFor, recountParticipant,
@@ -189,6 +190,41 @@ check("an excluded event is left off a custom leaderboard",
     registrationWindow({ registrationEnd: FUTURE, registrationExtensions: { red: PAST } }, {}, "red").end, FUTURE);
   check("an extension cannot open registration before its start",
     windowState({ registrationStart: FUTURE, registrationExtensions: { red: FUTURE } }, {}, Date.now(), "red").open, false);
+})();
+
+/* Automatic category assignment — v8.8 */
+(() => {
+  const CATS = [
+    { id: "sub", name: "Sub-Junior", classFrom: 1, classTo: 3, dobFrom: "2015-01-01", dobTo: "2018-12-31" },
+    { id: "jun", name: "Junior",     classFrom: 4, classTo: 7, dobFrom: "2011-01-01", dobTo: "2014-12-31" },
+    { id: "sen", name: "Senior",     classFrom: 8, classTo: 12, dobFrom: "2005-01-01", dobTo: "2010-12-31" }
+  ];
+  const R = o => resolveCategory({ categories: CATS, ...o });
+
+  check("off by default, nothing is derived", R({ cls: "5", dob: "2012-06-01" }).source, "manual");
+  check("class alone resolves", R({ mode: "class", cls: "5" }).categoryId, "jun");
+  check("date of birth alone resolves", R({ mode: "dob", dob: "2016-03-02" }).categoryId, "sub");
+  check("a class range is inclusive at both ends",
+    [R({ mode: "class", cls: "4" }).categoryId, R({ mode: "class", cls: "7" }).categoryId], ["jun", "jun"]);
+  check("a dob range is inclusive at both ends",
+    [R({ mode: "dob", dob: "2011-01-01" }).categoryId, R({ mode: "dob", dob: "2014-12-31" }).categoryId],
+    ["jun", "jun"]);
+  check("a class written as 'Class 5' still parses", R({ mode: "class", cls: "Class 5" }).categoryId, "jun");
+  check("nothing matching returns null rather than guessing",
+    R({ mode: "both", cls: "99", dob: "1990-01-01" }).categoryId, null);
+
+  // Agreement and clash.
+  check("both agreeing reports no clash",
+    R({ mode: "both", cls: "5", dob: "2012-06-01" }).clash, false);
+  const clash = R({ mode: "both", cls: "5", dob: "2016-06-01" });  // Junior by class, Sub-Junior by age
+  check("both disagreeing is flagged as a clash", clash.clash, true);
+  check("date of birth wins a clash by default", clash.categoryId, "sub");
+  check("class wins a clash when configured to",
+    R({ mode: "both", cls: "5", dob: "2016-06-01", winner: "class" }).categoryId, "jun");
+  check("a clash names both sides so the override is visible",
+    /Junior/.test(clash.reason) && /Sub-Junior/.test(clash.reason), true);
+  check("with only one rule on, the other cannot cause a clash",
+    R({ mode: "class", cls: "5", dob: "2016-06-01" }).clash, false);
 })();
 
 /* Manual adjustments — v8.8 */

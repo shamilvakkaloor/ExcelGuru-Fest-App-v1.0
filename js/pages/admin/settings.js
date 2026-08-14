@@ -78,6 +78,22 @@ async function basicTab(panel) {
   const houseAddEnd   = input({ type: "datetime-local", value: toLocalInput(s.houseAddWindow?.end) });
   let houseAdd = !!s.houseAddParticipants;
 
+  const autoCat = select([
+    { value: "none",  label: "Off — choose the category by hand" },
+    { value: "class", label: "From the class / grade" },
+    { value: "dob",   label: "From the date of birth" },
+    { value: "both",  label: "From both, with a winner on a clash" }
+  ], { value: s.autoCategory || "none" });
+  const autoCatWinner = select([
+    { value: "dob",   label: "Date of birth wins" },
+    { value: "class", label: "Class wins" }
+  ], { value: s.autoCategoryWinner || "dob" });
+  const winnerField = field("When they disagree", autoCatWinner,
+    "A repeated year or a late admission genuinely puts someone in two categories at once. This decides which answer is used — the other is still shown, so the override is never silent.");
+  const syncAutoCat = () => { winnerField.style.display = autoCat.value === "both" ? "" : "none"; };
+  autoCat.addEventListener("change", syncAutoCat);
+  syncAutoCat();
+
   let blind = !!s.blindJudgingDefault;
   let gradeless = !!s.gradelessDefault;
   let schedVisible = !!s.scheduleVisible;
@@ -284,6 +300,10 @@ async function basicTab(panel) {
       field("Registration deadline", regEnd)
     ]),
     el("hr", { style: "border:0;border-top:1px solid var(--line);margin:1rem 0" }),
+    field("Assign the category automatically", autoCat,
+      "Derives a participant's category as they are added. Set each category's class and date-of-birth ranges on the Categories tab."),
+    winnerField,
+    el("hr", { style: "border:0;border-top:1px solid var(--line);margin:1rem 0" }),
     checkbox("House Managers may add their own participants", houseAdd, v => houseAdd = v),
     el("div.hint", { text:
       "Lets a House Manager add people to their own house only, during the window below. This is a " +
@@ -346,6 +366,8 @@ async function basicTab(panel) {
       registrationWindow: { start: fromLocalInput(regStart.value), end: fromLocalInput(regEnd.value) },
       houseAddParticipants: houseAdd,
       houseAddWindow: { start: fromLocalInput(houseAddStart.value), end: fromLocalInput(houseAddEnd.value) },
+      autoCategory: autoCat.value,
+      autoCategoryWinner: autoCatWinner.value,
       blindJudgingDefault: blind,
       gradelessDefault: gradeless,
       scheduleVisible: schedVisible,
@@ -400,13 +422,25 @@ async function categoriesTab(panel) {
 function categoryDialog(existing, panel) {
   const name  = input({ value: existing.name });
   const order = input({ type: "number", value: existing.sortOrder || 0, style: "max-width:110px" });
+  // Ranges for automatic assignment. Only consulted when Settings has
+  // autoCategory switched on, so leaving them blank costs nothing.
+  const classFrom = input({ type: "number", min: 1, value: existing.classFrom ?? "", placeholder: "1" });
+  const classTo   = input({ type: "number", min: 1, value: existing.classTo ?? "", placeholder: "3" });
+  const dobFrom   = input({ type: "date", value: existing.dobFrom || "" });
+  const dobTo     = input({ type: "date", value: existing.dobTo || "" });
 
   modal({
     title: "Edit category",
     body: el("div", {}, [
       el("p.hint", { text: "Renaming is safe — events and participants keep pointing at this record, so nothing is orphaned." }),
       field("Category name", name),
-      field("Sort order", order)
+      field("Sort order", order),
+      el("fieldset", {}, [
+        el("legend", { text: "Automatic assignment (optional)" }),
+        el("div.hint", { text: "Used only when Fest details has automatic category assignment switched on. Both ranges are inclusive." }),
+        el("div.grid.grid-2", {}, [field("Class from", classFrom), field("Class to", classTo)]),
+        el("div.grid.grid-2", {}, [field("Born on or after", dobFrom), field("Born on or before", dobTo)])
+      ])
     ]),
     actions: [
       { label: "Cancel" },
@@ -414,7 +448,11 @@ function categoryDialog(existing, panel) {
           if (!name.value.trim()) { toast("Name is required.", true); return false; }
           await patch("categories", existing.id, {
             name: name.value.trim(),
-            sortOrder: Number(order.value) || 0
+            sortOrder: Number(order.value) || 0,
+            classFrom: classFrom.value === "" ? null : Number(classFrom.value),
+            classTo:   classTo.value   === "" ? null : Number(classTo.value),
+            dobFrom:   dobFrom.value || null,
+            dobTo:     dobTo.value || null
           });
           // The name is denormalised onto participants and result rows, so
           // the snapshots have to be rebuilt for the change to reach the

@@ -166,6 +166,18 @@ export const DEFAULTS = {
     // house" and "which events they enter" close at different moments.
     houseAddParticipants: false,
     houseAddWindow: { start: null, end: null },
+
+    /* v8.8 — automatic category assignment.
+     *
+     * "none" (default) keeps the manual dropdown. "class" derives the
+     * category from the participant's class/grade, "dob" from their date
+     * of birth, "both" tries each. When both are on and they disagree,
+     * autoCategoryWinner decides — a real clash happens often enough
+     * (a repeated year, a late admission) that refusing to guess would
+     * stall data entry, and picking silently would be worse.
+     */
+    autoCategory: "none",           // none | class | dob | both
+    autoCategoryWinner: "dob",      // dob | class — only consulted on a clash
     // The fest's own timezone, captured from the Admin's browser at setup.
     // Schedule times are wall-clock in THIS zone, not the reader's.
     // IANA zone name, e.g. "Asia/Kolkata". Resolved per date so daylight
