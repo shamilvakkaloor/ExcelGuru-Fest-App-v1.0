@@ -18,15 +18,24 @@ export default async function participants(root) {
   root.appendChild(panel);
 
   let filterHouse = "", search = "";
+  // Set fresh on every full paint(); refreshRow()/removeRow() reach into
+  // these to patch a single participant in place, rather than re-fetching
+  // every participant and rebuilding the whole panel — filters, notices,
+  // export buttons and all — for the sake of one add/edit/delete. That
+  // full rebuild is the "full-screen re-render" this was written against:
+  // visible flicker, and the search box and house filter losing whatever
+  // the operator had just typed or picked.
+  let rows = [], repaintTable = () => {}, countEl = null;
   await paint();
 
   async function paint() {
     panel.innerHTML = "";
     panel.appendChild(loading("Loading participants…"));
-    const [rows, houses, categories, settingsDoc] = await Promise.all([
+    const [freshRows, houses, categories, settingsDoc] = await Promise.all([
       getAll("participants"), getAll("houses"), getAll("categories"),
       getOne("config", "festSettings")
     ]);
+    rows = freshRows;
     const cfg = { ...DEFAULTS.festSettings, ...(settingsDoc || {}) };
     panel.innerHTML = "";
 
@@ -61,11 +70,11 @@ export default async function participants(root) {
     const searchBox = input({ placeholder: "Search name or chest number", value: search });
     searchBox.addEventListener("input", debounce(() => { search = searchBox.value; paintTable(); }, 250));
 
-    panel.appendChild(card(el("div", {}, [
+    const headCard = card(el("div", {}, [
       el("div.btn-row", { style: "margin-bottom:.8rem" }, [
         button("Add participant", { class: "btn-accent",
           disabled: !categories.length,
-          onclick: () => participantDialog(null, houses, categories, cfg, paint) }),
+          onclick: () => participantDialog(null, houses, categories, cfg, refreshRow) }),
         button("Import CSV", { disabled: !categories.length,
           onclick: () => importDialog(houses, categories, cfg, paint) }),
         // v8 — printable chest number cards, several per sheet.
@@ -90,10 +99,15 @@ export default async function participants(root) {
         ], rows)) })
       ]),
       el("div.grid.grid-2", {}, [field("House", houseFilter), field("Search", searchBox)])
-    ]), rows.length + " participants"));
+    ]), rows.length + " participants");
+    panel.appendChild(headCard);
+    // Kept live by refreshRow()/removeRow() below — the one piece of the
+    // header card that a single add/edit/delete actually changes.
+    countEl = headCard.querySelector(".card-head h3");
 
     const tableBox = el("div");
     panel.appendChild(tableBox);
+    repaintTable = paintTable;
     paintTable();
 
     function paintTable() {
@@ -116,14 +130,34 @@ export default async function participants(root) {
         { key: "gender", label: "Gender", render: r => r.gender
             ? (GENDERS.find(g => g.value === r.gender)?.label || r.gender) : "—" },
         { key: "act", label: "", render: r => el("div.btn-row", {}, [
-            button("Edit", { class: "btn-sm", onclick: () => participantDialog(r, houses, categories, cfg, paint) }),
+            button("Edit", { class: "btn-sm", onclick: () => participantDialog(r, houses, categories, cfg, refreshRow) }),
             button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
               if (!await confirmDialog("Delete participant", "Delete " + r.name + "? Their registrations are not removed automatically.", "Delete")) return;
-              await remove("participants", r.id); toast("Deleted."); paint();
+              await remove("participants", r.id); toast("Deleted."); removeRow(r.id);
             })})
           ])}
       ], list)));
     }
+  }
+
+  /**
+   * Patch one participant into the already-loaded list and repaint only
+   * the table — no re-fetch of every participant, no rebuild of the
+   * filters/notices/export buttons above it. Safe because the caller
+   * (participantDialog) hands back the exact document it just wrote,
+   * built from the same `data` object passed to add()/patch() — never a
+   * guess reconstructed separately from it.
+   */
+  function refreshRow(record) {
+    const i = rows.findIndex(r => r.id === record.id);
+    if (i === -1) rows.push(record); else rows[i] = record;
+    repaintTable();
+    if (countEl) countEl.textContent = rows.length + " participants";
+  }
+  function removeRow(id) {
+    rows = rows.filter(r => r.id !== id);
+    repaintTable();
+    if (countEl) countEl.textContent = rows.length + " participants";
   }
 }
 
@@ -252,9 +286,16 @@ function participantDialog(existing, houses, categories, cfg, refresh) {
             gender: gender.value || null,
             ...picker.getValue()
           };
+          let id = existing?.id;
           if (existing) await patch("participants", existing.id, data);
-          else await add("participants", { ...data, eventCounts: { overall: 0 } });
-          toast("Saved."); close(true); refresh();
+          else id = await add("participants", { ...data, eventCounts: { overall: 0 } });
+          toast("Saved."); close(true);
+          // patch() only ever touches the fields in `data` — eventCounts is
+          // written exclusively by the registration transaction, never here
+          // — so the existing document's copy is what a fresh read would
+          // still show, and the new-participant default matches what add()
+          // was just given.
+          refresh({ id, ...data, eventCounts: existing?.eventCounts ?? { overall: 0 } });
         })
       }
     ]
