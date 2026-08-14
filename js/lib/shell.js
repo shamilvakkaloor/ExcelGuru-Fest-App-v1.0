@@ -147,6 +147,7 @@ const AREAS = [
         { label: "Public display",     icon: "eye",     to: "/admin/settings?tab=public" },
         { label: "Points & grades",    icon: "star",    to: "/admin/settings?tab=points" },
         { label: "Participant limits", icon: "shield",  to: "/admin/settings?tab=limits" },
+        { label: "Entry constraints",  icon: "shield",  to: "/admin/settings?tab=constraints" },
         { label: "Leaderboard",        icon: "trophy",  to: "/admin/settings?tab=leaderboard" },
         { label: "My password",        icon: "key",     to: "/admin/settings?tab=password" },
         { label: "Danger zone",        icon: "alert",   to: "/admin/settings?tab=danger" }

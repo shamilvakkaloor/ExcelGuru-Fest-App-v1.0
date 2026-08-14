@@ -19,7 +19,8 @@ import { gradeFor, denseRank, computeResults, finalizeBlockers, aggregate,
 import { nonRankHolders } from "./js/domain/reports.js";
 import { windowState, registrationWindow } from "./js/domain/registration.js";
 import { resolveCategory, byClass, byDob } from "./js/domain/autocategory.js";
-import { checkCaps, shortfalls, applyCounts } from "./js/domain/limits.js";
+import { checkCaps, shortfalls, applyCounts, checkConstraints,
+         reservationBlocker } from "./js/domain/limits.js";
 import { resolvePoints, ladderKey, computeDirectResults, directFinalizeBlockers } from "./js/domain/scoring.js";
 import { limitsForCategory, counterKeys, maxFor, recountParticipant,
          shortfalls as shortfallsV8 } from "./js/domain/limits.js";
@@ -190,6 +191,48 @@ check("an excluded event is left off a custom leaderboard",
     registrationWindow({ registrationEnd: FUTURE, registrationExtensions: { red: PAST } }, {}, "red").end, FUTURE);
   check("an extension cannot open registration before its start",
     windowState({ registrationStart: FUTURE, registrationExtensions: { red: FUTURE } }, {}, Date.now(), "red").open, false);
+})();
+
+/* Constraint groups — v8.8 */
+(() => {
+  const EVENTS = {
+    e1: { id: "e1", typeId: "speech" },
+    e2: { id: "e2", typeId: "speech" },
+    e3: { id: "e3", typeId: "song" },
+    eng: { id: "eng", typeId: null }
+  };
+  // "One from: any Speech event, plus Speech English specifically."
+  const G = { name: "Speech group", maxEvents: 1, typeIds: ["speech"], eventIds: ["eng"] };
+  const chk = (ev, current) => checkConstraints(EVENTS[ev], [G], current, EVENTS);
+
+  check("an event outside the group is never blocked", chk("e3", ["e1", "eng"]), null);
+  check("the first event in the group is allowed", chk("e1", []), null);
+  check("a second event in the group is refused", !!chk("e2", ["e1"]), true);
+  check("membership by Type and by explicit id are both counted",
+    !!chk("eng", ["e1"]), true);
+  check("re-checking an event already entered does not count it twice",
+    chk("e1", ["e1"]), null);
+  check("a group with no max is inert", checkConstraints(EVENTS.e1, [{ typeIds: ["speech"] }], ["e2"], EVENTS), null);
+  check("a higher max allows more", checkConstraints(EVENTS.e2, [{ ...G, maxEvents: 2 }], ["e1"], EVENTS), null);
+})();
+
+/* Reserved slots in a general group event — v8.8 */
+(() => {
+  // 6 places; 2 must go to Subjuniors.
+  const EV = { reservedSlots: { sub: 2 } };
+  const R = (taken, categoryId) => reservationBlocker({ event: EV, categoryId, taken, capacity: 6 });
+
+  check("an early entry from any category is fine", R({}, "sen"), null);
+  check("a reserved category is never blocked by its own reservation",
+    R({ sen: 3, sub: 0 }, "sub"), null);
+  check("the last places are held back for an unfilled reservation",
+    !!R({ sen: 4, sub: 0 }, "sen"), true);
+  check("once the reservation is met the places are open to anyone",
+    R({ sen: 3, sub: 2 }, "sen"), null);
+  check("an event with no reservations never blocks",
+    reservationBlocker({ event: {}, categoryId: "sen", taken: { sen: 5 }, capacity: 6 }), null);
+  check("the ordinary capacity cap is left to handle a full event",
+    reservationBlocker({ event: EV, categoryId: "sen", taken: { sen: 6 }, capacity: 6 }), null);
 })();
 
 /* Automatic category assignment — v8.8 */

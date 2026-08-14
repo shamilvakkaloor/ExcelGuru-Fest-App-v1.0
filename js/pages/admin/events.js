@@ -269,6 +269,30 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     placeholder: "Rules, scoring criteria, time limits — whatever a participant or judge needs to know." });
   description.value = existing?.description || "";
 
+  /* Reserved places, for a general group event that would otherwise be
+   * filled by one or two categories. Only offered where it makes sense. */
+  const reserved = { ...(existing?.reservedSlots || {}) };
+  const reservedBox = el("div");
+  function paintReserved() {
+    reservedBox.innerHTML = "";
+    for (const c of categories) {
+      const n = input({ type: "number", min: 0, style: "max-width:110px",
+        value: reserved[c.id] ?? "" });
+      n.addEventListener("change", () => {
+        const v = Number(n.value);
+        if (!n.value.trim() || isNaN(v) || v <= 0) delete reserved[c.id];
+        else reserved[c.id] = v;
+      });
+      reservedBox.appendChild(field(c.name, n));
+    }
+  }
+  paintReserved();
+  const reservedFieldset = el("fieldset", {}, [
+    el("legend", { text: "Reserved places" }),
+    el("div.hint", { text: "Hold back places for particular categories, so one or two cannot fill the event. An entry is refused only when taking the place would make a reservation impossible to honour — never before that. Leave blank for no reservation." }),
+    reservedBox
+  ]);
+
   let wholeTeam = !!existing?.wholeTeam;
   const wholeTeamBox = el("fieldset", {}, [
     el("legend", { text: "Whole-team event" }),
@@ -306,6 +330,11 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     // Whole-team only makes sense for a group event, and a per-entry
     // participant maximum is meaningless once there is no roster.
     wholeTeamBox.style.display = group ? "" : "none";
+    // Reserved places answer "stop one category filling this", which only
+    // arises for a GENERAL group event — a category event is single-category
+    // by definition.
+    reservedFieldset.style.display =
+      (group && isGeneralClass(cls.value)) ? "" : "none";
     if (!group) wholeTeam = false;
     perEntryBox.style.display = (group && !wholeTeam) ? "" : "none";
   }
@@ -325,6 +354,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       pointsBox,
       resultBox,
       wholeTeamBox,
+      reservedFieldset,
       capBox,
       subBox,
       el("fieldset", {}, [
@@ -361,6 +391,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             excludeFromTotals,
             resultMode: resultMode.value || "scored",
             wholeTeam: isGroupClass(cls.value) ? wholeTeam : false,
+            reservedSlots: (isGroupClass(cls.value) && isGeneralClass(cls.value)) ? reserved : {},
             maxParticipantsPerEntry: isGroupClass(cls.value) ? Math.max(1, Number(perEntry.value) || 1) : 1,
             // Blank / 0 stores null, which every consumer reads as "no cap".
             maxEntriesPerHouse: perHouse.value === "" ? null : (Number(perHouse.value) || null),

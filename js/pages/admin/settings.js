@@ -19,6 +19,7 @@ const TABS = [
   ["public",         "Public display"],
   ["points",         "Points & grades"],
   ["limits",         "Participant limits"],
+  ["constraints",    "Entry constraints"],
   ["leaderboard",    "Leaderboard"],
   ["password",       "My password"],
   ["danger",         "Danger zone"]
@@ -42,7 +43,8 @@ export default async function settings(root, query = {}) {
     panel.innerHTML = "";
     const render = { basic: basicTab, categories: categoriesTab, classification: classificationTab,
                      public: publicTab, points: pointsTab,
-                     limits: limitsTab, leaderboard: leaderboardTab, password: passwordTab,
+                     limits: limitsTab, constraints: constraintsTab,
+                     leaderboard: leaderboardTab, password: passwordTab,
                      danger: dangerTab }[tab];
     await render(panel);
   }
@@ -906,6 +908,102 @@ function axisLadderCard(heading, values, laddersByValue, sharedGrade, gradeScale
   }
   paint();
   return card(el("div", {}, [tabs, body]), heading);
+}
+
+/* ── Entry constraints ─────────────────────────────────────────────────
+ * Mutual-exclusion groups: an arbitrary set of events (and/or whole
+ * Types) from which a participant may enter at most N. This cannot be
+ * expressed as a class or axis cap, which is why it is its own thing.
+ */
+async function constraintsTab(panel) {
+  const [groups, events, types] = await Promise.all([
+    getAll("constraintGroups").catch(() => []),
+    getAll("events"), getAll("programTypes").catch(() => [])
+  ]);
+
+  panel.appendChild(notice("info",
+    "A constraint group says “at most N of these”. Pick whole Types, individual events, or both — " +
+    "an event counted once by either route counts once, not twice. Checked when a House Manager " +
+    "registers, with the group named in the refusal so they can see which rule stopped them."));
+
+  panel.appendChild(card(el("div.btn-row", {},
+    button("New group", { class: "btn-accent",
+      onclick: () => constraintDialog(null, events, types, () => constraintsTab(clearPanel(panel))) })
+  ), "Add"));
+
+  panel.appendChild(card(groups.length ? table([
+    { key: "name", label: "Group", render: g => el("div", {}, [
+        el("div", {}, [el("strong", { text: g.name || "Untitled" }),
+          g.enabled === false ? badge(" off", "badge-warn") : null]),
+        el("div.hint", { style: "margin:0", text:
+          [ (g.typeIds || []).length ? `${g.typeIds.length} type(s)` : null,
+            (g.eventIds || []).length ? `${g.eventIds.length} event(s)` : null
+          ].filter(Boolean).join(" · ") || "nothing selected — inert" })
+      ])},
+    { key: "maxEvents", label: "At most", num: true, render: g => String(g.maxEvents ?? "—") },
+    { key: "act", label: "", render: g => el("div.btn-row", {}, [
+        button("Edit", { class: "btn-sm",
+          onclick: () => constraintDialog(g, events, types, () => constraintsTab(clearPanel(panel))) }),
+        button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
+          if (!await confirmDialog("Delete group", `Delete "${g.name}"? Existing entries are not changed.`, "Delete")) return;
+          await remove("constraintGroups", g.id);
+          toast("Deleted."); constraintsTab(clearPanel(panel));
+        })})
+      ])}
+  ], groups) : empty("No constraint groups", "Registrations are limited only by the caps."), "Groups"));
+}
+
+function constraintDialog(existing, events, types, refresh) {
+  const name = input({ value: existing?.name || "", placeholder: "e.g. Speech events" });
+  const maxEvents = input({ type: "number", min: 1, value: existing?.maxEvents ?? 1, style: "max-width:110px" });
+  let enabled = existing?.enabled !== false;
+
+  const pickedTypes = new Set(existing?.typeIds || []);
+  const pickedEvents = new Set(existing?.eventIds || []);
+  const typeBox = el("div"), eventBox = el("div.pick-grid");
+
+  for (const t of types) {
+    typeBox.appendChild(checkbox(t.name, pickedTypes.has(t.id),
+      v => v ? pickedTypes.add(t.id) : pickedTypes.delete(t.id)));
+  }
+  for (const e of [...events].sort((a, b) => String(a.code).localeCompare(String(b.code)))) {
+    eventBox.appendChild(checkbox(`${e.code || ""} ${e.name}`.trim(), pickedEvents.has(e.id),
+      v => v ? pickedEvents.add(e.id) : pickedEvents.delete(e.id)));
+  }
+
+  modal({
+    title: existing ? "Edit group" : "New constraint group",
+    body: el("div", {}, [
+      field("Group name", name, "Shown to a House Manager when the group refuses an entry."),
+      field("Maximum events per participant", maxEvents),
+      checkbox("Group is active", enabled, v => enabled = v),
+      types.length ? el("fieldset", {}, [el("legend", { text: "Whole Types" }), typeBox]) : null,
+      el("fieldset", {}, [
+        el("legend", { text: "Individual events" }),
+        el("div.hint", { text: "Add specific events on top of any Types above." }),
+        eventBox
+      ])
+    ].filter(Boolean)),
+    actions: [
+      { label: "Cancel" },
+      { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
+          if (!name.value.trim()) { toast("Give the group a name.", true); return false; }
+          const n = Number(maxEvents.value);
+          if (isNaN(n) || n < 1) { toast("The maximum must be at least 1.", true); return false; }
+          if (!pickedTypes.size && !pickedEvents.size) {
+            toast("Select at least one Type or event, or the group does nothing.", true); return false;
+          }
+          const data = {
+            name: name.value.trim(), maxEvents: n, enabled,
+            typeIds: [...pickedTypes], eventIds: [...pickedEvents]
+          };
+          if (existing) await patch("constraintGroups", existing.id, data);
+          else await add("constraintGroups", data);
+          toast("Saved."); close(true); refresh();
+        })
+      }
+    ]
+  });
 }
 
 /* ── Participant limits ────────────────────────────────────────────── */

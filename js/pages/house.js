@@ -69,6 +69,10 @@ async function registerTab(panel, house, refresh) {
   const lim = { ...DEFAULTS.participantLimits, ...(limits || {}) };
   const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
   const countBy = countByEvent(ourRegs);
+  // Constraint groups and an event lookup, needed to evaluate "at most N of
+  // these" at registration time.
+  const constraintGroups = await getAll("constraintGroups").catch(() => []);
+  const eventById = Object.fromEntries(events.map(e => [e.id, e]));
 
   if (!people.length) {
     panel.appendChild(empty("No participants yet", "An organiser adds participants to your house before registration opens."));
@@ -175,14 +179,16 @@ async function registerTab(panel, house, refresh) {
           return button(full ? "Full" : "Register", {
             class: "btn-sm " + (full ? "" : "btn-accent"),
             disabled: full,
-            onclick: () => entryDialog(e, house, people, cfg, lim, catName, countBy[e.id] || 0, refresh)
+            onclick: () => entryDialog(e, house, people, cfg, lim, catName, countBy[e.id] || 0, refresh,
+                                       constraintGroups, eventById)
           });
         }}
     ], rows), "Open events"));
   }
 }
 
-function entryDialog(event, house, people, settings, limits, catName, used, refresh) {
+function entryDialog(event, house, people, settings, limits, catName, used, refresh,
+                     constraintGroups = [], eventById = {}) {
   const eligible = event.categoryId ? people.filter(p => p.categoryId === event.categoryId) : people;
   const chosen = new Set();
   const group = isGroupClass(event.eventClass);
@@ -300,7 +306,8 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
           if (!picked.length) { toast("Select at least one participant.", true); return false; }
 
           if (group) {
-            await registerEntry({ event, house, participants: picked, settings, limits, registeredBy: house.name });
+            await registerEntry({ event, house, participants: picked, settings, limits,
+              registeredBy: house.name, constraintGroups, eventById });
             toast("Registered.");
             close(true); refresh();
             return;
@@ -308,7 +315,8 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
 
           // Partial success: one capped participant must not block the rest.
           const { done, failed } = await registerMany({
-            event, house, participants: picked, settings, limits, registeredBy: house.name
+            event, house, participants: picked, settings, limits, registeredBy: house.name,
+            constraintGroups, eventById
           });
 
           if (!failed.length) {

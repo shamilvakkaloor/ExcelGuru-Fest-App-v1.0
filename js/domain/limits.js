@@ -202,6 +202,82 @@ export function checkCaps(counts, event, limits, vocab = {}) {
   return null;
 }
 
+/* ── v8.8 — mutual-exclusion constraint groups ────────────────────────
+ *
+ * "One speech event only" — a named set of events (and/or whole Types)
+ * from which a participant may enter at most N. This is not a cap on a
+ * class or an axis; it is an arbitrary set an Admin draws by hand, which
+ * is why it cannot be expressed with the counter keys above.
+ *
+ * Counted from the participant's actual registrations rather than a
+ * stored counter. A group's membership can be edited at any time, and a
+ * counter written under the old membership would then be wrong with no
+ * way to detect it — whereas recounting from registrations is always
+ * correct and costs one read the registration transaction already makes.
+ */
+export function constraintBlockers(event, group, currentEventIds, eventById = {}) {
+  if (!group?.eventIds?.length && !group?.typeIds?.length) return null;
+  const inGroup = id => {
+    if ((group.eventIds || []).includes(id)) return true;
+    const t = eventById[id]?.typeId;
+    return !!t && (group.typeIds || []).includes(t);
+  };
+  if (!inGroup(event.id)) return null;
+
+  const already = (currentEventIds || []).filter(id => id !== event.id && inGroup(id)).length;
+  const max = Number(group.maxEvents);
+  if (isNaN(max) || max <= 0) return null;
+  if (already + 1 > max) {
+    return `${group.name || "This group"} allows at most ${max} event${max > 1 ? "s" : ""} per participant.`;
+  }
+  return null;
+}
+
+/** Every constraint group that refuses this entry, as messages. */
+export function checkConstraints(event, groups, currentEventIds, eventById = {}) {
+  for (const g of groups || []) {
+    const msg = constraintBlockers(event, g, currentEventIds, eventById);
+    if (msg) return msg;
+  }
+  return null;
+}
+
+/* ── v8.8 — reserved slots in a general group event ───────────────────
+ *
+ * Keeps a general group event from being filled entirely by one or two
+ * categories. Each reservation says "at least N of this event's places
+ * belong to category X", and an entry is refused when taking it would
+ * make those reservations impossible to honour.
+ *
+ * `taken` is a map of categoryId -> places already used, `capacity` the
+ * event's total places. The test is forward-looking: it does not ask
+ * whether the reservation is met NOW, but whether it can still be met
+ * after this entry — the only question that can fairly block someone.
+ */
+export function reservationBlocker({ event, categoryId, taken = {}, capacity }) {
+  const res = event?.reservedSlots;
+  if (!res || !Object.keys(res).length) return null;
+  const cap = Number(capacity);
+  if (isNaN(cap) || cap <= 0) return null;
+
+  const used = Object.values(taken).reduce((a, b) => a + Number(b || 0), 0);
+  if (used + 1 > cap) return null;   // the ordinary capacity cap handles this
+
+  // Places that must still be held back for categories short of their
+  // reservation — counting this entry as already placed.
+  const after = { ...taken, [categoryId]: Number(taken[categoryId] || 0) + 1 };
+  let mustReserve = 0;
+  for (const [catId, n] of Object.entries(res)) {
+    const need = Number(n || 0) - Number(after[catId] || 0);
+    if (need > 0) mustReserve += need;
+  }
+  const remaining = cap - (used + 1);
+  if (mustReserve > remaining) {
+    return `The remaining places are reserved for categories that have not filled their quota yet.`;
+  }
+  return null;
+}
+
 export function applyCounts(counts, event, limits, delta) {
   const next = { ...(counts || {}) };
   for (const key of counterKeys(event, limits)) {

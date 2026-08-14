@@ -14,7 +14,8 @@
 // document per (event, house) is the only way to make the cap and the
 // duplicate check genuinely atomic without a server.
 import { db, docRef, getOne, getAll, put, remove, where, runTransaction, serverTimestamp, deleteField } from "../lib/db.js";
-import { checkCaps, applyCounts, limitsForCategory } from "./limits.js";
+import { checkCaps, applyCounts, limitsForCategory, checkConstraints,
+         reservationBlocker } from "./limits.js";
 import { isGroupClass, maxEntriesFor } from "./constants.js";
 
 export const tallyId = (eventId, houseId) => `${eventId}_${houseId}`;
@@ -70,7 +71,8 @@ async function tallySeed(eventId, houseId) {
  * group entry passes several and an individual entry passes one.
  * Throws with a message naming the specific cap when one is hit.
  */
-export async function registerEntry({ event, house, participants, settings, limits, registeredBy, vocab = {} }) {
+export async function registerEntry({ event, house, participants, settings, limits, registeredBy,
+                                      vocab = {}, constraintGroups = [], eventById = {} }) {
   /* v8.8 — a WHOLE-TEAM event has no roster at all: the house contests it
    * as a unit (a house march-past, a team chant) and earns the points as a
    * unit. There is nobody to cap, nobody to clash with, and nobody whose
@@ -101,6 +103,42 @@ export async function registerEntry({ event, house, participants, settings, limi
   const seed = await tallySeed(event.id, house.id);
   const regId = `${event.id}_${house.id}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
+  /* ── v8.8 — constraint groups and reserved slots ───────────────────
+   *
+   * Both are read BEFORE the transaction, deliberately. Each needs a
+   * QUERY (this participant's other registrations; this event's entries
+   * across all houses), and the Web SDK cannot query inside a
+   * transaction — tx.get() takes a document reference only. The same
+   * constraint that produced the entryCounts tally applies here.
+   *
+   * The consequence is honest: two simultaneous submissions could each
+   * see room under a constraint group and both commit. That is a far
+   * milder failure than the cap race the tally exists to prevent — a
+   * group is a fairness rule, not a hard limit on points — and closing it
+   * properly would mean a tally document per (participant, group), which
+   * is a lot of machinery for a rare collision. Stated rather than
+   * hidden.
+   */
+  const groups = (constraintGroups || []).filter(g => g.enabled !== false);
+  let priorByParticipant = {};
+  if (groups.length && participants.length) {
+    for (const p of participants) {
+      const regs = await getAll("registrations", where("participantIds", "array-contains", p.id))
+        .catch(() => []);
+      priorByParticipant[p.id] = regs.map(r => r.eventId);
+    }
+  }
+
+  let reservationTaken = null;
+  if (event.reservedSlots && Object.keys(event.reservedSlots).length) {
+    const all = await getAll("registrations", where("eventId", "==", event.id)).catch(() => []);
+    reservationTaken = {};
+    for (const r of all) {
+      const c = r.entryCategoryId || null;
+      if (c) reservationTaken[c] = (reservationTaken[c] || 0) + 1;
+    }
+  }
+
   await runTransaction(db, async tx => {
     const tallyRef = docRef("entryCounts", tallyId(event.id, house.id));
     const tallySnap = await tx.get(tallyRef);
@@ -130,6 +168,25 @@ export async function registerEntry({ event, house, participants, settings, limi
       const effLimits = limitsForCategory(limits, s.data.categoryId);
       const blocked = checkCaps(s.data.eventCounts, event, effLimits, vocab);
       if (blocked) throw new Error(`${s.data.name}: ${blocked}`);
+
+      // Mutual-exclusion groups — "one speech event only", and the like.
+      const conflict = checkConstraints(event, groups, priorByParticipant[s.id] || [], eventById);
+      if (conflict) throw new Error(`${s.data.name}: ${conflict}`);
+    }
+
+    /* Reserved places. Checked against the ENTRY's category — the whole
+     * point is to stop one category filling a general group event, so the
+     * question is which category this entry represents, taken from its
+     * first member. */
+    if (reservationTaken) {
+      const entryCat = participants[0]
+        ? snaps.find(s => s.id === participants[0].id)?.data?.categoryId || null
+        : null;
+      const refused = reservationBlocker({
+        event, categoryId: entryCat, taken: reservationTaken,
+        capacity: entryCap ?? Object.values(event.reservedSlots).reduce((a, b) => a + Number(b || 0), 0)
+      });
+      if (refused) throw new Error(refused);
     }
     for (const s of snaps) {
       tx.update(docRef("participants", s.id), {
@@ -153,6 +210,10 @@ export async function registerEntry({ event, house, participants, settings, limi
       houseName: house.name,
       categoryId: event.categoryId || null,
       entryNumber: tally.count + 1,
+      // Which category this entry represents, for reserved-slot accounting.
+      // Taken from the first member; a general group entry has no category
+      // of its own, so this is the only place it can come from.
+      entryCategoryId: participants[0] ? (participants[0].categoryId || null) : null,
       // A whole-team entry stores an empty roster and says so, rather than
       // leaving a consumer to guess why the names are missing.
       wholeTeam,
@@ -189,11 +250,13 @@ export async function registerEntry({ event, house, participants, settings, limi
  * Each entry is its own transaction, so one failure cannot corrupt the
  * counters of the entries that succeeded.
  */
-export async function registerMany({ event, house, participants, settings, limits, registeredBy, vocab = {} }) {
+export async function registerMany({ event, house, participants, settings, limits, registeredBy,
+                                     vocab = {}, constraintGroups = [], eventById = {} }) {
   const done = [], failed = [];
   for (const p of participants) {
     try {
-      await registerEntry({ event, house, participants: [p], settings, limits, registeredBy, vocab });
+      await registerEntry({ event, house, participants: [p], settings, limits, registeredBy,
+                            vocab, constraintGroups, eventById });
       done.push(p);
     } catch (err) {
       failed.push({ participant: p, reason: err?.message || "Could not register." });

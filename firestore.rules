@@ -229,6 +229,14 @@ service cloud.firestore {
                         : request.resource.data.eventId);
     }
 
+    /* v8.8 — mutual-exclusion constraint groups. Publicly readable
+     * because a House Manager's registration path evaluates them, and
+     * they describe rules rather than anybody's data. */
+    match /constraintGroups/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // v8.8 — manual point adjustments (discipline, bonuses, corrections).
     // Admin-only to WRITE: moving a house total by hand is the single most
     // consequential non-publish act in the app, and a Co-Admin who can score
