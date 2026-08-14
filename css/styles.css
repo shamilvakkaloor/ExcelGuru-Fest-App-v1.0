@@ -185,8 +185,8 @@ button:hover, .btn:hover { background: #EDF1EA; border-color: #C9D4C6; }
 button:active, .btn:active { transform: translateY(1px); }
 button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 button:disabled:hover { background: var(--surface); border-color: var(--line); }
-.btn-primary { background: var(--ink); border-color: var(--ink); color: #fff; }
-.btn-primary:hover { background: #22384A; border-color: #22384A; }
+.btn-primary { background: var(--rail-bg); border-color: var(--rail-bg); color: #fff; }
+.btn-primary:hover { background: var(--marigold-d); border-color: var(--marigold-d); }
 .btn-accent { background: var(--grad-warm); border-color: transparent; color: #fff;
               box-shadow: 0 2px 8px rgba(30,158,99,.3); font-weight: 700; }
 .btn-accent:hover { filter: brightness(1.06); background: var(--grad-warm); }
@@ -282,7 +282,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
 .toast-root { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: .5rem; align-items: center; pointer-events: none; }
 .toast {
   animation: rise .22s cubic-bezier(.2,.8,.3,1);
-  background: var(--ink); color: #fff; padding: .65rem 1.1rem;
+  background: var(--rail-bg); color: #fff; padding: .65rem 1.1rem;
   border-radius: 0; font-size: .86rem; font-weight: 500;
   box-shadow: 0 6px 24px rgba(16,35,28,.25); max-width: 90vw;
 }
@@ -338,7 +338,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
 .slot-row .body { flex: 1; min-width: 0; }
 .slot-row.dragging { opacity: .4; }
 
-.slideshow { min-height: 100vh; background: var(--ink); color: #fff; display: flex; flex-direction: column; justify-content: center; padding: 2rem; }
+.slideshow { min-height: 100vh; background: var(--rail-bg); color: #fff; display: flex; flex-direction: column; justify-content: center; padding: 2rem; }
 .slideshow h1 { font-size: clamp(2rem, 7vw, 4rem); color: #fff; }
 .slideshow .item { font-size: clamp(1.1rem, 3vw, 1.8rem); padding: .4rem 0; border-bottom: 1px solid #26463A; }
 
@@ -474,7 +474,7 @@ tr.row-ours:hover { background: #FFF4D8; }
   border-radius: var(--r-sm); font-size: .82rem; cursor: pointer; margin-bottom: .15rem;
 }
 .layer-row:hover { background: #EEF2F8; }
-.layer-row.active { background: var(--ink); color: #fff; }
+.layer-row.active { background: var(--rail-bg); color: #fff; }
 .layer-row .lname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .layer-row .ltype { font-size: .68rem; opacity: .65; text-transform: uppercase; }
 .studio-pane label.field { margin-bottom: .55rem; }
@@ -755,7 +755,7 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
 }
 .navitem .icon { color: var(--ink-3); flex: none; }
 .navitem:hover { background: var(--line); color: var(--ink); }
-.navitem.on { background: var(--ink); color: #fff; font-weight: 500; }
+.navitem.on { background: var(--rail-bg); color: #fff; font-weight: 500; }
 .navitem.on .icon { color: var(--marigold); }
 
 .navsub { margin: .1rem 0 .2rem 1.55rem; border-left: 1px solid var(--line); }
