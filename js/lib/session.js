@@ -94,6 +94,7 @@ export const is = {
   staff:   () => session.role === "admin" || session.role === "coAdmin",
   judge:   () => session.role === "judge",
   house:   () => session.role === "house",
+  stage:   () => session.role === "stage",
   signedIn:() => !!session.user
 };
 

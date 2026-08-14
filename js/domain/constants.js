@@ -53,7 +53,10 @@ export const ROLES = [
   { value: "admin",   label: "Admin"         },
   { value: "coAdmin", label: "Co-Admin"      },
   { value: "judge",   label: "Judge"         },
-  { value: "house",   label: "House Manager" }
+  { value: "house",   label: "House Manager" },
+  // v8.8 — a fifth role for the person running the stage: assigns code
+  // letters and ticks entries in as they go on. Deliberately narrow.
+  { value: "stage",   label: "Stage Manager" }
 ];
 
 /* ── Chest number formats ─────────────────────────────────────────────

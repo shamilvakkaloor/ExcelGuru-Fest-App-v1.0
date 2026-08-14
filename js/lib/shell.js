@@ -431,5 +431,6 @@ function initials(name) {
 
 export function roleLabel(r) {
   return { admin: "Admin", coAdmin: "Co-Admin", judge: "Judge",
-    house: (window.__HOUSE_TERM__ || "House") + " Manager" }[r] || "";
+    house: (window.__HOUSE_TERM__ || "House") + " Manager",
+    stage: "Stage Manager" }[r] || "";
 }

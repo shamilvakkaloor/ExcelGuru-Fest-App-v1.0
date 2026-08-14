@@ -7,7 +7,8 @@ const ROLE_CHIPS = [
   { value: "admin",   label: "Admin"         },
   { value: "coAdmin", label: "Co-Admin"      },
   { value: "judge",   label: "Judge"         },
-  { value: "house",   label: "House Manager" }
+  { value: "house",   label: "House Manager" },
+  { value: "stage",   label: "Stage Manager" }
 ];
 
 export default async function loginPage(root) {
