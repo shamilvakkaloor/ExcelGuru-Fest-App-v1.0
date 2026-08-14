@@ -67,6 +67,19 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/results/$(eventId)).data.publishStatus == "Published";
     }
 
+    // The appeal window closes itself. publishedAtMs is plain epoch
+    // milliseconds set alongside the server timestamp at publish time —
+    // rules can only compare request.time against a value they can convert
+    // themselves, the same reason registration windows are stored as ms.
+    function appealWindowOpen(eventId) {
+      let res = get(/databases/$(database)/documents/results/$(eventId)).data;
+      let s = settings();
+      let hours = s.appealWindowHours == null ? 24 : s.appealWindowHours;
+      return res.publishStatus == "Published"
+        && res.publishedAtMs != null
+        && request.time <= timestampOf(res.publishedAtMs + hours * 60 * 60 * 1000);
+    }
+
     // ── Configuration ────────────────────────────────────────────────
     // Public read: the home page needs the fest name, House Managers need
     // the limits, judges need the score scale. None of it is sensitive.
@@ -255,6 +268,44 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // v8.8 — appeals against a published result.
+    //
+    // judgeUids is denormalised onto the appeal at filing time so a Judge
+    // can find their own with a single array-contains query. A list query
+    // gated by a get() per document is what failed once already for
+    // substitutions: Firestore cannot statically prove a per-document rule
+    // holds for every row in an unfiltered query, and rejects the whole
+    // list rather than guess.
+    //
+    // Deciding is Admin-or-Co-Admin, once, and only away from "pending" —
+    // an appeal cannot be reopened, the same finality Publish itself has.
+    // The decision never touches score data on its own; a House that wins
+    // an appeal has its result corrected separately through Score Override
+    // or Adjustments, so this collection can never contradict the scoring
+    // model it is judging.
+    match /appeals/{id} {
+      allow read: if isStaff()
+                  || (isHouse() && resource.data.houseId == refId())
+                  || (isJudge() && request.auth.uid in resource.data.judgeUids);
+
+      allow create: if isHouse()
+                    && request.resource.data.houseId == refId()
+                    && request.resource.data.status == "pending"
+                    && request.resource.data.feeScreenshot is string
+                    && request.resource.data.feeScreenshot.size() > 0
+                    && settings().appealsEnabled == true
+                    && appealWindowOpen(request.resource.data.eventId);
+
+      allow update: if isStaff()
+                    && resource.data.status == "pending"
+                    && (request.resource.data.status == "upheld"
+                        || request.resource.data.status == "overturned")
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(["status", "decision", "decidedBy", "decidedAt", "refundScreenshot"]);
+
+      allow delete: if isAdmin();
+    }
+
     // v8.8 — titles. Hand-awarded, not tied to a scored event, so they carry
     // no publish gate of their own — an Admin decides when to award one and
     // that decision is immediately what the public sees.
@@ -429,7 +480,14 @@ service cloud.firestore {
     }
 
     match /judgeAssignments/{id} {
-      allow read: if isStaff() || (isJudge() && resource.data.judgeUid == request.auth.uid);
+      // v8.8 — also House. Filing an appeal denormalises which judges are
+      // assigned onto the appeal itself (see /appeals below), which means
+      // reading this collection by eventId at that moment. Who is judging
+      // an event is not the thing blind judging protects — that is
+      // participant identity, kept out of judgingEntries — so this is a
+      // minor exposure, not a fairness hole.
+      allow read: if isStaff() || isHouse()
+                  || (isJudge() && resource.data.judgeUid == request.auth.uid);
       allow write: if isStaff();
     }
 

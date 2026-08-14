@@ -19,6 +19,8 @@ import { resolveCategory } from "../domain/autocategory.js";
 import { shortfalls, limitsForCategory } from "../domain/limits.js";
 import { toCSV, downloadText } from "../lib/csv.js";
 import { printDocument, htmlTable } from "../lib/pdf.js";
+import { fileAppeal, appealWindowState } from "../domain/appeals.js";
+import { compressToBudget, dataUrlBytes } from "../lib/photo.js";
 
 export default async function housePage(root) {
   const { content: wrap } = appShell(root, { title: "Register" });
@@ -37,7 +39,11 @@ export default async function housePage(root) {
   const tabs = el("div.tabs");
   const panel = el("div");
   const TAB_LIST = [["register", "Register"], ["entries", "Our entries"], ["subs", "Substitutions"],
-   ["people", "Our participants"], ["results", "Our results"], ["titles", "Titles"], ["schedule", "Schedule"]];
+   ["people", "Our participants"], ["results", "Our results"], ["titles", "Titles"],
+   // Off the tab strip entirely unless an Admin has turned it on — a tab
+   // that always errors "not enabled" is worse than a tab that isn't there.
+   ...(window.__APPEALS_ENABLED__ ? [["appeals", "Appeals"]] : []),
+   ["schedule", "Schedule"]];
   TAB_LIST.forEach(([id, label]) => tabs.appendChild(button(label, {
       class: id === tab ? "active" : "", onclick: () => { tab = id; paint(); }
     })));
@@ -50,6 +56,7 @@ export default async function housePage(root) {
     panel.appendChild(loading("Loading…"));
     const render = { register: registerTab, entries: entriesTab, subs: subsTab,
                      people: peopleTab, results: houseResultsTab, titles: houseTitlesTab,
+                     appeals: appealsTab,
                      schedule: scheduleTab }[tab];
     panel.innerHTML = "";
     await render(panel, house, paint);
@@ -635,6 +642,112 @@ async function houseTitlesTab(panel, house) {
     ]),
     t.description ? el("div.hint", { style: "margin:.2rem 0 0", text: t.description }) : null
   ]))), "Titles"));
+}
+
+const APPEAL_STATUS_KIND = { pending: "badge-warn", upheld: "badge-danger", overturned: "badge-ok" };
+const APPEAL_STATUS_TEXT = { pending: "Pending", upheld: "Upheld — result stands", overturned: "Overturned" };
+
+/** File an appeal against one of this house's own published results. */
+async function appealsTab(panel, house, refresh) {
+  const [settings, published, mine] = await Promise.all([
+    getOne("config", "festSettings"),
+    getAll("publicResults").catch(() => []),
+    getAll("appeals", where("houseId", "==", house.id)).catch(() => [])
+  ]);
+  const cfg = { ...DEFAULTS.festSettings, ...(settings || {}) };
+  const appealByEvent = {};
+  for (const a of mine) (appealByEvent[a.eventId] ||= []).push(a);
+
+  if (!cfg.appealsEnabled) {
+    panel.appendChild(empty("Appeals are not enabled", "Ask an Admin to turn this on in Settings if you need to raise one."));
+    return;
+  }
+
+  const rows = [];
+  for (const ev of published) {
+    for (const e of ev.entries || []) {
+      if (e.houseId !== house.id) continue;
+      rows.push({ ...e, eventId: ev.eventId, eventName: ev.eventName, eventCode: ev.eventCode,
+                  result: ev, appeals: appealByEvent[ev.eventId] || [] });
+    }
+  }
+
+  if (mine.length) {
+    panel.appendChild(card(el("div", {}, mine
+      .sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0))
+      .map(a => el("div", { style: "padding:.6rem 0;border-top:1px solid var(--line)" }, [
+        el("div", { style: "display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap" }, [
+          el("strong", { text: a.eventName }), badge(APPEAL_STATUS_TEXT[a.status], APPEAL_STATUS_KIND[a.status])
+        ]),
+        el("div.hint", { style: "margin:.2rem 0 0", text: a.reason }),
+        a.decision ? el("div", { style: "margin-top:.3rem", text: "Decision: " + a.decision }) : null
+      ]))), "Our appeals"));
+  }
+
+  if (!rows.length) { panel.appendChild(empty("No published results yet for " + house.name)); return; }
+
+  panel.appendChild(card(table([
+    { key: "eventName", label: "Event", render: r => el("div", {}, [
+        el("div", { text: r.eventName }),
+        r.eventCode ? el("div.hint", { style: "margin:0", text: r.eventCode }) : null
+      ])},
+    { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger")
+        : (r.rank ? el("span.mono", { text: "#" + r.rank }) : el("span.hint", { text: "—" })) },
+    { key: "act", label: "", render: r => {
+        const active = r.appeals.find(a => a.status === "pending" || a.status === "upheld");
+        if (active) return badge(APPEAL_STATUS_TEXT[active.status], APPEAL_STATUS_KIND[active.status]);
+        const state = appealWindowState(r.result, cfg);
+        if (!state.open) return el("span.hint", { text: state.reason });
+        return button("Appeal", { class: "btn-sm",
+          onclick: () => appealDialog(r, house, cfg, refresh) });
+      }}
+  ], rows), house.name + " — results"));
+}
+
+function appealDialog(entry, house, settings, refresh) {
+  const reason = el("textarea", { rows: 3, placeholder: "What is being appealed, and why." });
+  let screenshot = null;
+  const sizeNote = el("div.hint", { text: "Attach a screenshot showing the appeal fee was paid." });
+  const preview = el("img", { style: "max-width:100%;max-height:160px;display:none;margin-top:.4rem" });
+
+  const shotFile = el("input", { type: "file", accept: "image/*", style: "display:none" });
+  shotFile.addEventListener("change", guard(async () => {
+    const f = shotFile.files?.[0];
+    if (!f) return;
+    const { dataUrl, bytes } = await compressToBudget(f, { maxPx: 1200, budgetBytes: 500 * 1024, keepAlpha: false });
+    screenshot = dataUrl;
+    preview.src = dataUrl;
+    preview.style.display = "block";
+    sizeNote.textContent = `Attached — about ${Math.round(bytes / 1024)} KB.`;
+  }));
+
+  modal({
+    title: "Appeal — " + entry.eventName,
+    body: el("div", {}, [
+      field("Reason", reason, "Required. Explain what is being disputed."),
+      el("fieldset", {}, [
+        el("legend", { text: "Fee proof" }),
+        sizeNote,
+        button("Choose screenshot", { class: "btn-sm", onclick: () => shotFile.click() }),
+        preview
+      ])
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Submit appeal", kind: "accent", closes: false, busyLabel: "Submitting…", onClick: guard(async close => {
+          try {
+            await fileAppeal({
+              event: { id: entry.eventId, name: entry.eventName, code: entry.eventCode },
+              result: entry.result, house, settings,
+              reason: reason.value, feeScreenshot: screenshot,
+              submittedBy: session.name || house.name
+            });
+          } catch (err) { toast(err.message, true); return false; }
+          toast("Appeal submitted."); close(true); refresh();
+        })
+      }
+    ]
+  });
 }
 
 async function scheduleTab(panel, house) {

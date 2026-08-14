@@ -20,6 +20,7 @@ const TABS = [
   ["points",         "Points & grades"],
   ["limits",         "Participant limits"],
   ["constraints",    "Entry constraints"],
+  ["appeals",        "Appeals"],
   ["leaderboard",    "Leaderboard"],
   ["password",       "My password"],
   ["danger",         "Danger zone"]
@@ -43,7 +44,7 @@ export default async function settings(root, query = {}) {
     panel.innerHTML = "";
     const render = { basic: basicTab, categories: categoriesTab, classification: classificationTab,
                      public: publicTab, points: pointsTab,
-                     limits: limitsTab, constraints: constraintsTab,
+                     limits: limitsTab, constraints: constraintsTab, appeals: appealsTab,
                      leaderboard: leaderboardTab, password: passwordTab,
                      danger: dangerTab }[tab];
     await render(panel);
@@ -1004,6 +1005,46 @@ function constraintDialog(existing, events, types, refresh) {
       }
     ]
   });
+}
+
+/* ── Appeals ───────────────────────────────────────────────────────── */
+async function appealsTab(panel) {
+  const s0 = await getOne("config", "festSettings");
+  const s = { ...DEFAULTS.festSettings, ...(s0 || {}) };
+
+  let enabled = !!s.appealsEnabled;
+  const windowHours = input({ type: "number", min: 1, value: s.appealWindowHours ?? 24, style: "max-width:110px" });
+  const maxActive = input({ type: "number", min: 1, value: s.appealMaxActive ?? 2, style: "max-width:110px" });
+
+  panel.appendChild(notice("info",
+    "Off by default. When on, a House Manager may appeal a result for a fixed window after it is " +
+    "published, attaching a screenshot as proof the appeal fee was paid — there is no payment gateway on " +
+    "the free tier, so a screenshot stands in for a receipt, the same way the fest manual stands in for " +
+    "an upload. Decide each appeal Upheld (the result stands) or Overturned (it was wrong), with a " +
+    "written reason the house can see. Deciding an appeal does not itself change a score — correct it " +
+    "afterwards with a Score Override or an Adjustment, same as any other manual intervention."));
+
+  panel.appendChild(card(el("div", {}, [
+    checkbox("Appeals enabled", enabled, v => enabled = v),
+    field("Appeal window (hours after publish)", windowHours,
+      "The window opens automatically the moment a result is published, and closes itself — there is no " +
+      "separate switch to remember."),
+    field("Active appeals per house", maxActive,
+      "How many appeals a house may have pending or upheld at once. An appeal that is Overturned stops " +
+      "counting, so a house that is right is never blocked from raising the next one.")
+  ]), "Appeals"));
+
+  panel.appendChild(el("div.btn-row", {}, button("Save settings", { class: "btn-accent", onclick: guard(async () => {
+    const hours = Number(windowHours.value);
+    const active = Number(maxActive.value);
+    if (isNaN(hours) || hours < 1) { toast("The appeal window must be at least 1 hour.", true); return; }
+    if (isNaN(active) || active < 1) { toast("Active appeals per house must be at least 1.", true); return; }
+    await put("config", "festSettings", {
+      appealsEnabled: enabled, appealWindowHours: hours, appealMaxActive: active
+    });
+    window.__APPEALS_ENABLED__ = enabled;
+    toast("Settings saved.");
+  })})));
 }
 
 /* ── Participant limits ────────────────────────────────────────────── */

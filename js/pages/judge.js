@@ -33,20 +33,26 @@ export default async function judgePage(root) {
   let tab = "score";
   const tabs = el("div.tabs");
   const tabBody = el("div");
-  [["score", "Score events"], ["schedule", "My schedule"]].forEach(([id, label]) =>
+  // Off the tab strip entirely unless an Admin has turned appeals on — see
+  // house.js, which hides its own Appeals tab the same way.
+  const TAB_LIST = [["score", "Score events"], ["schedule", "My schedule"],
+    ...(window.__APPEALS_ENABLED__ ? [["appeals", "Appeals"]] : [])];
+  TAB_LIST.forEach(([id, label]) =>
     tabs.appendChild(button(label, { class: id === tab ? "active" : "",
       onclick: () => { tab = id; paintTab(); } })));
   wrap.append(tabs, tabBody);
 
   const scoreBox = el("div");
   const schedBox = el("div");
+  const appealsBox = el("div");
+  const boxByTab = { score: scoreBox, schedule: schedBox, appeals: appealsBox };
 
   function paintTab() {
-    tabs.querySelectorAll("button").forEach((b, i) =>
-      b.className = ["score", "schedule"][i] === tab ? "active" : "");
+    tabs.querySelectorAll("button").forEach((b, i) => b.className = TAB_LIST[i][0] === tab ? "active" : "");
     tabBody.innerHTML = "";
-    tabBody.appendChild(tab === "score" ? scoreBox : schedBox);
+    tabBody.appendChild(boxByTab[tab]);
     if (tab === "schedule") paintSchedule();
+    if (tab === "appeals") paintAppeals();
   }
 
   let scheduleLoaded = false;
@@ -107,6 +113,34 @@ export default async function judgePage(root) {
           badge(r.state, r.state === "Published" ? "badge-ok"
                        : r.state === "Finalized" ? "badge-live" : "badge-warn") }
     ], rows), "My schedule"));
+  }
+
+  let appealsLoaded = false;
+  async function paintAppeals() {
+    if (appealsLoaded) return;
+    appealsLoaded = true;
+    appealsBox.innerHTML = "";
+    appealsBox.appendChild(el("div.hint", { text: "Loading…" }));
+
+    // array-contains on a denormalised judgeUids field, not a list query
+    // gated by a get() per document — see domain/appeals.js for why.
+    const mine = await getAll("appeals", where("judgeUids", "array-contains", session.user.uid)).catch(() => []);
+
+    appealsBox.innerHTML = "";
+    appealsBox.appendChild(notice("info",
+      "Read-only. An appeal against one of your events, for your information — you take no action here."));
+    if (!mine.length) { appealsBox.appendChild(empty("No appeals against your events")); return; }
+
+    appealsBox.appendChild(card(table([
+      { key: "eventName", label: "Event", render: r => el("div", {}, [
+          el("div", { text: r.eventName }), el("div.hint", { style: "margin:0", text: r.houseName })
+        ])},
+      { key: "reason", label: "Reason" },
+      { key: "status", label: "Status", render: r =>
+          badge(r.status === "pending" ? "Pending" : r.status === "upheld" ? "Upheld" : "Overturned",
+                r.status === "pending" ? "badge-warn" : r.status === "overturned" ? "badge-ok" : "badge-danger") },
+      { key: "decision", label: "Decision", render: r => r.decision || el("span.hint", { text: "—" }) }
+    ], mine), "Appeals against your events"));
   }
 
   const picker = select(assignments

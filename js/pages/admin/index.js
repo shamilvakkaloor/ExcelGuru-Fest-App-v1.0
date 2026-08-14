@@ -17,6 +17,7 @@ const SECTIONS = [
   { id: "publish",       label: "Results",       load: () => import("./publish.js") },
   { id: "titles",        label: "Titles",        load: () => import("./titles.js") },
   { id: "adjustments",   label: "Adjustments",   load: () => import("./adjustments.js"),   adminOnly: true },
+  { id: "appeals",       label: "Appeals",       load: () => import("./appeals.js") },
   { id: "venues",        label: "Schedule",      load: () => import("./venues.js") },
   { id: "generator",     label: "Certificates",  load: () => import("./generator.js") },
   { id: "downloads",     label: "Downloads",     load: () => import("./downloads.js") }

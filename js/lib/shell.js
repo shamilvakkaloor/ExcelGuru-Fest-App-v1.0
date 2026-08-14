@@ -95,7 +95,8 @@ const AREAS = [
         { label: "Judge status", icon: "eye",   to: "/admin/judges" },
         { label: "Results",      icon: "award", to: "/admin/publish" },
         { label: "Titles",       icon: "star",  to: "/admin/titles" },
-        { label: "Adjustments",  icon: "sliders", to: "/admin/adjustments", adminOnly: true }
+        { label: "Adjustments",  icon: "sliders", to: "/admin/adjustments", adminOnly: true },
+        { label: "Appeals",      icon: "shield", to: "/admin/appeals" }
       ]
     }]
   },

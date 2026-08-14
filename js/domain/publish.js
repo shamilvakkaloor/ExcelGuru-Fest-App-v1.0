@@ -265,7 +265,16 @@ export async function publishEvents(eventIds) {
 
   const ops = eventIds.map(id => ({
     type: "set", path: "results", id,
-    data: { publishStatus: PUBLISH_STATUS.PUBLISHED, stagedForPublish: false, publishedAt: serverTimestamp() }
+    data: {
+      publishStatus: PUBLISH_STATUS.PUBLISHED, stagedForPublish: false,
+      publishedAt: serverTimestamp(),
+      // Epoch milliseconds alongside the server timestamp — the appeal
+      // window is computed in Security Rules, which can only compare
+      // request.time against a plain number it can convert itself, the
+      // same reason registration windows are stored as ms rather than a
+      // Timestamp.
+      publishedAtMs: Date.now()
+    }
   }));
   await batchWrite(ops);
   await rebuildPublicSnapshots();
@@ -322,6 +331,14 @@ export async function rebuildPublicSnapshots() {
         typeName: typeName[res.typeId ?? ev?.typeId] || "",
         tierName: tierName[res.tierId ?? ev?.tierId] || "",
         publishedAt: Date.now(),
+        // The ACTUAL publish moment, carried from results.publishedAtMs —
+        // publishedAt above is when this snapshot was last rebuilt, which
+        // moves on any settings change and would make every event look
+        // freshly published after one. The appeal window needs the real
+        // moment, and House Managers cannot read the staff-only results
+        // collection to get it any other way.
+        publishedAtMs: res.publishedAtMs || null,
+        publishStatus: res.publishStatus || "Published",
         entries: (res.entries || []).map(e => ({
           rank: e.rank, codeLetter: e.codeLetter,
           names: e.participantNames || [], chestNumbers: e.chestNumbers || [],

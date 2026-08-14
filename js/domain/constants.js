@@ -185,7 +185,15 @@ export const DEFAULTS = {
     // Schedule times are wall-clock in THIS zone, not the reader's.
     // IANA zone name, e.g. "Asia/Kolkata". Resolved per date so daylight
     // saving is handled; see lib/timezone.js.
-    festTimeZone: null
+    festTimeZone: null,
+
+    // v8.8 — appeals against a published result. Off by default: a fest
+    // that never turns this on sees no new tab anywhere. The window opens
+    // automatically at publish and closes itself; there is no separate
+    // "open appeals" switch to remember to flip.
+    appealsEnabled: false,
+    appealWindowHours: 24,
+    appealMaxActive: 2
   },
   gradePoints: { A: 5, B: 3, C: 1, Without: 0 },
   participantLimits: {

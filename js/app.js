@@ -105,6 +105,7 @@ async function boot() {
   applyHouseTerm(settings?.houseTermSingular, settings?.houseTermPlural);
   window.__FEST_LOGO__ = settings?.useLogo && settings?.logoData ? settings.logoData : null;
   window.__CONTACTS_VISIBLE__ = !!settings?.contactsVisible;
+  window.__APPEALS_ENABLED__ = !!settings?.appealsEnabled;
   window.__NEEDS_SETUP__ = !settings;
   window.__APP_VERSION__ = APP_VERSION;
 

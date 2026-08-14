@@ -30,6 +30,8 @@ New or changed rules in v8.8:
 | `stageArrivals` | staff + stage | staff + stage | Who has gone on; never an absence |
 | `registrations` | *(changed)* | Stage may set **only** `codeLetter*`, and only before publish | Lettering without any other power |
 | `judgingEntries` | *(changed)* | now also Stage, before publish | Lettering must reach the judges' view |
+| `appeals` | staff, the filing house, judges on their own events | House files; staff decides once, terminally | Appeal system |
+| `judgeAssignments` | *(changed)* | now also House (read only) | Filing an appeal denormalises the assigned judges onto it |
 
 ## 2. Add the composite index ⚠ REQUIRED IF USING SUBSTITUTIONS
 
@@ -74,6 +76,7 @@ with nothing visibly changed until it opts in.
 | Score override | Judging → the **Override** column |
 | Entry constraint groups | Settings → **Entry constraints** |
 | Stage Manager | People → Accounts → **Stage Managers** (create a login) |
+| Appeals | Settings → **Appeals** |
 
 ---
 
