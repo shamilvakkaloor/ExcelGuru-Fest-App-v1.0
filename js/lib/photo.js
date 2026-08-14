@@ -67,7 +67,7 @@ export function compressImage(file, maxPx = MAX_PHOTO_PX, quality = PHOTO_QUALIT
  *
  * Returns { dataUrl, bytes, widthPx } so the caller can say what happened.
  */
-export async function compressToBudget(file, { maxPx = 900, budgetBytes = 400 * 1024, keepAlpha = true } = {}) {
+export async function compressToBudget(file, { maxPx = 1400, budgetBytes = 700 * 1024, keepAlpha = true } = {}) {
   let px = maxPx;
   let out = await compressImage(file, px, 0.92, keepAlpha);
   while (dataUrlBytes(out) > budgetBytes && px > 200) {

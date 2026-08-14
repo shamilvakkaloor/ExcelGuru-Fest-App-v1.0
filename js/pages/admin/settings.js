@@ -154,7 +154,7 @@ async function basicTab(panel) {
      * exceeds that alone, and the save failed with nothing on screen saying
      * so — which is what "the logo upload does not work" was. */
     const { dataUrl, bytes, widthPx } = await compressToBudget(f, {
-      maxPx: 900, budgetBytes: 400 * 1024, keepAlpha: true
+      maxPx: 1400, budgetBytes: 700 * 1024, keepAlpha: true
     });
     logoData = dataUrl;
     showLogo();
