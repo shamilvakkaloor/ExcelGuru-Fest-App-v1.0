@@ -212,6 +212,35 @@ service cloud.firestore {
       allow update, delete: if isStaff();
     }
 
+    // v8.8 — event material: a song title, a prop list, whatever an event's
+    // materialLabel asks for. Same shape as substitutions on purpose — a
+    // House submits, staff decides, and a House cannot edit a submission
+    // once it is in the queue.
+    //
+    // A Judge is NOT given read access here. An approved title is copied
+    // into judgingEntries instead (see writeJudgingEntries), the one
+    // document a judge actually reads — the same indirection description
+    // and blind judging both rely on, so material text can never carry a
+    // house's identity along with it by accident.
+    //
+    // Stage CAN read: assigning code letters rewrites judgingEntries,
+    // which now carries the material text, and a Stage Manager relettering
+    // after an Admin approved a submission must not silently blank it out.
+    match /eventMaterials/{id} {
+      allow read: if isStaff() || isStage()
+                  || (isHouse() && resource.data.houseId == refId());
+
+      allow create: if isStaff()
+                    || (isHouse()
+                        && request.resource.data.houseId == refId()
+                        && request.resource.data.status == "pending"
+                        && request.resource.data.title is string
+                        && request.resource.data.title.size() > 0
+                        && eventDoc(request.resource.data.eventId).materialsEnabled == true);
+
+      allow update, delete: if isStaff();
+    }
+
     /* v8.8 — house contact details.
      *
      * A SEPARATE COLLECTION, and that is the whole point. `houses` is

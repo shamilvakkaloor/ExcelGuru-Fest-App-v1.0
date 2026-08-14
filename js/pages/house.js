@@ -21,6 +21,7 @@ import { toCSV, downloadText } from "../lib/csv.js";
 import { printDocument, htmlTable } from "../lib/pdf.js";
 import { fileAppeal, appealWindowState } from "../domain/appeals.js";
 import { compressToBudget, dataUrlBytes } from "../lib/photo.js";
+import { submitMaterial, materialsWindow, MATERIAL_STATUS } from "../domain/materials.js";
 
 export default async function housePage(root) {
   const { content: wrap } = appShell(root, { title: "Register" });
@@ -365,12 +366,13 @@ function entryCell(r, event) {
 }
 
 async function entriesTab(panel, house, refresh) {
-  const [regs, events, settings, limits, categories, types, tiers, subs] = await Promise.all([
+  const [regs, events, settings, limits, categories, types, tiers, subs, materials] = await Promise.all([
     getAll("registrations", where("houseId", "==", house.id)),
     getAll("events"), getOne("config", "festSettings"), getOne("config", "participantLimits"),
     getAll("categories"),
     getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => []),
-    getAll("substitutions", where("houseId", "==", house.id)).catch(() => [])
+    getAll("substitutions", where("houseId", "==", house.id)).catch(() => []),
+    getAll("eventMaterials", where("houseId", "==", house.id)).catch(() => [])
   ]);
   const lim = { ...DEFAULTS.participantLimits, ...(limits || {}) };
   const cfgS = { ...DEFAULTS.festSettings, ...(settings || {}) };
@@ -378,6 +380,11 @@ async function entriesTab(panel, house, refresh) {
   // say so, instead of the dialog throwing after the form is filled in.
   const pendingByReg = Object.fromEntries(
     subs.filter(x => x.status === SUB_STATUS.PENDING).map(x => [x.registrationId, x]));
+  const materialByReg = {};
+  for (const m of materials) {
+    const cur = materialByReg[m.registrationId];
+    if (!cur || m.status !== MATERIAL_STATUS.REJECTED) materialByReg[m.registrationId] = m;
+  }
   const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
   const byId = Object.fromEntries(events.map(e => [e.id, e]));
 
@@ -417,6 +424,25 @@ async function entriesTab(panel, house, refresh) {
       { key: "entry", label: "Entry", render: r => entryCell(r, byId[r.eventId]) },
       { key: "codeLetter", label: "Code", render: r => r.codeLetter
           ? el("span.code-letter", { text: r.codeLetter }) : el("span.hint", { text: "not yet" }) },
+      { key: "material", label: "Material", render: r => {
+          const ev = byId[r.eventId];
+          if (!ev?.materialsEnabled) return el("span.hint", { text: "—" });
+          const m = materialByReg[r.id];
+          if (!m) return button("Submit " + (ev.materialLabel || "material"), { class: "btn-sm",
+            onclick: () => materialDialog(r, ev, house, refresh) });
+          if (m.status === MATERIAL_STATUS.REJECTED) {
+            return el("div", {}, [
+              badge("Rejected", "badge-danger"),
+              m.reason ? el("div.hint", { style: "margin:.2rem 0", text: m.reason }) : null,
+              button("Resubmit", { class: "btn-sm", onclick: () => materialDialog(r, ev, house, refresh) })
+            ]);
+          }
+          return el("div", {}, [
+            badge(m.status === MATERIAL_STATUS.APPROVED ? "Approved" : "Pending",
+                  m.status === MATERIAL_STATUS.APPROVED ? "badge-ok" : "badge-warn"),
+            el("div.hint", { style: "margin:.2rem 0 0", text: m.title })
+          ]);
+        }},
       { key: "act", label: "", render: r => {
           const ev = byId[r.eventId];
           const check = ev ? canWithdraw(r, ev, settings) : { ok: false, reason: "Event removed." };
@@ -878,6 +904,34 @@ async function subsTab(panel, house) {
         ? el("span.hint", { text: r.reason }) : el("span.hint", { text: "—" }) }
   ], rows.sort((a, b) => (b.requestedAt?.seconds || 0) - (a.requestedAt?.seconds || 0))),
     "Our requests"));
+}
+
+function materialDialog(registration, event, house, refresh) {
+  const label = event.materialLabel || "Material";
+  const title = input({ placeholder: label });
+  const link = input({ placeholder: "https://…", value: "" });
+
+  modal({
+    title: label + " — " + event.name,
+    body: el("div", {}, [
+      field(label, title, "Required."),
+      field("Link", link, "Optional — a Drive or YouTube link, if there is one.")
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Submit", kind: "accent", closes: false, busyLabel: "Submitting…", onClick: guard(async close => {
+          try {
+            await submitMaterial({
+              registration, event, house,
+              title: title.value, link: link.value,
+              submittedBy: session.name || house.name
+            });
+          } catch (err) { toast(err.message, true); return false; }
+          toast("Submitted for approval."); close(true); refresh();
+        })
+      }
+    ]
+  });
 }
 
 function subDialog(registration, event, house, settings, refresh) {

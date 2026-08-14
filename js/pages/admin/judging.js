@@ -64,18 +64,24 @@ export default async function judging(root) {
     panel.innerHTML = "";
     if (!event) return;
 
-    const [regs, judgeAssignments, scores, flags, result, directRows, ladderDoc, overrideRows] = await Promise.all([
-      getAll("registrations", where("eventId", "==", event.id)),
-      getAll("judgeAssignments", where("eventId", "==", event.id)),
-      getAll("scores", where("eventId", "==", event.id)),
-      getAll("entryFlags", where("eventId", "==", event.id)),
-      getOne("results", event.id),
-      getAll("directResults", where("eventId", "==", event.id)).catch(() => []),
-      // Every ladder, so resolvePoints answers exactly as finalize will.
-      getAll("pointsConfig").catch(() => []),
-      getAll("scoreOverrides", where("eventId", "==", event.id)).catch(() => [])
-    ]);
+    const [regs, judgeAssignments, scores, flags, result, directRows, ladderDoc, overrideRows, materialRows] =
+      await Promise.all([
+        getAll("registrations", where("eventId", "==", event.id)),
+        getAll("judgeAssignments", where("eventId", "==", event.id)),
+        getAll("scores", where("eventId", "==", event.id)),
+        getAll("entryFlags", where("eventId", "==", event.id)),
+        getOne("results", event.id),
+        getAll("directResults", where("eventId", "==", event.id)).catch(() => []),
+        // Every ladder, so resolvePoints answers exactly as finalize will.
+        getAll("pointsConfig").catch(() => []),
+        getAll("scoreOverrides", where("eventId", "==", event.id)).catch(() => []),
+        event.materialsEnabled
+          ? getAll("eventMaterials", where("eventId", "==", event.id)).catch(() => [])
+          : Promise.resolve([])
+      ]);
     const overrideBy = Object.fromEntries(overrideRows.map(o => [o.regId, o]));
+    const materialByReg = Object.fromEntries(
+      materialRows.filter(m => m.status === "approved").map(m => [m.registrationId, m.title]));
 
     // v8 — a "direct" event is not scored by judges. Admin picks each
     // placement from the ladder's positions.
@@ -163,6 +169,11 @@ export default async function judging(root) {
               ])
             : (r.participantNames || []).join(", ") + " · " + r.houseName }
     ];
+
+    if (event.materialsEnabled) {
+      cols.push({ key: "material", label: event.materialLabel || "Material",
+        render: r => materialByReg[r.id] || el("span.hint", { text: "—" }) });
+    }
 
     if (isDirect) {
       // Placement, and a grade only when the event awards grade points —

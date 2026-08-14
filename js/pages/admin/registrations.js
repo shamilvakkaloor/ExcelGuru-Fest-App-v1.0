@@ -147,6 +147,18 @@ export async function writeJudgingEntries(event, regs, settings = null) {
       .map(rank => ({ rank, label: ordinalPlace(rank) }));
   }
 
+  // v8.8 — approved event material (a song title, and the like) travels
+  // here too, the same indirection the description already relies on: a
+  // judge never reads eventMaterials directly, so material text can never
+  // carry a house's identity along with it by accident. Read fresh on
+  // every call, same as the ladder above, so re-lettering or a fresh
+  // approval both end up reflected without a second code path.
+  let materialByReg = {};
+  if (event.materialsEnabled) {
+    const materials = await getAll("eventMaterials", where("eventId", "==", event.id)).catch(() => []);
+    for (const m of materials) if (m.status === "approved") materialByReg[m.registrationId] = m.title;
+  }
+
   await put("judgingEntries", event.id, {
     eventId: event.id,
     eventName: event.name,
@@ -160,12 +172,14 @@ export async function writeJudgingEntries(event, regs, settings = null) {
     resultMode: isDirect ? "direct" : "scored",
     placements,
     scoreScale: null,
+    materialLabel: event.materialsEnabled ? (event.materialLabel || "Material") : "",
     entries: regs
       .filter(r => r.codeLetter)
       .sort((a, b) => a.codeLetter.localeCompare(b.codeLetter))
       .map(r => blind
-        ? { regId: r.id, codeLetter: r.codeLetter }
-        : { regId: r.id, codeLetter: r.codeLetter, label: r.wholeTeam ? r.houseName : (r.participantNames || []).join(", "), houseName: r.houseName })
+        ? { regId: r.id, codeLetter: r.codeLetter, material: materialByReg[r.id] || "" }
+        : { regId: r.id, codeLetter: r.codeLetter, label: r.wholeTeam ? r.houseName : (r.participantNames || []).join(", "),
+            houseName: r.houseName, material: materialByReg[r.id] || "" })
   }, false);
 }
 

@@ -32,6 +32,7 @@ New or changed rules in v8.8:
 | `judgingEntries` | *(changed)* | now also Stage, before publish | Lettering must reach the judges' view |
 | `appeals` | staff, the filing house, judges on their own events | House files; staff decides once, terminally | Appeal system |
 | `judgeAssignments` | *(changed)* | now also House (read only) | Filing an appeal denormalises the assigned judges onto it |
+| `eventMaterials` | staff, Stage, the submitting house | House submits (event must have it enabled); staff decides | Event material approval workflow |
 
 ## 2. Add the composite index ⚠ REQUIRED IF USING SUBSTITUTIONS
 
@@ -77,6 +78,7 @@ with nothing visibly changed until it opts in.
 | Entry constraint groups | Settings → **Entry constraints** |
 | Stage Manager | People → Accounts → **Stage Managers** (create a login) |
 | Appeals | Settings → **Appeals** |
+| Event material | Events → edit an event → **Event material** |
 
 ---
 

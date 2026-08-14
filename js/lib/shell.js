@@ -86,6 +86,7 @@ const AREAS = [
         { label: "Events",        icon: "star",      to: "/admin/events" },
         { label: "Registrations", icon: "clipboard", to: "/admin/registrations" },
         { label: "Substitutions", icon: "users",     to: "/admin/substitutions" },
+        { label: "Event material", icon: "clipboard", to: "/admin/materials" },
         { label: "Schedule",      icon: "calendar",  to: "/admin/venues" }
       ]
     }, {

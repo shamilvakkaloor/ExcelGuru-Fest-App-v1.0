@@ -320,6 +320,18 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     el("div.hint", { text: "Off by default. Turning this on lets a House Manager ask to replace any current participant in one of their entries — Admin still approves or rejects each request. Closes automatically once code letters are assigned." })
   ]);
 
+  let materialsEnabled = !!existing?.materialsEnabled;
+  const materialLabel = input({ value: existing?.materialLabel || "Material", placeholder: "e.g. Song title" });
+  const materialLabelField = field("What to call it", materialLabel);
+  materialLabelField.style.display = materialsEnabled ? "" : "none";
+  const materialsBox = el("fieldset", {}, [
+    el("legend", { text: "Event material" }),
+    checkbox("House Managers submit material for each entry — a song title, and the like", materialsEnabled,
+      v => { materialsEnabled = v; materialLabelField.style.display = v ? "" : "none"; }),
+    el("div.hint", { text: "Off by default. Turning this on lets a House Manager submit one item per entry after registering — Admin still approves or rejects each submission, oldest first. Once approved, it is shown to a judge beside the code letter, the same way the event description is." }),
+    materialLabelField
+  ]);
+
   function syncClass() {
     const group = isGroupClass(cls.value);
     perEntryBox.style.display = group ? "" : "none";
@@ -357,6 +369,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       reservedFieldset,
       capBox,
       subBox,
+      materialsBox,
       el("fieldset", {}, [
         el("legend", { text: "Registration window override" }),
         el("div.hint", { text: "Leave blank to use the fest-wide window." }),
@@ -398,6 +411,8 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             minEntriesPerHouse: minHouse.value === "" ? null : (Number(minHouse.value) || null),
             blindJudging: blind,
             substitutionOpen,
+            materialsEnabled,
+            materialLabel: materialLabel.value.trim() || "Material",
             registrationStart: fromLocalInput(regStart.value),
             registrationEnd: fromLocalInput(regEnd.value),
             status: existing?.status || "open"

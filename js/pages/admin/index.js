@@ -18,6 +18,7 @@ const SECTIONS = [
   { id: "titles",        label: "Titles",        load: () => import("./titles.js") },
   { id: "adjustments",   label: "Adjustments",   load: () => import("./adjustments.js"),   adminOnly: true },
   { id: "appeals",       label: "Appeals",       load: () => import("./appeals.js") },
+  { id: "materials",     label: "Event material", load: () => import("./materials.js") },
   { id: "venues",        label: "Schedule",      load: () => import("./venues.js") },
   { id: "generator",     label: "Certificates",  load: () => import("./generator.js") },
   { id: "downloads",     label: "Downloads",     load: () => import("./downloads.js") }
