@@ -11,7 +11,10 @@ import { DEFAULTS, housePluralTerm } from "../../domain/constants.js";
 const TABS = [
   { id: "house",   label: "Houses",    collection: "houses"   },
   { id: "judge",   label: "Judges",    collection: "judges"   },
-  { id: "coAdmin", label: "Co-Admins", collection: "coAdmins" }
+  { id: "coAdmin", label: "Co-Admins", collection: "coAdmins" },
+  // v8.8 — the stage crew. Nothing role-specific to collect beyond a name and
+  // a password, so this rides the generic add/edit/password path unchanged.
+  { id: "stage",   label: "Stage Managers", collection: "stageManagers" }
 ];
 
 // Resolved at render time from the boot-time global applyHouseTerm() sets —

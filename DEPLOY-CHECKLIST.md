@@ -25,6 +25,11 @@ New or changed rules in v8.8:
 | `publicContacts` | anyone | staff | Only the numbers ticked as public |
 | `substitutions` | *(changed)* | now also checks the event is open | Per-event substitution gate |
 | `participants` | *(changed)* | now also allows a House Manager to create, in-window | Self-service roster |
+| `constraintGroups` | anyone | Admin only | "At most N of these events" rules |
+| `stageManagers` | anyone | Admin only | The account records for the new role |
+| `stageArrivals` | staff + stage | staff + stage | Who has gone on; never an absence |
+| `registrations` | *(changed)* | Stage may set **only** `codeLetter*`, and only before publish | Lettering without any other power |
+| `judgingEntries` | *(changed)* | now also Stage, before publish | Lettering must reach the judges' view |
 
 ## 2. Add the composite index ⚠ REQUIRED IF USING SUBSTITUTIONS
 
@@ -67,6 +72,8 @@ with nothing visibly changed until it opts in.
 | Event descriptions | Events → edit an event → *Description* |
 | Registration extensions | Registrations → **Extend registration** |
 | Score override | Judging → the **Override** column |
+| Entry constraint groups | Settings → **Entry constraints** |
+| Stage Manager | People → Accounts → **Stage Managers** (create a login) |
 
 ---
 
@@ -76,9 +83,10 @@ with nothing visibly changed until it opts in.
   1 MiB and the Spark plan has no Cloud Storage, so a multi-MB PDF cannot
   live in the app. Host it on Drive and set sharing to *Anyone with the
   link*, or visitors hit a request-access screen.
-- **A logo is capped at ~400 KB** and downscaled to fit. Before v8.8 a large
-  logo silently exceeded the 1 MiB document limit and the save failed with
-  nothing on screen.
+- **A logo is capped at 1400 px / ~700 KB** and downscaled to fit. Before
+  v8.8 a large logo silently exceeded the 1 MiB document limit and the save
+  failed with nothing on screen. The cap cannot be removed — past 1 MiB the
+  write does not degrade, it fails.
 - **Phone numbers left unticked are not merely hidden.** They live in a
   staff-only collection and never reach any public document. That is why
   they are not stored on the house record, which is world-readable.

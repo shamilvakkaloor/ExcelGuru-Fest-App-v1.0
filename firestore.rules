@@ -33,6 +33,9 @@ service cloud.firestore {
     function isStaff()   { return isAdmin() || isCoAdmin(); }
     function isJudge()   { return role() == "judge"; }
     function isHouse()   { return role() == "house"; }
+    // The stage crew. Reads entries so they can call people up, letters them,
+    // and ticks them in. Cannot score, finalize or publish.
+    function isStage()   { return role() == "stage"; }
 
     // The fest has not been created yet. Only true once, during first-run
     // setup — writing config/festSettings closes this window for good.
@@ -109,6 +112,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /coAdmins/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /stageManagers/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -350,7 +357,11 @@ service cloud.firestore {
     // NOT public: an entry names the participants behind a code letter, so
     // exposing it would defeat blind judging. Judges never read this.
     match /registrations/{regId} {
-      allow read: if isStaff() || (isHouse() && resource.data.houseId == refId());
+      // A Stage Manager reads everything: they have to call the right people
+      // to the stage, so the names behind a code letter are exactly what they
+      // need. Blind judging is not weakened by this — it is enforced against
+      // JUDGES, through judgingEntries, and a Stage Manager cannot score.
+      allow read: if isStaff() || isStage() || (isHouse() && resource.data.houseId == refId());
 
       allow create: if isStaff()
                     || (isHouse()
@@ -362,7 +373,15 @@ service cloud.firestore {
       allow delete: if isStaff()
                     || (isHouse() && resource.data.houseId == refId() && resource.data.codeLetter == "");
 
-      allow update: if isStaff();
+      // A Stage Manager may letter an entry and nothing else. Restricting the
+      // affected keys is what keeps that true: without hasOnly, "may update"
+      // would mean they could move an entry to another house or swap its
+      // participants, which is a far larger power than assigning a letter.
+      allow update: if isStaff()
+                    || (isStage()
+                        && !resultPublished(resource.data.eventId)
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(["codeLetter", "codeLetterAssignedBy", "codeLetterAssignedAt"]));
     }
 
     function registrationOpen(eventId) {
@@ -392,7 +411,21 @@ service cloud.firestore {
     // they are never written here in the first place.
     match /judgingEntries/{eventId} {
       allow read: if isStaff() || (isJudge() && assignedToEvent(eventId));
-      allow write: if isStaff();
+      // A Stage Manager writes this only as the second half of lettering —
+      // judgingEntries is rebuilt from the registrations, so letters that
+      // never reached it would leave judges with nothing to score. Frozen
+      // once the result is published, on the same reasoning as entryFlags.
+      allow write: if isStaff() || (isStage() && !resultPublished(eventId));
+    }
+
+    // Who has actually gone on stage. Deliberately NOT a field on the
+    // registration and deliberately not entryFlags: this is a running-order
+    // aid, and an absence moves points. Keeping them in separate collections
+    // means no rule change here can ever be mistaken for the power to mark
+    // somebody absent.
+    match /stageArrivals/{id} {
+      allow read:  if isStaff() || isStage();
+      allow write: if isStaff() || isStage();
     }
 
     match /judgeAssignments/{id} {

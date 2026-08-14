@@ -110,7 +110,8 @@ const AREAS = [
           children: [
             { label: "Houses",    to: "/admin/accounts?tab=house" },
             { label: "Judges",    to: "/admin/accounts?tab=judge" },
-            { label: "Co-Admins", to: "/admin/accounts?tab=coAdmin" }
+            { label: "Co-Admins", to: "/admin/accounts?tab=coAdmin" },
+            { label: "Stage Managers", to: "/admin/accounts?tab=stage" }
           ]
         }
       ]
@@ -166,6 +167,16 @@ const AREAS = [
         { label: "Register",     icon: "clipboard", to: "/house" },
         { label: "Schedule",     icon: "calendar",  to: "/schedule" },
         { label: "Public results", icon: "trophy",  to: "/results" }
+      ]
+    }]
+  },
+  {
+    id: "stage", label: "Stage", icon: "monitor", roles: ["stage"],
+    groups: [{
+      label: "On the day",
+      items: [
+        { label: "Run the stage", icon: "monitor",  to: "/stage" },
+        { label: "Schedule",      icon: "calendar", to: "/schedule" }
       ]
     }]
   }

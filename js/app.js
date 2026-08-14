@@ -89,6 +89,7 @@ export function homeForRole() {
   if (is.staff()) return "/admin/dashboard";
   if (is.judge()) return "/judge";
   if (is.house()) return "/house";
+  if (is.stage()) return "/stage";
   return "/";
 }
 
@@ -119,6 +120,10 @@ async function boot() {
   route("/screen",    screenPage);
   route("/judge",     requireRole(["judge"], judgePage));
   route("/house",     requireRole(["house"], housePage));
+  // Lazy — stage.js pulls in admin/registrations.js for writeJudgingEntries(),
+  // and there is no reason for every other role to carry that.
+  route("/stage",     requireRole(["stage"],
+    (root) => import("./pages/stage.js").then(m => m.default(root))));
   route("/admin/:section", requireRole(["admin", "coAdmin"], adminPage));
   route("/admin",     requireRole(["admin", "coAdmin"], (r, p, q) => adminPage(r, { section: "dashboard" }, q)));
 
