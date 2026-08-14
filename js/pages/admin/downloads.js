@@ -1,5 +1,5 @@
 import { el, card, button, table, toast, guard, notice, empty, badge, modal,
-         filterBar, field, select, checkbox } from "../../lib/ui.js";
+         filterBar, field, select, checkbox, input } from "../../lib/ui.js";
 import { getAll, getOne, where } from "../../lib/db.js";
 import { toCSV, downloadText } from "../../lib/csv.js";
 import { printDocument, htmlTable, escapeHTML } from "../../lib/pdf.js";

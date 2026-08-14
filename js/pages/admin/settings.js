@@ -2,7 +2,7 @@ import { el, card, field, input, select, checkbox, button, table, toast, guard,
          notice, empty, toLocalInput, fromLocalInput, confirmDialog, modal, badge } from "../../lib/ui.js";
 import { getOne, getAll, put, add, patch, remove, where } from "../../lib/db.js";
 import { DEFAULTS, EVENT_CLASSES, POOL_LABEL, CHEST_FORMATS, CHEST_ALLOCATIONS,
-         rankCountFromLadder, RESULT_POLICIES } from "../../domain/constants.js";
+         rankCountFromLadder, RESULT_POLICIES, housePluralTerm } from "../../domain/constants.js";
 import { availableTieBreakers, gradeScaleFrom, WITHOUT } from "../../domain/scoring.js";
 import { queueRepublish } from "../../domain/republish.js";
 import { rebuildContactSnapshot } from "../../domain/publish.js";
@@ -700,6 +700,9 @@ async function pointsTab(panel) {
   ]);
   const s = { ...DEFAULTS.festSettings, ...(settings || {}) };
   const gp = { ...DEFAULTS.gradePoints, ...(gradePoints || {}) };
+  // Which axes CAN carry points — mutated in place by the checkboxes below
+  // and written back as pointsAxes on save.
+  const axes = { ...DEFAULTS.festSettings.pointsAxes, ...(s.pointsAxes || {}) };
   // The fest's own grades, highest first — Grades on the Fest details tab is
   // where these are named and thresholded. Points are assigned to whatever
   // that list currently is; a grade added there and never given points here
