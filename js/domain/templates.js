@@ -109,15 +109,52 @@ function winnerPoster() {
   };
 }
 
+/**
+ * Participant ID card — CR80, the standard badge/credit-card size
+ * (85.6 × 54mm), not A4. `design.page` is a plain {w,h} with no built-in
+ * assumption of A4 anywhere in designRender.js or the print pipeline, so a
+ * template just states the size it actually needs.
+ *
+ * Uses only participant-level tokens (name, chest, house, category, class,
+ * photo, fest, school) — no {event}/{rank}/{results}, so it renders from
+ * "Every registered participant" with no published result required, same
+ * as a participation certificate. Nothing in generator.js changes: the
+ * existing mode picker, batching and @page sizing already read a
+ * template's own page.w/page.h, which is the whole point of a design
+ * being data.
+ */
+function idCard() {
+  const w = 85.6, h = 54;
+  return {
+    name: "Participant ID Card",
+    page: { w, h },
+    background: "#FFFFFF",
+    backgroundImage: null,
+    elements: [
+      el("band", "box", { x: 0, y: 0, w, h: 14, fill: "#241B4E", stroke: "none", strokeWidth: 0, radius: 0 }),
+      el("accent", "box", { x: 0, y: 14, w, h: 1.2, fill: "#F5A524", stroke: "none", strokeWidth: 0, radius: 0 }),
+      el("fest", "text", { x: 4, y: 3, w: w - 8, text: "{fest}", size: 8, font: "sans", color: "#FFFFFF", align: "left", weight: 700 }),
+      el("school", "text", { x: 4, y: 9, w: w - 8, text: "{school}", size: 5.5, font: "sans", color: "#C9BEEE", align: "left", weight: 400 }),
+      el("photo", "image", { x: 4, y: 18, w: 20, h: 20, src: "{photo}", radius: 3 }),
+      el("name", "text", { x: 27, y: 19, w: w - 31, text: "{name}", size: 10, font: "sans", color: "#14232E", align: "left", weight: 700, lineHeight: 1.1 }),
+      el("chest", "text", { x: 27, y: 29, w: w - 31, text: "Chest {chest}", size: 7, font: "mono", color: "#405265", align: "left", weight: 400 }),
+      el("house", "text", { x: 27, y: 35, w: w - 31, text: "{house}", size: 7, font: "sans", color: "#405265", align: "left", weight: 400 }),
+      el("catclass", "text", { x: 27, y: 41, w: w - 31, text: "{category} · {class}", size: 6.5, font: "sans", color: "#7B8DA0", align: "left", weight: 400 }),
+      el("border", "box", { x: 1, y: 1, w: w - 2, h: h - 2, fill: "none", stroke: "#DDE4EE", strokeWidth: 0.3, radius: 2 })
+    ]
+  };
+}
+
 export const TEMPLATES = {
-  classicGold, modernIndigo, withPhoto, winnerPoster
+  classicGold, modernIndigo, withPhoto, winnerPoster, idCard
 };
 
 export const TEMPLATE_LIST = [
   { id: "classicGold",  label: "Design 1 — Classic Gold" },
   { id: "modernIndigo", label: "Design 2 — Modern Indigo" },
   { id: "withPhoto",    label: "Design 3 — With Photo" },
-  { id: "winnerPoster", label: "Design 4 — Winner Poster" }
+  { id: "winnerPoster", label: "Design 4 — Winner Poster" },
+  { id: "idCard",       label: "Design 5 — Participant ID Card" }
 ];
 
 export function loadTemplate(id) {

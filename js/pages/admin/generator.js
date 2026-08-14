@@ -167,7 +167,15 @@ export default async function generator(root) {
         { value: "portrait", label: "Portrait" }
       ], { value: design.page.w > design.page.h ? "landscape" : "portrait" });
       orient.addEventListener("change", () => {
-        design.page = orient.value === "landscape" ? { w: 297, h: 210 } : { w: 210, h: 297 };
+        // Swap the design's OWN w/h rather than resetting to a hard-coded
+        // A4 size — a non-A4 design (the ID card is 85.6×54mm) would
+        // otherwise lose its real dimensions the moment anyone touched
+        // this control, even by re-selecting the orientation it was
+        // already in.
+        const wantLandscape = orient.value === "landscape";
+        if (wantLandscape !== (design.page.w > design.page.h)) {
+          design.page = { w: design.page.h, h: design.page.w };
+        }
         paintStage();
       });
       left.appendChild(field("Orientation", orient));
