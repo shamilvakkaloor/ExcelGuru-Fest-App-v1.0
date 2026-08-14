@@ -1,17 +1,27 @@
-/* ═══ Design tokens ═══════════════════════════════════════════ */
+/* ═══ Design tokens ═══════════════════════════════════════════
+   v9 — shifted to a blue-led palette (requested reference,
+   festie.app, was unreachable to sample directly — this is a
+   professional blue built on the SAME token names, not a guess at
+   the exact reference). Variable names are unchanged on purpose:
+   every consumer in this file and every inline style in js/ already
+   references a ROLE ("primary accent", "secondary accent"), not a
+   colour word, so reassigning values here is enough — nothing
+   downstream needed to change. Semantic colours (danger/ok/warn)
+   keep their red/green/amber identity; only the brand accents and
+   the neutrals move. */
 :root {
-  --ink:        #14232E;   /* deep indigo-slate — text, headers   */
-  --ink-2:      #405265;   /* secondary text                      */
-  --ink-3:      #7B8DA0;   /* muted / placeholder                 */
-  --paper:      #F3F5FA;   /* page background                     */
-  --surface:    #FFFFFF;   /* cards, panels                       */
-  --line:       #DDE4EE;   /* hairlines                           */
+  --ink:        #101E33;   /* deep navy-ink — text, headers        */
+  --ink-2:      #3C5478;   /* secondary text                       */
+  --ink-3:      #7189AC;   /* muted / placeholder                  */
+  --paper:      #EEF3FB;   /* page background — cool blue tint     */
+  --surface:    #FFFFFF;   /* cards, panels                        */
+  --line:       #D6E2F3;   /* hairlines                             */
 
-  --marigold:   #F5A524;   /* primary accent — festival garland   */
-  --marigold-d: #C77F06;
-  --teal:       #0E7C7B;   /* secondary accent, links             */
-  --violet:     #6C4BD6;   /* tertiary — headers, highlights      */
-  --violet-d:   #533AA8;
+  --marigold:   #2F6FED;   /* primary accent — was warm orange     */
+  --marigold-d: #1E52C4;
+  --teal:       #0E7C9E;   /* secondary accent, links — blue-teal  */
+  --violet:     #5B5BD6;   /* tertiary — headers, highlights       */
+  --violet-d:   #4239A8;
   --rose:       #E5484D;
   --sky:        #1F8FE5;
 
@@ -22,10 +32,10 @@
   --warn-bg:    #FFF5E0;
 
   /* Signature gradients — used on the hero, top bar and stat accents */
-  --grad-hero:  linear-gradient(135deg, #241B4E 0%, #14232E 45%, #0E4A52 100%);
-  --grad-warm:  linear-gradient(135deg, #F5A524 0%, #E5484D 100%);
-  --grad-cool:  linear-gradient(135deg, #6C4BD6 0%, #1F8FE5 100%);
-  --grad-mint:  linear-gradient(135deg, #0E7C7B 0%, #14804A 100%);
+  --grad-hero:  linear-gradient(135deg, #0B1B38 0%, #102A4C 45%, #0E4A78 100%);
+  --grad-warm:  linear-gradient(135deg, #2F6FED 0%, #5B5BD6 100%);
+  --grad-cool:  linear-gradient(135deg, #5B5BD6 0%, #1F8FE5 100%);
+  --grad-mint:  linear-gradient(135deg, #0E7C9E 0%, #14804A 100%);
 
   --r:    10px;
   --r-sm: 6px;
@@ -233,6 +243,9 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
   box-shadow: 0 1px 4px rgba(20,35,46,.2);
 }
 .rank-medal { font-family: var(--display); font-weight: 700; font-size: 1.1rem; }
+/* Gold/silver/bronze — a fixed medal convention, not a brand accent.
+   Left hard-coded on purpose through the v9 palette shift: rank-1 should
+   read as gold regardless of what the brand's own accent colour is. */
 .rank-1 { color: #C77F06; }
 .rank-2 { color: #708196; }
 .rank-3 { color: #B07348; }
@@ -401,7 +414,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
 .tile::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--grad-cool); }
 .tile:nth-child(2)::before { background: var(--grad-warm); }
 .tile:nth-child(3)::before { background: var(--grad-mint); }
-.tile:nth-child(4)::before { background: linear-gradient(135deg, #E5484D, #6C4BD6); }
+.tile:nth-child(4)::before { background: linear-gradient(135deg, var(--rose), var(--violet)); }
 .tile h3 { margin: .3rem 0 .25rem; }
 .tile p { margin: 0; font-size: .85rem; color: var(--ink-3); }
 
@@ -646,8 +659,8 @@ tr.row-ours { background: color-mix(in srgb, var(--accent, #4C7A5A) 8%, transpar
 :root {
   --rail-w: 76px;
   --panel-w: 238px;
-  --rail-bg: #17232F;
-  --rail-ink: #93A6B8;
+  --rail-bg: #101E33;
+  --rail-ink: #8FA3C2;
   --rail-ink-on: #FFFFFF;
   --panel-bg: #FBFCFE;
 }
@@ -856,9 +869,9 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   animation: boot-rise 1.15s ease-in-out infinite;
 }
 .boot-bar:nth-child(1) { animation-delay: 0s;    height: 18px; }
-.boot-bar:nth-child(2) { animation-delay: .13s;  height: 30px; background: linear-gradient(180deg,#6C4BD6,#1F8FE5); }
+.boot-bar:nth-child(2) { animation-delay: .13s;  height: 30px; background: linear-gradient(180deg,var(--violet),var(--sky)); }
 .boot-bar:nth-child(3) { animation-delay: .26s;  height: 24px; }
-.boot-bar:nth-child(4) { animation-delay: .39s;  height: 38px; background: linear-gradient(180deg,#0E7C7B,#14804A); }
+.boot-bar:nth-child(4) { animation-delay: .39s;  height: 38px; background: linear-gradient(180deg,var(--teal),var(--ok)); }
 @keyframes boot-rise {
   0%, 100% { transform: scaleY(.45); opacity: .55; }
   50%      { transform: scaleY(1);   opacity: 1; }
@@ -1126,21 +1139,21 @@ button.chip.on {
  * certificate is always ink on white paper.
  */
 :root[data-theme="dark"] {
-  --ink:        #E8EEF4;
-  --ink-2:      #B4C2CF;
-  --ink-3:      #7E8FA0;
-  --paper:      #0F1922;
-  --surface:    #17232F;
-  --line:       #2A3947;
+  --ink:        #E7EEF9;
+  --ink-2:      #AFC0D6;
+  --ink-3:      #7C90AC;
+  --paper:      #0A121F;
+  --surface:    #121E30;
+  --line:       #253552;
 
-  /* Accents lift slightly: the same marigold that reads warm on white
-     reads muddy on a dark ground. */
-  --marigold:   #FFB84D;
-  --marigold-d: #E09A2B;
-  --teal:       #2FA6A4;
-  --violet:     #9A80EA;
+  /* Accents lift slightly: the same blue that reads crisp on white
+     reads muddy on a dark ground, so it goes lighter here. */
+  --marigold:   #6E9CFF;
+  --marigold-d: #4C7CE0;
+  --teal:       #4FC1DE;
+  --violet:     #9A94F0;
   --rose:       #FF6B70;
-  --sky:        #56AEF0;
+  --sky:        #6BB6F5;
 
   --danger:     #FF7A75;
   --danger-bg:  #3A1E1E;
@@ -1148,8 +1161,8 @@ button.chip.on {
   --ok-bg:      #16301F;
   --warn-bg:    #3A2E14;
 
-  --panel-bg:   #131E28;
-  --rail-bg:    #0B1218;
+  --panel-bg:   #0E1A2C;
+  --rail-bg:    #080F1C;
 }
 
 :root[data-theme="dark"] .card,
