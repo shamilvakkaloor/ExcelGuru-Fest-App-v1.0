@@ -4,7 +4,7 @@
 import { el, card, table, empty, badge, button, notice, filterBar } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { topbar } from "../app.js";
-import { POOL_LABEL, classLabel, EVENT_CLASSES, rankIsPublic } from "../domain/constants.js";
+import { POOL_LABEL, classLabel, EVENT_CLASSES, rankIsPublic, isGroupClass } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { printDocument, htmlTable } from "../lib/pdf.js";
@@ -287,7 +287,7 @@ export default async function resultsPage(root) {
           shown.length
             ? table([
                 { key: "rank", label: "Rank", render: rankCell },
-                { key: "names", label: "Participant", render: r => (r.names || []).join(", ") },
+                { key: "names", label: "Participant", render: r => entryDisplay(r, ev) },
                 { key: "houseName", label: hTerm, render: houseTag },
                 { key: "grade", label: "Grade", render: r => badge(gradeLabel(r.grade, board), gradeKind(r.grade)) },
                 { key: "totalPoints", label: "Points", num: true }
@@ -296,7 +296,9 @@ export default async function resultsPage(root) {
           ev.eventName + (ev.categoryName ? " · " + ev.categoryName : "") +
             (ev.eventClass ? " · " + classLabel(ev.eventClass) : ""),
           exportRow(slug(ev.eventName), full,
-            [{ label: "Rank", key: "rank" }, { label: "Participant", value: r => (r.names || []).join(", ") },
+            [{ label: "Rank", key: "rank" },
+             { label: "Team", value: r => r.teamLabel || "" },
+             { label: "Participant", value: r => (r.names || []).join(", ") },
              { label: hTerm, key: "houseName" }, { label: "Grade", value: r => gradeLabel(r.grade, board) }, { label: "Points", key: "totalPoints" }])));
       }
     }
@@ -311,6 +313,18 @@ export default async function resultsPage(root) {
   }
 
   paint();
+}
+
+// A group entry shows its team name first, roster underneath — the public
+// snapshot carries teamLabel precomputed, so this reads it rather than
+// re-deriving it from a house name and entry number.
+function entryDisplay(r, ev) {
+  if (!isGroupClass(ev.eventClass) || !r.teamLabel) return (r.names || []).join(", ");
+  if (r.wholeTeam) return el("span", { text: r.teamLabel });
+  return el("div", {}, [
+    el("div", { text: r.teamLabel }),
+    el("div.hint", { style: "margin:0", text: (r.names || []).join(", ") })
+  ]);
 }
 
 function gradeKind(g) {

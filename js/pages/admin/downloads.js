@@ -83,6 +83,7 @@ async function resultsData() {
         event: r.eventName, code: r.eventCode, cls: classLabel(r.eventClass),
         status: r.publishStatus,
         rank: e.isAbsent ? "" : e.rank,
+        team: e.teamLabel || "",
         names: (e.participantNames || []).join(" / "),
         house: e.houseName, grade: e.grade ? gradeLabel(e.grade, settings) : "",
         percent: e.percent === null ? "" : e.percent.toFixed(2),
@@ -94,7 +95,8 @@ async function resultsData() {
     name: "results",
     columns: [
       { label: "Code", key: "code" }, { label: "Event", key: "event" }, { label: "Event class", key: "cls" },
-      { label: "Status", key: "status" }, { label: "Rank", key: "rank" }, { label: "Entry", key: "names" },
+      { label: "Status", key: "status" }, { label: "Rank", key: "rank" }, { label: "Team", key: "team" },
+      { label: "Entry", key: "names" },
       { label: "House", key: "house" }, { label: "%", key: "percent" }, { label: "Grade", key: "grade" },
       { label: "Points", key: "points" }
     ],
@@ -152,8 +154,8 @@ async function registrationsData() {
     name: "registrations",
     columns: [
       { label: "Event", key: "eventName" }, { label: "Code letter", key: "codeLetter" },
-      { label: "House", key: "houseName" },
-      { label: "Participants", value: r => (r.participantNames || []).join(" / ") },
+      { label: "House", key: "houseName" }, { label: "Team", key: "teamLabel" },
+      { label: "Participants", value: r => r.wholeTeam ? "Whole team" : (r.participantNames || []).join(" / ") },
       { label: "Chest numbers", value: r => (r.chestNumbers || []).join(" / ") }
     ],
     rows: regs.sort((a, b) => String(a.eventName).localeCompare(String(b.eventName)))

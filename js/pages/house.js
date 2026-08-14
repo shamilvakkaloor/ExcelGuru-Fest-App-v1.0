@@ -11,7 +11,7 @@ import { registerEntry, registerMany, withdrawEntry, windowState, canWithdraw, c
 import { substitutionWindow, requestSubstitution, SUB_STATUS } from "../domain/substitution.js";
 import { DEFAULTS, GENDERS, classLabel, isGroupClass, isGeneralClass, eventLabel,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, entryCompletion,
-         typeTierFilters, eventFilterKeys } from "../domain/constants.js";
+         typeTierFilters, eventFilterKeys, entryLabel } from "../domain/constants.js";
 import { compareChest, allocateChest, takenChestNumbers, readChestCounter,
          raiseChestCounter, chestSortKey } from "../domain/chest.js";
 import { gradeLabel } from "../domain/scoring.js";
@@ -345,6 +345,18 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
   });
 }
 
+// A group entry's primary line is now the team ("Red B"), not the roster —
+// the roster still matters, so it drops to a hint line underneath rather
+// than disappearing.
+function entryCell(r, event) {
+  if (r.wholeTeam) return el("span.hint", { text: "Whole team" });
+  if (!isGroupClass(event?.eventClass || r.eventClass)) return (r.participantNames || []).join(", ");
+  return el("div", {}, [
+    el("div", { text: entryLabel(r, event) }),
+    el("div.hint", { style: "margin:0", text: (r.participantNames || []).join(", ") })
+  ]);
+}
+
 async function entriesTab(panel, house, refresh) {
   const [regs, events, settings, limits, categories, types, tiers, subs] = await Promise.all([
     getAll("registrations", where("houseId", "==", house.id)),
@@ -395,9 +407,7 @@ async function entriesTab(panel, house, refresh) {
 
     listBox.appendChild(card(table([
       { key: "label", label: "Event" },
-      { key: "participantNames", label: "Participants", render: r => r.wholeTeam
-          ? el("span.hint", { text: "Whole team" })
-          : (r.participantNames || []).join(", ") },
+      { key: "entry", label: "Entry", render: r => entryCell(r, byId[r.eventId]) },
       { key: "codeLetter", label: "Code", render: r => r.codeLetter
           ? el("span.code-letter", { text: r.codeLetter }) : el("span.hint", { text: "not yet" }) },
       { key: "act", label: "", render: r => {
@@ -425,6 +435,7 @@ async function entriesTab(panel, house, refresh) {
     ], rows), "Our entries",
       button("Download CSV", { class: "btn-sm", onclick: () => downloadText(house.name + "-entries.csv", toCSV([
         { label: "Event", key: "label" }, { label: "Code letter", key: "codeLetter" },
+        { label: "Entry", value: r => entryLabel(r, byId[r.eventId]) },
         { label: "Participants", value: r => r.wholeTeam ? "Whole team" : (r.participantNames || []).join(" / ") }
       ], rows)) })));
   }

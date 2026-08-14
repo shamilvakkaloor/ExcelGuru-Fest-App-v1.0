@@ -81,7 +81,7 @@ export default async function screenPage(root) {
         title: ev.eventName,
         sub: [ev.categoryName, classLabel(ev.eventClass)].filter(Boolean).join(" · "),
         rows: top.map(e => ({
-          rank: e.rank, main: (e.names || []).join(", "), sub: e.houseName,
+          rank: e.rank, main: e.teamLabel || (e.names || []).join(", "), sub: e.houseName,
           value: e.grade ? gradeLabel(e.grade, settings) : ""
         }))
       });

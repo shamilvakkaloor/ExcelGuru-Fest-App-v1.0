@@ -16,7 +16,7 @@ import { getAll, getOne, put, remove, where, batchWrite } from "../lib/db.js";
 import { appShell } from "../lib/shell.js";
 import { session } from "../lib/session.js";
 import { classLabel, eventLabel, EVENT_CLASSES, eventFilterKeys } from "../domain/constants.js";
-import { codeLetterAt } from "../domain/constants.js";
+import { codeLetterAt, entryLabel, isGroupClass } from "../domain/constants.js";
 import { writeJudgingEntries } from "./admin/registrations.js";
 
 export default async function stagePage(root) {
@@ -112,8 +112,11 @@ export default async function stagePage(root) {
     panel.appendChild(card(table([
       { key: "codeLetter", label: "Code", render: r => el("span.code-letter", { text: r.codeLetter }) },
       { key: "who", label: "Entry", render: r => el("div", {}, [
-          el("div", { text: r.wholeTeam ? "Whole team" : (r.participantNames || []).join(", ") }),
-          el("div.hint", { style: "margin:0", text: r.houseName || "" })
+          el("div", { text: entryLabel({ ...r, eventClass: event.eventClass }, event) }),
+          el("div.hint", { style: "margin:0", text:
+            isGroupClass(event.eventClass) && !r.wholeTeam
+              ? (r.participantNames || []).join(", ")
+              : (r.houseName || "") })
         ])},
       { key: "chest", label: "Chest", render: r => el("span.mono", { text: (r.chestNumbers || []).join(", ") }) },
       { key: "arrived", label: "On stage", render: r => {

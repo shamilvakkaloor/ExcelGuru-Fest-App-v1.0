@@ -1,7 +1,7 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty,
          modal, confirmDialog, badge, fmtDateTime, fromLocalInput } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, batchWrite, where } from "../../lib/db.js";
-import { codeLetterAt, classLabel, isGroupClass, eventLabel } from "../../domain/constants.js";
+import { codeLetterAt, classLabel, isGroupClass, eventLabel, entryLabel } from "../../domain/constants.js";
 import { registerEntry, withdrawEntry, windowState } from "../../domain/registration.js";
 import { DEFAULTS, effectiveResultMode } from "../../domain/constants.js";
 import { ladderKey } from "../../domain/scoring.js";
@@ -68,12 +68,10 @@ export default async function registrations(root) {
       { key: "codeLetter", label: "Code", render: r => r.codeLetter
           ? el("span.code-letter", { text: r.codeLetter }) : badge("Not assigned", "badge-warn") },
       { key: "houseName", label: "House" },
-      { key: "participantNames", label: "Participants", render: r => r.wholeTeam
-          ? el("span.hint", { text: "Whole team" })
-          : (r.participantNames || []).join(", ") },
+      { key: "entry", label: "Entry", render: r => entryCell(r, event) },
       { key: "chest", label: "Chest", render: r => el("span.mono", { text: (r.chestNumbers || []).join(", ") }) },
       { key: "act", label: "", render: r => button("Remove", { class: "btn-sm btn-danger", onclick: guard(async () => {
-          if (!await confirmDialog("Remove entry", `Remove ${(r.participantNames || []).join(", ")} from ${event.name}?`, "Remove")) return;
+          if (!await confirmDialog("Remove entry", `Remove ${entryLabel(r, event)} from ${event.name}?`, "Remove")) return;
           await withdrawEntry({ registration: r, event, limits: lim });
           toast("Entry removed."); paint();
         })})}
@@ -86,6 +84,18 @@ export default async function registrations(root) {
  * information about house or registration order — that is what makes blind
  * judging actually blind.
  */
+// A group entry's primary line is now the team ("Red B"), not the roster —
+// the roster still matters, so it drops to a hint line underneath rather
+// than disappearing.
+function entryCell(r, event) {
+  if (r.wholeTeam) return el("span.hint", { text: "Whole team" });
+  if (!isGroupClass(event?.eventClass || r.eventClass)) return (r.participantNames || []).join(", ");
+  return el("div", {}, [
+    el("div", { text: entryLabel(r, event) }),
+    el("div.hint", { style: "margin:0", text: (r.participantNames || []).join(", ") })
+  ]);
+}
+
 async function assignLetters(event, regs, refresh) {
   if (!regs.length) { toast("No entries to letter.", true); return; }
   if (regs.some(r => r.codeLetter)) {

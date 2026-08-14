@@ -4,7 +4,8 @@ import { getAll, getOne, put, remove, where } from "../../lib/db.js";
 import { finalizeEvent, computeEventResult } from "../../domain/publish.js";
 import { averageOf, gradeFor, resolvePoints, gradeScaleFrom, gradeLabel } from "../../domain/scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, classLabel, eventLabel, EVENT_CLASSES,
-         isGeneralClass, typeTierFilters, eventFilterKeys, effectiveResultMode } from "../../domain/constants.js";
+         isGeneralClass, typeTierFilters, eventFilterKeys, effectiveResultMode,
+         entryLabel, isGroupClass as isGroupCls } from "../../domain/constants.js";
 import { session } from "../../lib/session.js";
 
 export default async function judging(root) {
@@ -154,7 +155,13 @@ export default async function judging(root) {
       { key: "codeLetter", label: "Code", render: r => el("span.code-letter", { text: r.codeLetter }) },
       { key: "who", label: "Entry", render: r => event.blindJudging
           ? el("span.hint", { text: "hidden while blind" })
-          : (r.wholeTeam ? "Whole team" : (r.participantNames || []).join(", ")) + " · " + r.houseName }
+          : isGroupCls(event.eventClass)
+            ? el("div", {}, [
+                el("div", { text: entryLabel(r, event) }),
+                r.wholeTeam ? null
+                  : el("div.hint", { style: "margin:0", text: (r.participantNames || []).join(", ") })
+              ])
+            : (r.participantNames || []).join(", ") + " · " + r.houseName }
     ];
 
     if (isDirect) {
@@ -353,9 +360,8 @@ function showComputed(panel, data, trigger, isPreview = false, settings = null) 
     table([
       { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger") : el("span.rank-medal", { text: "#" + r.rank }) },
       { key: "codeLetter", label: "Code", render: r => el("span.mono", { text: r.codeLetter }) },
-      { key: "names", label: "Entry", render: r => (r.participantNames || []).length
-          ? (r.participantNames || []).join(", ")
-          : el("span.hint", { text: r.houseName || "Whole team" }) },
+      { key: "names", label: "Entry", render: r => entryLabel({ ...r, eventClass: event.eventClass }, event)
+          || el("span.hint", { text: r.houseName || "Whole team" }) },
       { key: "houseName", label: "House" },
       { key: "averageScore", label: "Average", num: true, render: r =>
           r.averageScore === null || r.averageScore === undefined

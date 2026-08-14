@@ -75,6 +75,10 @@ export async function loadEventEntries(eventId) {
       participantIds: r.participantIds || [],
       participantNames: r.participantNames || [],
       chestNumbers: r.chestNumbers || [],
+      // A group entry is named as a team; carried from here to the public
+      // snapshot so no screen has to re-derive it.
+      teamLabel: r.teamLabel || "",
+      wholeTeam: !!r.wholeTeam,
       codeLetter: r.codeLetter || "",
       entryNumber: r.entryNumber || 1,
       isAbsent: !!absentBy[r.id],
@@ -173,6 +177,7 @@ export async function computeEventResult(eventId) {
     categoryId: e.categoryId, codeLetter: e.codeLetter,
     participantIds: e.participantIds, participantNames: e.participantNames,
     chestNumbers: e.chestNumbers,
+    teamLabel: e.teamLabel || "", wholeTeam: !!e.wholeTeam,
     averageScore: e.averageScore, percent: e.percent, rank: e.rank,
     isAbsent: e.isAbsent, grade: e.grade,
     // Carried onto the stored result so the override is visible on the
@@ -320,6 +325,7 @@ export async function rebuildPublicSnapshots() {
         entries: (res.entries || []).map(e => ({
           rank: e.rank, codeLetter: e.codeLetter,
           names: e.participantNames || [], chestNumbers: e.chestNumbers || [],
+          teamLabel: e.teamLabel || "", wholeTeam: !!e.wholeTeam,
           houseId: e.houseId || null,
           houseName: e.houseName || houseName[e.houseId] || "",
           grade: e.grade, percent: e.percent === null ? null : Math.round(e.percent * 100) / 100,

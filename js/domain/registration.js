@@ -16,7 +16,7 @@
 import { db, docRef, getOne, getAll, put, remove, where, runTransaction, serverTimestamp, deleteField } from "../lib/db.js";
 import { checkCaps, applyCounts, limitsForCategory, checkConstraints,
          reservationBlocker } from "./limits.js";
-import { isGroupClass, maxEntriesFor } from "./constants.js";
+import { isGroupClass, maxEntriesFor, teamName } from "./constants.js";
 
 export const tallyId = (eventId, houseId) => `${eventId}_${houseId}`;
 
@@ -210,6 +210,12 @@ export async function registerEntry({ event, house, participants, settings, limi
       houseName: house.name,
       categoryId: event.categoryId || null,
       entryNumber: tally.count + 1,
+      /* The team's name — "Red", or "Red B" where a house may field more
+       * than one. Stored rather than derived at read time because a
+       * substitution changes the roster and the cap can be edited later;
+       * an entry that renamed itself afterwards would look like a
+       * different entry to anyone reading a printed sheet. */
+      teamLabel: teamName(event, house.name, tally.count + 1),
       // Which category this entry represents, for reserved-slot accounting.
       // Taken from the first member; a general group entry has no category
       // of its own, so this is the only place it can come from.

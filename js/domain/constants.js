@@ -309,6 +309,42 @@ export function codeLetterAt(index) {
   return s;
 }
 
+/* ── Team identity for group entries ──────────────────────────────────
+ *
+ * v8.8 — a group entry is a HOUSE'S TEAM, not a bag of names. Identifying
+ * it by its roster read badly everywhere it appeared ("Aisha, Ravi, Meera,
+ * Tom" as a column heading) and broke down entirely when a substitution
+ * changed a member mid-fest: the entry appeared to become a different
+ * entry. So a group entry carries a stable name of its own.
+ *
+ * One entry per house needs no suffix — "Red" is unambiguous. Only when the
+ * event permits more than one does it become "Red A", "Red B". An unlimited
+ * event (no cap set) always suffixes, because a second team may appear at
+ * any time and renaming the first one afterwards would be worse.
+ */
+export function teamName(event, houseName, entryNumber) {
+  const name = houseName || "";
+  if (!isGroupClass(event?.eventClass)) return name;
+  if (maxEntriesFor(event) === 1) return name;
+  return (name + " " + codeLetterAt(Math.max(0, (entryNumber || 1) - 1))).trim();
+}
+
+/**
+ * How to name an entry on screen.
+ *
+ * Group: the team name. Individual: the participant. Falls back to a
+ * derived team name for entries written before teamLabel existed, so no
+ * migration is needed.
+ */
+export function entryLabel(reg, event) {
+  if (!reg) return "";
+  if (reg.wholeTeam) return reg.teamLabel || reg.houseName || "Whole team";
+  if (isGroupClass(reg.eventClass || event?.eventClass)) {
+    return reg.teamLabel || teamName(event || { eventClass: reg.eventClass }, reg.houseName, reg.entryNumber);
+  }
+  return (reg.participantNames || []).join(", ");
+}
+
 /* ── Entry caps per house ─────────────────────────────────────────────
  * ARCHITECTURE §5.6. Both caps apply to all four event classes. Blank max
  * means unlimited; blank min means no minimum. Minimums NEVER block — a
