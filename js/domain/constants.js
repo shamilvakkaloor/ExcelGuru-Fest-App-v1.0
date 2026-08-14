@@ -82,10 +82,11 @@ export const CHEST_ALLOCATIONS = [
  * resolvePoints() for exactly how that resolution works.
  */
 export const POINTS_FROM = [
-  { value: "class", label: "Event class (default)" },
-  { value: "stage", label: "Stage" },
-  { value: "type",  label: "Type" },
-  { value: "tier",  label: "Tier" }
+  { value: "class",  label: "Event class (default)" },
+  { value: "stage",  label: "Stage" },
+  { value: "type",   label: "Type" },
+  { value: "tier",   label: "Tier" },
+  { value: "custom", label: "Custom for this event" }
 ];
 
 /* Fest-wide policy. `both` keeps the per-event choice; the other two force

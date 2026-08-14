@@ -621,6 +621,17 @@ check("a missing ladder falls back to the class ladder and is flagged", (() => {
   return [r.source, r.fellBack];
 })(), ["class", true]);
 
+check("v9 — a custom pointsFrom uses the event's own ladder, ignoring class entirely", (() => {
+  const r = resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "custom",
+    customRankPoints: { 1: 30, 2: 20, 3: 15 } }, V8_LADDERS, V8_GRADE);
+  return [r.source, r.fellBack, r.rankPoints, r.gradePoints];
+})(), ["custom", false, { 1: 30, 2: 20, 3: 15 }, V8_GRADE]);
+
+check("v9 — custom with no points set awards nothing, no fallback to class", (() => {
+  const r = resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "custom" }, V8_LADDERS, V8_GRADE);
+  return [r.source, r.rankPoints];
+})(), ["custom", {}]);
+
 /* Gradeless events */
 const V8_E = [{ regId: "a", scores: [90] }, { regId: "b", scores: [80] }];
 const V8_TH = { aMin: 85, bMin: 70, cMin: 50 };

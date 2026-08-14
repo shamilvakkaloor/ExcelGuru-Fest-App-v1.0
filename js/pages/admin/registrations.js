@@ -169,10 +169,13 @@ export async function writeJudgingEntries(event, regs, settings = null) {
   const isDirect = effectiveResultMode(event, cfg) === "direct";
   let placements = [];
   if (isDirect) {
-    const key = ladderKey(event.pointsFrom || "class", event);
-    const ladder = await getOne("pointsConfig", key).catch(() => null)
-                || await getOne("pointsConfig", event.eventClass).catch(() => null);
-    placements = Object.keys(ladder?.rankPoints || DEFAULTS.rankPoints)
+    // "custom" points live on the event itself, not a pointsConfig doc.
+    const rankPoints = event.pointsFrom === "custom"
+      ? (event.customRankPoints || {})
+      : (await getOne("pointsConfig", ladderKey(event.pointsFrom || "class", event)).catch(() => null)
+          || await getOne("pointsConfig", event.eventClass).catch(() => null))?.rankPoints
+        || DEFAULTS.rankPoints;
+    placements = Object.keys(rankPoints)
       .map(Number).filter(n => n > 0).sort((a, b) => a - b)
       .map(rank => ({ rank, label: ordinalPlace(rank) }));
   }

@@ -853,8 +853,9 @@ function ladderPayload(l) {
 }
 
 /** One ladder editor: ranks with point values, add/remove rank. Shared by
- * the class tabs and every stage/type/tier tab below. */
-function renderLadderEditor(box, ladderState, opts, onChange) {
+ * the class tabs and every stage/type/tier tab below, and by the per-event
+ * custom-points editor in admin/events.js. */
+export function renderLadderEditor(box, ladderState, opts, onChange) {
   box.innerHTML = "";
   const ranks = Object.keys(ladderState.rankPoints).map(Number).sort((a, b) => a - b);
   const grid = el("div.grid.grid-3");

@@ -114,6 +114,21 @@ export function ladderKey(pointsFrom, event) {
  */
 export function resolvePoints(event, ladders, globalGradePoints) {
   const from = event.pointsFrom || "class";
+
+  // "custom" is not a ladder document at all — the points live on the event
+  // itself, set by the Admin when this one event needs to be worth more (or
+  // less) than its class/stage/type/tier would give it. No fallback: an
+  // Admin who turns this on and leaves it empty gets zero, visibly, rather
+  // than a silent reversion to the class ladder.
+  if (from === "custom") {
+    return {
+      rankPoints: event.customRankPoints || {},
+      gradePoints: globalGradePoints || {},
+      source: "custom",
+      fellBack: false
+    };
+  }
+
   const key = ladderKey(from, event);
   const classLadder = ladders[event.eventClass] || null;
 

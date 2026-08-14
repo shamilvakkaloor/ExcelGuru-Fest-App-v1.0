@@ -6,6 +6,7 @@ import { EVENT_CLASSES, STAGES, classLabel, isGroupClass, isGeneralClass,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, DEFAULTS,
          POINTS_FROM, RESULT_MODES, typeTierFilters, eventFilterKeys } from "../../domain/constants.js";
 import { parseCSVObjects, readFile, toCSV, downloadText } from "../../lib/csv.js";
+import { renderLadderEditor } from "./settings.js";
 
 export default async function events(root) {
   root.appendChild(el("h1", { text: "Events" }));
@@ -123,7 +124,8 @@ export default async function events(root) {
         return bits.length ? el("span", { text: bits.join(" · ") }) : el("span.hint", { text: "—" });
       }}] : []),
       // Where this event's points come from, when that can vary.
-      ...((cfg.pointsAxes?.stage || cfg.pointsAxes?.type || cfg.pointsAxes?.tier)
+      ...((cfg.pointsAxes?.stage || cfg.pointsAxes?.type || cfg.pointsAxes?.tier ||
+           rows.some(r => r.pointsFrom === "custom"))
         ? [{ key: "pointsFrom", label: "Points from", render: r => {
             const v = r.pointsFrom || "class";
             return v === "class" ? el("span.hint", { text: "Class" })
@@ -190,9 +192,11 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   const tierSel = select([{ value: "", label: "—" },
     ...tiers.map(t => ({ value: t.id, label: t.name }))], { value: existing?.tierId || "" });
 
-  // Only offer axes the fest actually switched on for points.
+  // Only offer axes the fest actually switched on for points. "custom" is
+  // always offered — an Admin can always give one particular event its own
+  // ladder, no fest-wide switch required.
   const pointsOptions = POINTS_FROM.filter(o =>
-    o.value === "class" ||
+    o.value === "class" || o.value === "custom" ||
     (o.value === "stage" && axes.stage) ||
     (o.value === "type"  && axes.type && useTypeTier) ||
     (o.value === "tier"  && axes.tier && useTypeTier));
@@ -205,6 +209,19 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   ]);
   classBox.style.display = useTypeTier ? "" : "none";
 
+  // Custom ladder state — only written to the event when pointsFrom is
+  // actually "custom". Seeded from whatever the event already has, or the
+  // class default so the editor never opens empty.
+  const customLadder = { rankPoints: { ...(existing?.customRankPoints || DEFAULTS.rankPoints) } };
+  const customBox = el("div");
+  renderLadderEditor(customBox, customLadder, {}, null);
+  const customFieldset = el("fieldset", {}, [
+    el("legend", { text: "Custom points for this event" }),
+    el("div.hint", { text: "This event's own rank ladder, worth more or less than its class/stage/type/tier default. Grade points, if this event awards them, still come from the shared grade table." }),
+    customBox
+  ]);
+  customFieldset.style.display = "none";
+
   const pointsWarn = el("div.hint");
   const pointsBox = el("fieldset", {}, [
     el("legend", { text: "Points" }),
@@ -212,8 +229,8 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       "Which ladder decides this event's rank AND grade points. One source only."),
     pointsWarn
   ]);
-  // With no axis switched on there is nothing to choose, so the whole box
-  // stays hidden and every event keeps using its class ladder.
+  // With no axis switched on there is nothing to choose but class vs custom,
+  // and custom is always worth showing.
   pointsBox.style.display = pointsOptions.length > 1 ? "" : "none";
 
   function syncPoints() {
@@ -222,7 +239,9 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     if (v === "stage") msg = "Uses the ladder configured for " + (stage.value === "onStage" ? "On stage" : "Off stage") + ".";
     if (v === "type")  msg = typeSel.value ? "Uses the ladder for this Type." : "No Type is set, so this event will fall back to its class ladder.";
     if (v === "tier")  msg = tierSel.value ? "Uses the ladder for this Tier." : "No Tier is set, so this event will fall back to its class ladder.";
+    if (v === "custom") msg = "Uses only the ladder set below — no fallback.";
     pointsWarn.textContent = msg;
+    customFieldset.style.display = v === "custom" ? "" : "none";
   }
   [pointsFrom, typeSel, tierSel, stage].forEach(n => n.addEventListener("change", syncPoints));
 
@@ -368,6 +387,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       field("Stage", stage),
       classBox,
       pointsBox,
+      customFieldset,
       resultBox,
       wholeTeamBox,
       reservedFieldset,
@@ -403,6 +423,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             typeId: useTypeTier ? (typeSel.value || null) : (existing?.typeId ?? null),
             tierId: useTypeTier ? (tierSel.value || null) : (existing?.tierId ?? null),
             pointsFrom: pointsFrom.value || "class",
+            customRankPoints: pointsFrom.value === "custom" ? { ...customLadder.rankPoints } : null,
             awardsGradePoints: awardsGrade,
             excludeFromTotals,
             resultMode: resultMode.value || "scored",
