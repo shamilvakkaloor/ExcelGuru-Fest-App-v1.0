@@ -5,6 +5,25 @@
 // modern OS. Zero dependencies, correct pagination, and the user gets page
 // setup controls for free.
 
+/**
+ * Wait for the print window's webfonts to actually finish loading before
+ * calling print() — a fixed delay is a guess, and on slow venue wifi a
+ * short guess loses: the fonts have not arrived yet, so the page prints
+ * in the browser's fallback face instead of Space Grotesk/Inter/JetBrains
+ * Mono. document.fonts.ready is exact when it is available; the timeout
+ * is only a safety net in case a font request hangs or the API is
+ * missing in an older browser.
+ */
+function waitForFonts(win, maxMs) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    if (win.document.fonts?.ready) win.document.fonts.ready.then(finish).catch(finish);
+    else finish();
+    setTimeout(finish, maxMs);
+  });
+}
+
 export function printDocument({ title, subtitle, bodyHTML, landscape = false, bare = false }) {
   const win = window.open("", "_blank", "width=900,height=700");
   if (!win) {
@@ -13,15 +32,27 @@ export function printDocument({ title, subtitle, bodyHTML, landscape = false, ba
   }
   // Bare mode drops the report chrome entirely — certificates and posters
   // set their own page size and bleed to the edges.
+  // Browsers omit background colours and background images from a print
+  // job by default — the checkbox is called "Background graphics" and
+  // almost nobody enables it. Every design here is built from filled
+  // boxes and coloured text, so without forcing it explicitly a
+  // certificate, poster or ID card prints as text on a blank white page:
+  // the header band, the accent rule, the fill colours all silently
+  // vanish, which is what "the font color and everything is missing on
+  // generate" actually was — the editor renders fine because it is a
+  // normal DOM view, not a print job, so this only ever showed up on the
+  // printed/PDF output.
+  const forceColor = `*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}`;
+
   if (bare) {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${escapeHTML(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<style>html,body{margin:0;padding:0;} .design-page{page-break-after:always;} .design-page:last-child{page-break-after:auto;}</style>
+<style>html,body{margin:0;padding:0;} .design-page{page-break-after:always;} .design-page:last-child{page-break-after:auto;} ${forceColor}</style>
 </head><body>${bodyHTML}</body></html>`);
     win.document.close();
     win.focus();
-    setTimeout(() => { win.print(); }, 900);
+    waitForFonts(win, 2500).then(() => win.print());
     return;
   }
 
@@ -29,6 +60,7 @@ export function printDocument({ title, subtitle, bodyHTML, landscape = false, ba
 <title>${escapeHTML(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
+  ${forceColor}
   @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: 14mm; }
   body { font-family: "Inter", system-ui, sans-serif; color: #10231C; font-size: 11pt; margin: 0; }
   h1 { font-family: "Space Grotesk", sans-serif; font-size: 20pt; margin: 0 0 2mm; }
@@ -88,8 +120,7 @@ ${bodyHTML}
 </body></html>`);
   win.document.close();
   win.focus();
-  // Give webfonts a moment, otherwise the first page prints in a fallback face.
-  setTimeout(() => { win.print(); }, 600);
+  waitForFonts(win, 2000).then(() => win.print());
 }
 
 /** Build a print-ready table from the same column shape the UI uses. */
