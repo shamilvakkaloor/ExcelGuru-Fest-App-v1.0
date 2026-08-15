@@ -1,5 +1,4 @@
-import { el, card, field, input, select, checkbox, button, table, toast, guard,
-         notice, empty, toLocalInput, fromLocalInput, confirmDialog, modal, badge } from "../../lib/ui.js";
+import { el, card, field, input, select, checkbox, button, table, toast, guard, notice, empty, toLocalInput, fromLocalInput, confirmDialog, modal, badge, hint } from "../../lib/ui.js";
 import { getOne, getAll, put, add, patch, remove, where } from "../../lib/db.js";
 import { DEFAULTS, EVENT_CLASSES, POOL_LABEL, CHEST_FORMATS, CHEST_ALLOCATIONS,
          rankCountFromLadder, RESULT_POLICIES, housePluralTerm } from "../../domain/constants.js";
@@ -132,16 +131,16 @@ async function basicTab(panel) {
   }, [
     el("div.grid.grid-2", { style: "gap:.6rem" }, [
       el("div", {}, [
-        el("div.hint", { text: "On the top bar" }),
+        hint("On the top bar"),
         el("div", { style: "background:#14232E;padding:.5rem .7rem;border-radius:6px" }, darkImg)
       ]),
       el("div", {}, [
-        el("div.hint", { text: "On a light page" }),
+        hint("On a light page"),
         el("div", { style: "background:#FFFFFF;border:1px solid var(--line);padding:.5rem .7rem;border-radius:6px" }, lightImg)
       ])
     ]),
     el("div", { style: "margin-top:.6rem" }, [
-      el("div.hint", { text: "On the home page" }),
+      hint("On the home page"),
       el("div", { style: "background:var(--grad-hero,#14232E);padding:.7rem;border-radius:6px" }, heroImg)
     ]),
     sizeNote
@@ -197,16 +196,16 @@ async function basicTab(panel) {
         "request-access screen instead of the manual." }),
       field("Link", manualUrl),
       field("Button label", manualLabel),
-      el("div.hint", { text: "Leave the link blank to hide the button entirely." })
+      hint("Leave the link blank to hide the button entirely.")
     ]),
     el("fieldset", {}, [
       el("legend", { text: "Terminology" }),
-      el("div.hint", { text: "Rename “House” across the admin panel, public pages and certificates — e.g. “Team” or “Zone”. Internal labels and code (houseId, the house role) never change, only what's shown." }),
+      hint("Rename “House” across the admin panel, public pages and certificates — e.g. “Team” or “Zone”. Internal labels and code (houseId, the house role) never change, only what's shown."),
       el("div.grid.grid-2", {}, [field("Singular", houseSingular), field("Plural", housePlural)])
     ]),
     el("fieldset", {}, [
       el("legend", { text: "Fest logo" }),
-      el("div.hint", { text: "Upload a PNG of your fest typography to show instead of the plain text name, on the home page and top bar. A transparent PNG works best — it sits on both a dark bar and a light page." }),
+      hint("Upload a PNG of your fest typography to show instead of the plain text name, on the home page and top bar. A transparent PNG works best — it sits on both a dark bar and a light page."),
       logoPreview,
       el("div.btn-row", { style: "margin:.6rem 0" }, [
         button("Upload logo", { class: "btn-sm", onclick: () => logoFile.click() }),
@@ -322,7 +321,7 @@ async function basicTab(panel) {
   panel.appendChild(card(el("div", {}, [
     checkbox("Blind judging on by default (judges see code letters only)", blind, v => blind = v),
     checkbox("Schedule visible to the public", schedVisible, v => schedVisible = v),
-    el("div.hint", { text: "While the schedule is hidden you can build and edit it privately." }),
+    hint("While the schedule is hidden you can build and edit it privately."),
     checkbox("Contact page visible to the public", contactsVisible, v => contactsVisible = v),
     el("div.hint", { text:
       "Adds a Contact tab to the public site. Only numbers ticked as public on each house " +
@@ -448,7 +447,7 @@ function categoryDialog(existing, panel) {
       field("Sort order", order),
       el("fieldset", {}, [
         el("legend", { text: "Automatic assignment (optional)" }),
-        el("div.hint", { text: "Used only when Fest details has automatic category assignment switched on. Both ranges are inclusive." }),
+        hint("Used only when Fest details has automatic category assignment switched on. Both ranges are inclusive."),
         el("div.grid.grid-2", {}, [field("Class from", classFrom), field("Class to", classTo)]),
         el("div.grid.grid-2", {}, [field("Born on or after", dobFrom), field("Born on or before", dobTo)])
       ])
@@ -516,6 +515,8 @@ async function classificationTab(panel) {
       useTypeTier = v;
       await patch("config", "festSettings", { useTypeTier: v });
       toast(v ? "Type and Tier are now available on events." : "Type and Tier are hidden.");
+      panel.innerHTML = "";
+      classificationTab(panel);
     })),
     el("p.hint", { text:
       "Stage (on-stage / off-stage) is always available and lives on the event " +
@@ -527,7 +528,12 @@ async function classificationTab(panel) {
     )
   ]), "Classification axes"));
 
-  if (!useTypeTier) return;
+  if (!useTypeTier) {
+    panel.appendChild(notice("info",
+      "Turn this on to manage the list of Types and Tiers here — the Add/Edit " +
+      "controls for both only appear once it's switched on."));
+    return;
+  }
 
   typeTierList(panel, "programTypes", "Types",
     "e.g. Speech, Song, Essay, Language",
@@ -993,7 +999,7 @@ function constraintDialog(existing, events, types, refresh) {
       types.length ? el("fieldset", {}, [el("legend", { text: "Whole Types" }), typeBox]) : null,
       el("fieldset", {}, [
         el("legend", { text: "Individual events" }),
-        el("div.hint", { text: "Add specific events on top of any Types above." }),
+        hint("Add specific events on top of any Types above."),
         eventBox
       ])
     ].filter(Boolean)),
@@ -1209,7 +1215,7 @@ async function limitsTab(panel) {
       const combinedGrid = el("div.grid.grid-2", { style: "margin-top:.5rem" });
       const bystage = el("div", {}, [
         stageGrid, combinedGrid,
-        el("div.hint", { text: "The combined pair caps both stages together — leave blank for no overall limit on this class." })
+        hint("The combined pair caps both stages together — leave blank for no overall limit on this class.")
       ]);
 
       function paintCls() {
@@ -1243,7 +1249,7 @@ async function limitsTab(panel) {
     const axisCaps = (box, list, caps, prefix) => {
       box.innerHTML = "";
       if (!list.length) {
-        box.appendChild(el("div.hint", { text: "None defined yet — add them on the Type & Tier tab." }));
+        box.appendChild(hint("None defined yet — add them on the Type & Tier tab."));
         return;
       }
       for (const t of list) {
@@ -1403,7 +1409,7 @@ async function leaderboardTab(panel) {
     state.tieBreakOrder = order;
 
     if (!order.length) {
-      tieBox.appendChild(el("div.hint", { text: "All pools are counted in the score, so none are available as tiebreakers." }));
+      tieBox.appendChild(hint("All pools are counted in the score, so none are available as tiebreakers."));
       return;
     }
     order.forEach((k, i) => {
@@ -1467,11 +1473,11 @@ async function leaderboardTab(panel) {
   function paintManual() {
     manualBox.innerHTML = "";
     if (!board) {
-      manualBox.appendChild(el("div.hint", { text: "Publish some results first — ties are read from the published standings." }));
+      manualBox.appendChild(hint("Publish some results first — ties are read from the published standings."));
       return;
     }
     if (!tied.length) {
-      manualBox.appendChild(el("div.hint", { text: "No ties in the current standings." }));
+      manualBox.appendChild(hint("No ties in the current standings."));
       return;
     }
     for (const { total, group } of tied) {
@@ -1693,7 +1699,7 @@ function boardDialog(existing, vocab, refresh) {
 
   const qualifyBox = el("fieldset", {}, [
     el("legend", { text: "Qualification" }),
-    el("div.hint", { text: "Restricts who APPEARS on this board — a qualifying participant's total is still every point the filters above matched, not only the qualifying entries." }),
+    hint("Restricts who APPEARS on this board — a qualifying participant's total is still every point the filters above matched, not only the qualifying entries."),
     field("Rule", qualifyMode),
     rankBox, qualifyGrades.node, countField,
     qualifyCats.node,
@@ -1710,7 +1716,7 @@ function boardDialog(existing, vocab, refresh) {
       stages.node, types.node, tiers.node, cats.node,
       el("details", {}, [
         el("summary", { text: "Or pick individual events" }),
-        el("div.hint", { text: "Ticking any event here replaces the axis filters above." }),
+        hint("Ticking any event here replaces the axis filters above."),
         eventBox, axisNote
       ]),
       qualifyBox,
@@ -1815,7 +1821,7 @@ async function dangerTab(panel) {
 
     goBtn.disabled = true;
     status.innerHTML = "";
-    const progress = el("div.hint", { text: "Starting…" });
+    const progress = hint("Starting…");
     status.appendChild(progress);
 
     try {

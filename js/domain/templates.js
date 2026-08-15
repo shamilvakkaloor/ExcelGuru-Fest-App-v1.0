@@ -9,6 +9,10 @@
 
 export const A4 = { w: 297, h: 210 };           // landscape, millimetres
 export const A4_PORTRAIT = { w: 210, h: 297 };
+// A 16:9 "slide" is not a paper size — the mm units are just a coordinate
+// system here, same as every other design. Sized to print/export cleanly
+// at a normal screen resolution (1920×1080px @ ~144dpi).
+export const SLIDE_16_9 = { w: 338.67, h: 190.5 };
 
 export const PLACEHOLDERS = [
   { token: "{name}",      label: "Participant name" },
@@ -22,6 +26,7 @@ export const PLACEHOLDERS = [
   { token: "{event}",     label: "Event name" },
   { token: "{rank}",      label: "Placement" },
   { token: "{grade}",     label: "Grade" },
+  { token: "{eventResults}", label: "Every placement in one event, one per line" },
   { token: "{fest}",      label: "Fest name" },
   { token: "{school}",    label: "School name" },
   { token: "{date}",      label: "Today's date" },
@@ -145,17 +150,71 @@ function idCard() {
   };
 }
 
+/**
+ * Event results board — every placement for ONE event on one page, not one
+ * winner per page like winnerPoster(). Uses {eventResults}: a single
+ * multi-line text block, one line per rank, built by the generator the same
+ * way a participant's {results} already lists every event they placed in —
+ * no new rendering primitive needed, just a token filled with more lines.
+ */
+function eventRanksPoster() {
+  return {
+    name: "Event Results — Poster",
+    page: A4_PORTRAIT,
+    background: "#14232E",
+    backgroundImage: null,
+    elements: [
+      el("glow", "box", { x: -40, y: -40, w: 180, h: 180, fill: "#6C4BD6", stroke: "none", strokeWidth: 0, radius: 90, opacity: 0.3 }),
+      el("fest", "text", { x: 15, y: 20, w: 180, text: "{fest}", size: 11, font: "sans", color: "#F5A524", align: "center", weight: 700, spacing: 3 }),
+      el("event", "text", { x: 10, y: 38, w: 190, text: "{event}", size: 26, font: "sans", color: "#FFFFFF", align: "center", weight: 700 }),
+      el("category", "text", { x: 15, y: 62, w: 180, text: "{category}", size: 11, font: "sans", color: "#A9BBD0", align: "center", weight: 400 }),
+      el("rule", "box", { x: 75, y: 74, w: 60, h: 0.6, fill: "#F5A524", stroke: "none", strokeWidth: 0 }),
+      el("results", "text", { x: 20, y: 88, w: 170, text: "{eventResults}", size: 13, font: "sans", color: "#FFFFFF", align: "left", weight: 600, lineHeight: 2.1 }),
+      el("date_lbl", "text", { x: 15, y: 280, w: 180, text: "{school} · {date}", size: 8.5, font: "sans", color: "#7B8DA0", align: "center", weight: 400 })
+    ]
+  };
+}
+
+/** Same event-results board, sized 16:9 for a projector or hall screen. */
+function eventRanksScreen() {
+  const { w, h } = SLIDE_16_9;
+  return {
+    name: "Event Results — Screen (16:9)",
+    page: SLIDE_16_9,
+    background: "#14232E",
+    backgroundImage: null,
+    elements: [
+      el("glow", "box", { x: -50, y: -50, w: 220, h: 220, fill: "#6C4BD6", stroke: "none", strokeWidth: 0, radius: 110, opacity: 0.3 }),
+      el("fest", "text", { x: 20, y: 20, w: w - 40, text: "{fest}", size: 11, font: "sans", color: "#F5A524", align: "center", weight: 700, spacing: 3 }),
+      el("event", "text", { x: 10, y: 36, w: w - 20, text: "{event}", size: 30, font: "sans", color: "#FFFFFF", align: "center", weight: 700 }),
+      el("category", "text", { x: 20, y: 58, w: w - 40, text: "{category}", size: 12, font: "sans", color: "#A9BBD0", align: "center", weight: 400 }),
+      el("rule", "box", { x: w / 2 - 30, y: 70, w: 60, h: 0.6, fill: "#F5A524", stroke: "none", strokeWidth: 0 }),
+      el("results", "text", { x: 40, y: 84, w: w - 80, text: "{eventResults}", size: 14, font: "sans", color: "#FFFFFF", align: "left", weight: 600, lineHeight: 2 }),
+      el("date_lbl", "text", { x: 20, y: h - 16, w: w - 40, text: "{school} · {date}", size: 8.5, font: "sans", color: "#7B8DA0", align: "center", weight: 400 })
+    ]
+  };
+}
+
 export const TEMPLATES = {
-  classicGold, modernIndigo, withPhoto, winnerPoster, idCard
+  classicGold, modernIndigo, withPhoto, winnerPoster, idCard,
+  eventRanksPoster, eventRanksScreen
 };
 
 export const TEMPLATE_LIST = [
-  { id: "classicGold",  label: "Design 1 — Classic Gold" },
-  { id: "modernIndigo", label: "Design 2 — Modern Indigo" },
-  { id: "withPhoto",    label: "Design 3 — With Photo" },
-  { id: "winnerPoster", label: "Design 4 — Winner Poster" },
-  { id: "idCard",       label: "Design 5 — Participant ID Card" }
+  { id: "classicGold",  label: "Classic Gold",  kind: "certificate" },
+  { id: "modernIndigo", label: "Modern Indigo", kind: "certificate" },
+  { id: "withPhoto",    label: "With Photo",    kind: "certificate" },
+  { id: "winnerPoster", label: "Winner Poster", kind: "poster" },
+  { id: "eventRanksPoster", label: "Event Results (all ranks)",         kind: "poster" },
+  { id: "eventRanksScreen", label: "Event Results (all ranks) — 16:9", kind: "poster" },
+  { id: "idCard",       label: "Participant ID Card", kind: "idcard" }
 ];
+
+export const TEMPLATE_KIND_LABEL = {
+  certificate: "Certificates",
+  poster: "Posters",
+  idcard: "ID cards"
+};
 
 export function loadTemplate(id) {
   const fn = TEMPLATES[id] || TEMPLATES.classicGold;

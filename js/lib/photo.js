@@ -155,3 +155,46 @@ export function avatar(p, size = 44) {
 
 export const PHOTO_HELP =
   'Upload a photo, or paste a Google Drive link shared with "Anyone with the link". Uploads are resized automatically.';
+
+/**
+ * The photo to embed on a printed certificate/ID card, as a data URL.
+ *
+ * Certificates print into a synchronously-opened window, which cannot await
+ * a live `photoURL` image load — so a Drive-linked photo used to render as
+ * the placeholder silhouette on print even though it showed fine in the
+ * live participant list. This fetches the link once and inlines it as a
+ * data URL instead, so print output matches what the admin already sees.
+ * Falls back to "" (placeholder) if the fetch fails — an unreachable or
+ * CORS-blocked link must not break the whole print run.
+ */
+export async function resolvePrintPhoto(p) {
+  if (p?.photoData) return p.photoData;
+  if (!p?.photoURL) return "";
+  try {
+    const res = await fetch(p.photoURL, { mode: "cors" });
+    if (!res.ok) return "";
+    const blob = await res.blob();
+    if (!blob.type.startsWith("image/")) return "";
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read that image."));
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Resolve print photos for many participants at once, deduped by id.
+ * Returns a Map(participantId -> data URL | "").
+ */
+export async function resolvePrintPhotos(participants) {
+  const cache = new Map();
+  await Promise.all(participants.map(async p => {
+    if (cache.has(p.id)) return;
+    cache.set(p.id, await resolvePrintPhoto(p));
+  }));
+  return cache;
+}

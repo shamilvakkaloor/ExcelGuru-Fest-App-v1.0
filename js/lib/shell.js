@@ -21,7 +21,8 @@ import { session, is, logout } from "./session.js";
 import { themeButton } from "../app.js";
 import { onRepublish, republishNow, isRepublishing } from "../domain/republish.js";
 import { getOne, getAll, where } from "./db.js";
-import { navigate, currentPath, queryParams } from "./router.js";
+import { navigate, currentPath, queryParams, render } from "./router.js";
+import { getLang, setLang } from "./i18n.js";
 
 export const APP_VERSION = "9.0";
 
@@ -63,6 +64,32 @@ function navLabel(label) {
   if (label === "Houses") return window.__HOUSE_TERM_PLURAL__ || "Houses";
   if (label === "House") return window.__HOUSE_TERM__ || "House";
   return label;
+}
+
+/**
+ * En/Malayalam switch for hint text (lib/i18n.js). Unlike the theme toggle,
+ * switching language changes actual text content, not just CSS variables —
+ * there is no way to repaint every open ".hint" in place, so this re-runs
+ * the router's current-page render instead, the same mechanism a normal
+ * navigation uses.
+ */
+function langToggle() {
+  const wrap = el("div.lang-toggle");
+  function paint() {
+    wrap.innerHTML = "";
+    const cur = getLang();
+    for (const [code, label, title] of [["en", "EN", "English"], ["ml", "മല", "Malayalam"]]) {
+      const b = el("button.lang-btn" + (cur === code ? ".on" : ""), { type: "button", title, text: label });
+      b.addEventListener("click", () => {
+        if (getLang() === code) return;
+        setLang(code);
+        render();
+      });
+      wrap.appendChild(b);
+    }
+  }
+  paint();
+  return wrap;
 }
 
 export function applyFestName(festName) {
@@ -144,8 +171,10 @@ function buildAreas() { return [
         { label: "Schedule",    icon: "calendar", to: "/schedule" },
         { label: "Lookup",      icon: "search",   to: "/lookup" },
         { label: "Templates",   icon: "award",    to: "/templates" },
-        { label: "Big screen",  icon: "monitor",  to: "/screen" },
-        { label: "Slideshow",   icon: "monitor",  to: "/slideshow" }
+        { label: "Big screen",  icon: "monitor",  to: "/screen",
+          hint: "Full rotating display for a live hall — also announces which event is currently running on stage." },
+        { label: "Slideshow",   icon: "monitor",  to: "/slideshow",
+          hint: "Simpler rotating results & standings board, no “now running” slide — for a lobby or projector." }
       ]
     }]
   },
@@ -156,11 +185,13 @@ function buildAreas() { return [
       items: [
         { label: "Fest details",       icon: "sliders", to: "/admin/settings?tab=basic" },
         { label: "Categories",         icon: "list",    to: "/admin/settings?tab=categories" },
+        { label: "Type & Tier",        icon: "list",    to: "/admin/settings?tab=classification" },
         { label: "Public display",     icon: "eye",     to: "/admin/settings?tab=public" },
         { label: "Points & grades",    icon: "star",    to: "/admin/settings?tab=points" },
         { label: "Participant limits", icon: "shield",  to: "/admin/settings?tab=limits" },
         { label: "Entry constraints",  icon: "shield",  to: "/admin/settings?tab=constraints" },
         { label: "Leaderboard",        icon: "trophy",  to: "/admin/settings?tab=leaderboard" },
+        { label: "Appeals",            icon: "shield",  to: "/admin/settings?tab=appeals" },
         { label: "My password",        icon: "key",     to: "/admin/settings?tab=password" },
         { label: "Danger zone",        icon: "alert",   to: "/admin/settings?tab=danger" }
       ]
@@ -247,6 +278,11 @@ export function appShell(root, { title, breadcrumb } = {}) {
   }
 
   rail.appendChild(el("div.spacer"));
+  // Admin-only: the hint-text language switch. Not shown to Judge, House
+  // Manager, Stage Manager or the public — the toggle changes only the
+  // small explanation lines under a field, and only an Admin edits Settings
+  // enough for that to matter.
+  if (is.admin()) rail.appendChild(langToggle());
   rail.appendChild(themeButton());
   rail.appendChild(el("button.rail-item", {
     type: "button", title: "Sign out",
@@ -332,6 +368,7 @@ export function appShell(root, { title, breadcrumb } = {}) {
         listBox.appendChild(el("a.navitem" + (isActive ? ".on" : ""), {
           href: "#" + it.to,
           "aria-current": isActive ? "page" : null,
+          title: it.hint || null,
           onclick: () => frame.classList.remove("nav-open")
         }, [icon(it.icon || "list", 17), el("span", { text: navLabel(it.label) })]));
 

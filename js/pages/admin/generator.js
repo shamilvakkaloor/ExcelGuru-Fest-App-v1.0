@@ -4,13 +4,12 @@
 // mutates plain numbers and strings. Saved designs live in
 // designs/{id} and are reused at generation time, which is why what you
 // arrange on screen is exactly what prints.
-import { el, card, field, input, select, button, toast, guard, notice, empty,
-         badge, modal, confirmDialog, loading, checkbox } from "../../lib/ui.js";
+import { el, card, field, input, select, button, toast, guard, notice, empty, badge, modal, confirmDialog, loading, checkbox, hint } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, where } from "../../lib/db.js";
 import { printDocument } from "../../lib/pdf.js";
-import { loadTemplate, TEMPLATE_LIST, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
+import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
 import { renderCanvas, renderPageHTML, previewData } from "../../lib/designRender.js";
-import { compressImage } from "../../lib/photo.js";
+import { compressImage, resolvePrintPhotos, resolvePrintPhoto } from "../../lib/photo.js";
 import { PUBLISH_STATUS, classLabel, EVENT_CLASSES } from "../../domain/constants.js";
 import { highestRankAwarded, gradeLabel } from "../../domain/scoring.js";
 
@@ -52,10 +51,19 @@ export default async function generator(root) {
         "No results are published yet. You can design freely now, but generating uses published results only."));
     }
 
+    const kindOrder = ["certificate", "poster", "idcard"];
+    const kindGroups = kindOrder
+      .map(kind => ({ kind, items: TEMPLATE_LIST.filter(t => t.kind === kind) }))
+      .filter(g => g.items.length);
+
     wrapper.appendChild(card(el("div", {}, [
       el("p.hint", { text: "Start from a template, arrange it on the canvas, then generate for everyone at once." }),
-      el("div.chip-row", {}, TEMPLATE_LIST.map(t =>
-        el("button.chip", { type: "button", text: t.label, onclick: () => openEditor(loadTemplate(t.id), null) })))
+      ...kindGroups.map(g => el("div", { style: "margin-bottom:.9rem" }, [
+        el("div.hint", { style: "margin:0 0 .3rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em",
+          text: TEMPLATE_KIND_LABEL[g.kind] || g.kind }),
+        el("div.chip-row", {}, g.items.map(t =>
+          el("button.chip", { type: "button", text: t.label, onclick: () => openEditor(loadTemplate(t.id), null) })))
+      ]))
     ]), "New design"));
 
     wrapper.appendChild(card(
@@ -238,7 +246,7 @@ export default async function generator(root) {
 
       const e = design.elements.find(x => x.id === selectedId);
       if (!e) {
-        right.appendChild(el("div.hint", { text: "Select an element on the canvas or in the layers list." }));
+        right.appendChild(hint("Select an element on the canvas or in the layers list."));
         return;
       }
 
@@ -365,10 +373,16 @@ export default async function generator(root) {
 
   /* ══ Generation ════════════════════════════════════════════════ */
   async function generateDialog(d) {
-    const [participants, houses, results, settings, categories] = await Promise.all([
+    const [participants, houses, results, settings, categories, types, tiers] = await Promise.all([
       getAll("participants"), getAll("houses"), getAll("results"),
-      getOne("config", "festSettings"), getAll("categories")
+      getOne("config", "festSettings"), getAll("categories"),
+      getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => [])
     ]);
+    // B5 — Generate crashed for any fest with a published result: this
+    // dialog builds `typeName`/`tierName` lookups per event below, but the
+    // maps themselves were never fetched here (only paintList() had them).
+    const typeName = Object.fromEntries(types.map(t => [t.id, t.name]));
+    const tierName = Object.fromEntries(tiers.map(t => [t.id, t.name]));
     const published = results.filter(r => r.publishStatus === PUBLISH_STATUS.PUBLISHED);
 
     /* B4 — THE CERTIFICATE POPULATION BUG.
@@ -385,12 +399,20 @@ export default async function generator(root) {
     const mode = select([
       { value: "registered",  label: "Every registered participant (participation certificates)" },
       { value: "participants", label: "Participants in published events" },
-      { value: "winners",      label: "Winners only (posters)" }
+      { value: "winners",      label: "Winners only (posters)" },
+      { value: "eventranks",   label: "One event — every rank on one page" }
     ]);
     const houseSel = select([{ value: "", label: "All houses" },
       ...houses.map(h => ({ value: h.id, label: h.name }))]);
     const catSel = select([{ value: "", label: "All categories" },
       ...categories.map(c => ({ value: c.id, label: c.name }))]);
+    const eventSel = select(
+      published.map(r => ({ value: r.id, label: r.eventName })),
+      {}
+    );
+    const eventField = field("Event", eventSel, "Only finalized, published events have results to show.");
+    eventField.style.display = "none";
+    if (!published.length) eventSel.disabled = true;
 
     // Ranks come from the ladder, not a hard-coded 1..3 — a fest awarding a
     // fourth place was silently cut off.
@@ -405,9 +427,18 @@ export default async function generator(root) {
     }
     const rankField = field("Ranks to include", rankBox, "None selected means every placement.");
     const batchSize = input({ type: "number", min: 1, value: 100 });
+    const houseField = field("House", houseSel);
+    const catField = field("Category", catSel);
+    const batchField = field("Pages per print window", batchSize,
+      "Large runs are split so the browser is never holding hundreds of pages at once.");
 
     function syncMode() {
-      rankField.style.display = mode.value === "registered" ? "none" : "";
+      const isEventRanks = mode.value === "eventranks";
+      rankField.style.display = (mode.value === "registered" || isEventRanks) ? "none" : "";
+      houseField.style.display = isEventRanks ? "none" : "";
+      catField.style.display = isEventRanks ? "none" : "";
+      batchField.style.display = isEventRanks ? "none" : "";
+      eventField.style.display = isEventRanks ? "" : "none";
     }
     mode.addEventListener("change", syncMode);
 
@@ -415,16 +446,47 @@ export default async function generator(root) {
       title: "Generate — " + (d.name || "design"),
       body: el("div", {}, [
         field("Who to produce for", mode),
-        field("House", houseSel),
-        field("Category", catSel),
+        houseField,
+        catField,
         rankField,
-        field("Pages per print window", batchSize,
-          "Large runs are split so the browser is never holding hundreds of pages at once."),
+        eventField,
+        batchField,
         el("p.hint", { text: "Opens your browser's print window. Choose \"Save as PDF\" as the destination." })
       ]),
       actions: [
         { label: "Cancel" },
         { label: "Generate", kind: "accent", closes: false, busyLabel: "Building…", onClick: guard(async close => {
+            if (mode.value === "eventranks") {
+              const res = published.find(r => r.id === eventSel.value);
+              if (!res) { toast("Pick an event with published results.", true); return false; }
+              const entries = (res.entries || []).filter(e => !e.isAbsent && e.rank);
+              if (!entries.length) { toast("No ranked placements for that event.", true); return false; }
+              const lines = entries
+                .slice()
+                .sort((a, b) => a.rank - b.rank)
+                .map(e => {
+                  const who = (e.participantNames && e.participantNames.length > 1)
+                    ? (e.houseName || "")
+                    : [e.participantNames?.[0], e.houseName].filter(Boolean).join(" — ");
+                  const gradeSuffix = e.grade ? ` (${gradeLabel(e.grade, settings)})` : "";
+                  return `${placeLabel(e.rank)} — ${who}${gradeSuffix}`;
+                });
+              const html = renderPageHTML(d, {
+                fest: settings?.festName || "", school: settings?.schoolName || "",
+                date: new Date().toLocaleDateString(),
+                event: res.eventName, category: res.categoryName || "",
+                eventResults: lines.join("\n")
+              });
+              printDocument({
+                title: (d.name || "Event results") + " — " + res.eventName, bare: true,
+                landscape: d.page.w > d.page.h,
+                bodyHTML: `<style>.design-page{position:relative;overflow:hidden;}
+                  @page{size:${d.page.w}mm ${d.page.h}mm;margin:0;}
+                  body{margin:0;}</style>` + html
+              });
+              close(true);
+              return;
+            }
             const byParticipant = {};
             for (const res of published) {
               for (const e of res.entries || []) {
@@ -446,6 +508,7 @@ export default async function generator(root) {
             const pages = [];
 
             const wantRank = r => !picked.size || picked.has(r);
+            const photoMapAll = await resolvePrintPhotos(participants);
 
             if (mode.value === "registered" || mode.value === "participants") {
               // "registered" does NOT require a published result — that was
@@ -472,9 +535,10 @@ export default async function generator(root) {
                   name: p.name, chest: p.chestNumber ?? "",
                   house: houses.find(h => h.id === p.houseId)?.name || "",
                   category: p.categoryName || "", class: p.className || "",
-                  // Base64 only: an external Drive link routinely renders
-                  // blank in a print window and cannot be awaited.
-                  photo: p.photoData || "",
+                  // A Drive-linked photo is fetched and inlined as a data
+                  // URL up front — see resolvePrintPhotos() — so it prints
+                  // instead of falling back to the placeholder silhouette.
+                  photo: photoMapAll.get(p.id) || "",
                   /* No single event is in scope for a participation
                    * certificate. If every one of their results shares a
                    * Type, that is unambiguous and worth printing; a mix
@@ -500,7 +564,7 @@ export default async function generator(root) {
                       ...base,
                       name: p.name, chest: p.chestNumber ?? "",
                       house: e.houseName || "", category: p.categoryName || "", class: p.className || "",
-                      photo: p.photoData || "",
+                      photo: photoMapAll.get(p.id) || "",
                       type: typeName[res.typeId] || "", tier: tierName[res.tierId] || "",
                       event: res.eventName, rank: placeLabel(e.rank), grade: e.grade ? gradeLabel(e.grade, settings) : "",
                       results: `${res.eventName} — ${placeLabel(e.rank)}`
@@ -596,7 +660,7 @@ function singleDialog(design, published, typeName, tierName) {
           el("div.hint", { style: "margin:0", text:
             `${p.houseName || ""} · ${p.categoryName || ""} · ${entries.length} published result${entries.length === 1 ? "" : "s"}` })
         ]),
-        button("Print", { class: "btn-sm btn-accent", onclick: () => {
+        button("Print", { class: "btn-sm btn-accent", onclick: guard(async () => {
           const base = {
             fest: settings?.festName || "", school: settings?.schoolName || "",
             date: new Date().toLocaleDateString()
@@ -607,7 +671,7 @@ function singleDialog(design, published, typeName, tierName) {
             name: p.name, chest: p.chestNumber ?? "",
             house: houses.find(h => h.id === p.houseId)?.name || p.houseName || "",
             category: p.categoryName || "", class: p.className || "",
-            photo: p.photoData || "",
+            photo: await resolvePrintPhoto(p),
             type: first ? (typeName[first.res.typeId] || "") : "",
             tier: first ? (tierName[first.res.tierId] || "") : "",
             event: first?.res.eventName || "",
@@ -623,7 +687,7 @@ function singleDialog(design, published, typeName, tierName) {
               @page{size:${design.page.w}mm ${design.page.h}mm;margin:0;}
               body{margin:0;}</style>` + html
           });
-        }})
+        })})
       ]));
     }
   });
