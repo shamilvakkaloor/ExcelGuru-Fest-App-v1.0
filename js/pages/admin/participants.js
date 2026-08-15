@@ -1,5 +1,4 @@
-import { el, card, field, input, select, button, table, toast, guard, notice, empty,
-         modal, confirmDialog, badge, debounce, photoPicker, loading, checkbox } from "../../lib/ui.js";
+import { el, card, field, input, select, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, debounce, photoPicker, loading, checkbox, hint } from "../../lib/ui.js";
 import { getAll, getOne, add, patch, remove, put, where, batchWrite } from "../../lib/db.js";
 import { parseCSVObjects, readFile, toCSV, downloadText } from "../../lib/csv.js";
 import { resolvePhotoLink, PHOTO_HELP, avatar } from "../../lib/photo.js";
@@ -445,7 +444,7 @@ function importDialog(houses, categories, cfg, refresh) {
             out.appendChild(notice("warn", el("div", {}, [
               el("strong", { text: `Imported ${staged.length}. Skipped ${errors.length}.` }),
               el("ul", {}, errors.map(e => el("li", { text: e }))),
-              el("div.hint", { text: "Fix these rows in the file and import them again — the rows above were not added." })
+              hint("Fix these rows in the file and import them again — the rows above were not added.")
             ])));
             toast(`Imported ${staged.length}, skipped ${errors.length}.`, true);
             return false;

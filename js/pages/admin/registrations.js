@@ -1,5 +1,4 @@
-import { el, card, field, input, select, button, table, toast, guard, notice, empty,
-         modal, confirmDialog, badge, fmtDateTime, fromLocalInput, filterBar } from "../../lib/ui.js";
+import { el, card, field, input, select, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, fmtDateTime, fromLocalInput, filterBar, hint } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, batchWrite, where } from "../../lib/db.js";
 import { codeLetterAt, classLabel, isGroupClass, eventLabel, entryLabel,
          eventFilterKeys, typeTierFilters, EVENT_CLASSES } from "../../domain/constants.js";
@@ -246,7 +245,7 @@ function extensionDialog(event, houses, refresh) {
   function paintList() {
     listBox.innerHTML = "";
     const rows = Object.entries(ext);
-    if (!rows.length) { listBox.appendChild(el("div.hint", { text: "No extensions in force." })); return; }
+    if (!rows.length) { listBox.appendChild(hint("No extensions in force.")); return; }
     const houseName = Object.fromEntries(houses.map(h => [h.id, h.name]));
     for (const [key, ts] of rows) {
       listBox.appendChild(el("div.slot-row", {}, [
@@ -314,7 +313,7 @@ function substitutionDialog(event, houses, refresh) {
   function paintList() {
     listBox.innerHTML = "";
     const rows = Object.entries(openFor).filter(([, v]) => v);
-    if (!rows.length) { listBox.appendChild(el("div.hint", { text: "Substitutions are closed for every house on this event." })); return; }
+    if (!rows.length) { listBox.appendChild(hint("Substitutions are closed for every house on this event.")); return; }
     const houseName = Object.fromEntries(houses.map(h => [h.id, h.name]));
     for (const [key] of rows) {
       listBox.appendChild(el("div.slot-row", {}, [

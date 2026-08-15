@@ -2,8 +2,7 @@
 // to one participant at a time, distinct from the ranked results a scored
 // event produces. A title always carries a description, because "why" is
 // the part a plaque or a public listing actually needs.
-import { el, card, field, input, table, button, badge, toast, guard, notice,
-         empty, modal, confirmDialog, loading, debounce, friendlyError } from "../../lib/ui.js";
+import { el, card, field, input, table, button, badge, toast, guard, notice, empty, modal, confirmDialog, loading, debounce, friendlyError, hint } from "../../lib/ui.js";
 import { getAll, add, patch, remove, where, limit, orderBy } from "../../lib/db.js";
 import { session } from "../../lib/session.js";
 
@@ -88,8 +87,7 @@ function titleDialog(existing, refresh) {
         button("Clear", { class: "btn-sm", onclick: () => { chosen = null; paintChosen(); } })
       ]));
     } else {
-      chosenOut.appendChild(el("div.hint", {
-        text: "No winner chosen yet — save the title as-is and assign one later by editing it." }));
+      chosenOut.appendChild(hint("No winner chosen yet — save the title as-is and assign one later by editing it."));
     }
   }
   paintChosen();
@@ -110,7 +108,7 @@ function titleDialog(existing, refresh) {
       ? await getAll("participants", where("chestNumber", "==", term), limit(6)).catch(() => [])
       : [];
     const matches = [...byChest, ...byName].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
-    if (!matches.length) { searchOut.appendChild(el("div.hint", { text: "No match." })); return; }
+    if (!matches.length) { searchOut.appendChild(hint("No match.")); return; }
     for (const p of matches) {
       searchOut.appendChild(button(`${p.name} — #${p.chestNumber ?? "—"} · ${p.houseName || ""}`, {
         class: "btn-sm", style: "display:block;width:100%;text-align:left;margin-bottom:.3rem",

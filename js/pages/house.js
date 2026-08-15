@@ -1,7 +1,6 @@
 // House Manager panel: register the house's own participants for events,
 // withdraw before code letters are assigned, and download the house's lists.
-import { el, card, field, input, select, button, table, toast, guard, notice,
-         empty, badge, modal, confirmDialog, loading, filterBar, uniqOptions } from "../lib/ui.js";
+import { el, card, field, input, select, button, table, toast, guard, notice, empty, badge, modal, confirmDialog, loading, filterBar, uniqOptions, hint } from "../lib/ui.js";
 import { avatar } from "../lib/photo.js";
 import { getAll, getOne, add, where } from "../lib/db.js";
 import { appShell } from "../lib/shell.js";
@@ -741,7 +740,7 @@ async function appealsTab(panel, house, refresh) {
 function appealDialog(entry, house, settings, refresh) {
   const reason = el("textarea", { rows: 3, placeholder: "What is being appealed, and why." });
   let screenshot = null;
-  const sizeNote = el("div.hint", { text: "Attach a screenshot showing the appeal fee was paid." });
+  const sizeNote = hint("Attach a screenshot showing the appeal fee was paid.");
   const preview = el("img", { style: "max-width:100%;max-height:160px;display:none;margin-top:.4rem" });
 
   const shotFile = el("input", { type: "file", accept: "image/*", style: "display:none" });

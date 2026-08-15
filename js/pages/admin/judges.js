@@ -3,7 +3,7 @@
 // This screen exists because assignments were previously only visible by
 // opening each event one at a time, which made it impossible to see at a
 // glance whether every event had a judge or whether a judge had finished.
-import { el, card, table, button, badge, empty, notice, guard, toast, select, field, loading } from "../../lib/ui.js";
+import { el, card, table, button, badge, empty, notice, guard, toast, select, field, loading, hint } from "../../lib/ui.js";
 import { getAll, getOne, where, batchWrite } from "../../lib/db.js";
 import { classLabel, eventLabel, PUBLISH_STATUS } from "../../domain/constants.js";
 import { toCSV, downloadText } from "../../lib/csv.js";
@@ -101,7 +101,7 @@ export default async function judgesPage(root) {
               r.status === "complete" ? "badge-ok"
               : r.status === "in progress" ? "badge-warn"
               : r.status === "no entries" ? "" : "badge-danger") }
-        ], rows) : el("div.hint", { text: "No events assigned yet." }),
+        ], rows) : hint("No events assigned yet."),
         `${j.name} — ${complete}/${rows.length} complete`,
         rows.length ? [
           button("CSV", { class: "btn-sm", onclick: () => downloadText(

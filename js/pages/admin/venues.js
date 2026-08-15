@@ -7,8 +7,7 @@
 // and "Stage 1 on Day 2" to be two venue records sharing a name, and made it
 // impossible to list days in order without duplicating venues. Days are now
 // their own records; slots carry a dayId.
-import { el, card, field, input, select, button, table, toast, guard, notice, empty,
-         modal, confirmDialog, badge, filterBar } from "../../lib/ui.js";
+import { el, card, field, input, select, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, filterBar, hint } from "../../lib/ui.js";
 import { getAll, getOne, add, patch, remove, put, batchWrite } from "../../lib/db.js";
 import { loadDays, venueStart } from "../../domain/publish.js";
 import { queueRepublish } from "../../domain/republish.js";
@@ -127,7 +126,7 @@ export default async function venues(root) {
             ]);
             return chip;
           }))
-        : el("div.hint", { text: "No days yet." })
+        : hint("No days yet.")
     ]), "Days"));
 
     if (!days.length) return;
@@ -144,7 +143,7 @@ export default async function venues(root) {
         ? el("div.tabs", {}, venueRows.map(v => button(
             v.name + " · " + venueStart(v, dayId),
             { class: v.id === venueId ? "active" : "", onclick: () => { venueId = v.id; paint(); } })))
-        : el("div.hint", { text: "No venues yet." })
+        : hint("No venues yet.")
     ]), "Venues on " + day.label));
 
     if (!venueRows.length) return;

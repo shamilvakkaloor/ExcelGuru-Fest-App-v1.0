@@ -1,7 +1,7 @@
 // Public results. Reads ONLY the pre-built snapshot documents — one for the
 // leaderboard, one per published event — so a page load costs a handful of
 // reads no matter how many participants the fest has.
-import { el, card, table, empty, badge, button, notice, filterBar } from "../lib/ui.js";
+import { el, card, table, empty, badge, button, notice, filterBar, hint } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { topbar } from "../app.js";
 import { POOL_LABEL, classLabel, EVENT_CLASSES, rankIsPublic, isGroupClass } from "../domain/constants.js";
@@ -235,7 +235,7 @@ export default async function resultsPage(root) {
 
   async function paintEvents() {
     if (events === null) {
-      panel.appendChild(el("div.hint", { text: "Loading events…" }));
+      panel.appendChild(hint("Loading events…"));
       events = await getAll("publicResults").catch(() => []);
       panel.innerHTML = "";
     }
@@ -292,7 +292,7 @@ export default async function resultsPage(root) {
                 { key: "grade", label: "Grade", render: r => badge(gradeLabel(r.grade, board), gradeKind(r.grade)) },
                 { key: "totalPoints", label: "Points", num: true }
               ], shown)
-            : el("div.hint", { text: "No placements to show." }),
+            : hint("No placements to show."),
           ev.eventName + (ev.categoryName ? " · " + ev.categoryName : "") +
             (ev.eventClass ? " · " + classLabel(ev.eventClass) : ""),
           exportRow(slug(ev.eventName), full,

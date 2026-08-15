@@ -4,8 +4,7 @@
 // notification exists on the free tier — a message is a document, read
 // live through Firestore's own listener, which is the only real-time
 // primitive available at all here.
-import { el, card, field, input, select, button, toast, guard,
-         empty, badge, modal, debounce } from "../lib/ui.js";
+import { el, card, field, input, select, button, toast, guard, empty, badge, modal, debounce, hint } from "../lib/ui.js";
 import { where, watch } from "../lib/db.js";
 import { navigate } from "../lib/router.js";
 import { appShell } from "../lib/shell.js";
@@ -90,7 +89,7 @@ export default async function messagesPage(root) {
     unwatchThread = watch(`conversations/${id}/messages`, msgs => {
       messagesEl.innerHTML = "";
       const sorted = [...msgs].sort((a, b) => (a.sentAt?.seconds || 0) - (b.sentAt?.seconds || 0));
-      if (!sorted.length) { messagesEl.appendChild(el("div.hint", { text: "No messages yet — say hello." })); return; }
+      if (!sorted.length) { messagesEl.appendChild(hint("No messages yet — say hello.")); return; }
       for (const m of sorted) {
         const mine = m.senderUid === session.user.uid;
         messagesEl.appendChild(el("div", {

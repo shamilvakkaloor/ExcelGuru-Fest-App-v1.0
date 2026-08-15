@@ -1,5 +1,6 @@
 // DOM construction helpers. Small surface, used by every page.
 import { compressImage, dataUrlBytes, resolvePhotoLink, PLACEHOLDER_AVATAR } from "./photo.js";
+import { tr } from "./i18n.js";
 
 /**
  * el("div.card", { onclick }, [children])
@@ -38,8 +39,15 @@ export function append(parent, children) {
 
 export function clear(node) { node.innerHTML = ""; return node; }
 
-export function field(labelText, input, hint) {
-  return el("label.field", {}, [el("span", { text: labelText }), input, hint ? el("div.hint", { text: hint }) : null]);
+export function field(labelText, input, hintText) {
+  return el("label.field", {}, [el("span", { text: labelText }), input, hintText ? hint(hintText) : null]);
+}
+
+/** A ".hint" explanation line — the one piece of UI text the admin
+ * En/Malayalam toggle translates. Labels and headings stay English; only
+ * this, the sentence explaining what an option does, is looked up. */
+export function hint(text, attrs = {}) {
+  return el("div.hint", { ...attrs, text: tr(text) });
 }
 
 export function input(attrs = {}) { return el("input", { type: "text", ...attrs }); }

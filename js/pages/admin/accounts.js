@@ -1,5 +1,4 @@
-import { el, card, field, input, button, table, toast, guard, notice, empty,
-         modal, confirmDialog, badge, checkbox } from "../../lib/ui.js";
+import { el, card, field, input, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, checkbox, hint } from "../../lib/ui.js";
 import { getAll, getOne, put, add, patch, remove, batchWrite } from "../../lib/db.js";
 import { createAccount, revokeAccount, reissueLogin, slugify, validatePassword, loginNames } from "../../lib/session.js";
 import { queueRepublish } from "../../domain/republish.js";
@@ -196,14 +195,14 @@ function houseFields(existing, cfg) {
       : usesRanges
         ? el("fieldset", {}, [
             el("legend", { text: "Chest number range" }),
-            el("div.hint", { text: "Participants added to this house take numbers from this range, so a chest number reads as a house on the day. Ranges may not overlap." }),
+            hint("Participants added to this house take numbers from this range, so a chest number reads as a house on the day. Ranges may not overlap."),
             el("div.grid.grid-2", {}, [field("From", rangeFrom), field("To", rangeTo)])
           ])
-        : el("div.hint", { text: "This fest uses one shared chest number sequence, so houses have no range of their own." }),
+        : hint("This fest uses one shared chest number sequence, so houses have no range of their own."),
     field("Adjustment points", adj, "Added to this house's total. Use negatives to deduct."),
     el("fieldset", {}, [
       el("legend", { text: "People and contacts (optional)" }),
-      el("div.hint", { text: "Each number is private unless you tick it. Many of these are students, so nothing is published by default — tick only the numbers that should appear on the public Contact page." }),
+      hint("Each number is private unless you tick it. Many of these are students, so nothing is published by default — tick only the numbers that should appear on the public Contact page."),
       el("div.grid.grid-2", {}, [field("Manager name", mgrName), field("Manager mobile", mgrPhone)]),
       checkbox("Show the manager's number publicly", mgrPublic, v => mgrPublic = v),
       el("div.grid.grid-2", { style: "margin-top:.6rem" }, [field("Leader name", leaderName), field("Leader mobile", leaderPhone)]),

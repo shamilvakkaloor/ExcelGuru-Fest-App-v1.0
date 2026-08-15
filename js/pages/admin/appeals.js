@@ -3,8 +3,7 @@
 // that filed it can see. Deciding an appeal does not itself change a
 // score: correct it afterwards with a Score Override or an Adjustment, so
 // this collection can never contradict the scoring model it is judging.
-import { el, card, table, button, badge, toast, guard, notice, empty,
-         modal, loading, friendlyError } from "../../lib/ui.js";
+import { el, card, table, button, badge, toast, guard, notice, empty, modal, loading, friendlyError, hint } from "../../lib/ui.js";
 import { getAll, getOne } from "../../lib/db.js";
 import { decideAppeal, APPEAL_STATUS } from "../../domain/appeals.js";
 import { compressToBudget } from "../../lib/photo.js";
@@ -78,7 +77,7 @@ function imageDialog(title, src) {
 function decideDialog(appeal, refresh) {
   const decision = el("textarea", { rows: 3, placeholder: "Why this decision — shown to the house." });
   let refundShot = null;
-  const refundNote = el("div.hint", { text: "Optional — attach if a refund was sent." });
+  const refundNote = hint("Optional — attach if a refund was sent.");
   const refundPreview = el("img", { style: "max-width:100%;max-height:140px;display:none;margin-top:.4rem" });
   const refundFile = el("input", { type: "file", accept: "image/*", style: "display:none" });
   refundFile.addEventListener("change", guard(async () => {

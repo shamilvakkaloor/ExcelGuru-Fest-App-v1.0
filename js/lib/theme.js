@@ -29,7 +29,7 @@ export function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", t);
   // Keeps the mobile browser chrome in step with the page.
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", t === "dark" ? "#0F1922" : "#17232F");
+  if (meta) meta.setAttribute("content", t === "dark" ? "#0A140F" : "#0F241C");
   try { localStorage.setItem(KEY, t); } catch { /* private mode — session only */ }
   listeners.forEach(fn => { try { fn(t); } catch (e) {} });
   return t;

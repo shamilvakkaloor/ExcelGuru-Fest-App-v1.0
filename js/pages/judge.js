@@ -1,8 +1,7 @@
 // Judge panel. A judge only ever reads judgingEntries documents, which for a
 // blind event contain code letters and nothing else — the names are not
 // hidden in the UI, they are simply not in the data the judge can read.
-import { el, card, field, input, select, button, table, toast, guard, notice,
-         empty, badge } from "../lib/ui.js";
+import { el, card, field, input, select, button, table, toast, guard, notice, empty, badge, hint } from "../lib/ui.js";
 import { getAll, getOne, put, remove, where } from "../lib/db.js";
 import { appShell } from "../lib/shell.js";
 import { session } from "../lib/session.js";
@@ -60,7 +59,7 @@ export default async function judgePage(root) {
     if (scheduleLoaded) return;
     scheduleLoaded = true;
     schedBox.innerHTML = "";
-    schedBox.appendChild(el("div.hint", { text: "Loading\u2026" }));
+    schedBox.appendChild(hint("Loading\u2026"));
 
     const [snap, results] = await Promise.all([
       getOne("publicSchedule", "main").catch(() => null),
@@ -120,7 +119,7 @@ export default async function judgePage(root) {
     if (appealsLoaded) return;
     appealsLoaded = true;
     appealsBox.innerHTML = "";
-    appealsBox.appendChild(el("div.hint", { text: "Loading…" }));
+    appealsBox.appendChild(hint("Loading…"));
 
     // array-contains on a denormalised judgeUids field, not a list query
     // gated by a get() per document — see domain/appeals.js for why.

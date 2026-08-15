@@ -1,6 +1,4 @@
-import { el, card, field, input, select, checkbox, button, table, toast, guard,
-         notice, empty, modal, confirmDialog, badge, toLocalInput, fromLocalInput,
-         filterBar } from "../../lib/ui.js";
+import { el, card, field, input, select, checkbox, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, toLocalInput, fromLocalInput, filterBar, hint } from "../../lib/ui.js";
 import { getAll, getOne, add, patch, remove, nextCounter, raiseCounter, batchWrite } from "../../lib/db.js";
 import { EVENT_CLASSES, STAGES, classLabel, isGroupClass, isGeneralClass,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, DEFAULTS,
@@ -204,7 +202,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
 
   const classBox = el("fieldset", {}, [
     el("legend", { text: "Classification" }),
-    el("div.hint", { text: "Filter axes. They only affect points if you also pick them below." }),
+    hint("Filter axes. They only affect points if you also pick them below."),
     el("div.grid.grid-2", {}, [field("Type", typeSel), field("Tier", tierSel)])
   ]);
   classBox.style.display = useTypeTier ? "" : "none";
@@ -217,7 +215,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   renderLadderEditor(customBox, customLadder, {}, null);
   const customFieldset = el("fieldset", {}, [
     el("legend", { text: "Custom points for this event" }),
-    el("div.hint", { text: "This event's own rank ladder, worth more or less than its class/stage/type/tier default. Grade points, if this event awards them, still come from the shared grade table." }),
+    hint("This event's own rank ladder, worth more or less than its class/stage/type/tier default. Grade points, if this event awards them, still come from the shared grade table."),
     customBox
   ]);
   customFieldset.style.display = "none";
@@ -279,9 +277,9 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     resultModeField,
     modeHint,
     checkbox("This event awards grade points", awardsGrade, v => awardsGrade = v),
-    el("div.hint", { text: "Turn off for a gradeless event. The grade is still worked out and shown, but contributes 0 points. Rank points are unaffected." }),
+    hint("Turn off for a gradeless event. The grade is still worked out and shown, but contributes 0 points. Rank points are unaffected."),
     checkbox("Leave this event out of overall totals and leaderboards", excludeFromTotals, v => excludeFromTotals = v),
-    el("div.hint", { text: "The event is still judged, ranked and published as normal — its points simply do not count towards house totals or any leaderboard. For exhibition or invitational items." })
+    hint("The event is still judged, ranked and published as normal — its points simply do not count towards house totals or any leaderboard. For exhibition or invitational items.")
   ]);
 
   const description = el("textarea", { rows: 6,
@@ -308,7 +306,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   paintReserved();
   const reservedFieldset = el("fieldset", {}, [
     el("legend", { text: "Reserved places" }),
-    el("div.hint", { text: "Hold back places for particular categories, so one or two cannot fill the event. An entry is refused only when taking the place would make a reservation impossible to honour — never before that. Leave blank for no reservation." }),
+    hint("Hold back places for particular categories, so one or two cannot fill the event. An entry is refused only when taking the place would make a reservation impossible to honour — never before that. Leave blank for no reservation."),
     reservedBox
   ]);
 
@@ -317,7 +315,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     el("legend", { text: "Whole-team event" }),
     checkbox("The whole team contests this — no individual participants", wholeTeam,
       v => { wholeTeam = v; syncClass(); }),
-    el("div.hint", { text: "For a march-past, team chant or similar. The house registers once with no roster and earns the points as a unit; nothing counts against any participant's event caps. Group events only." })
+    hint("For a march-past, team chant or similar. The house registers once with no roster and earns the points as a unit; nothing counts against any participant's event caps. Group events only.")
   ]);
 
   const catField = field("Category", cat, "Ignored for general events.");
@@ -349,9 +347,9 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     el("legend", { text: "Event material" }),
     checkbox("House Managers submit material for each entry — a song title, and the like", materialsEnabled,
       v => { materialsEnabled = v; materialLabelField.style.display = v ? "" : "none"; materialWindowBox.style.display = v ? "" : "none"; }),
-    el("div.hint", { text: "Off by default. Turning this on lets a House Manager submit one item per entry after registering — Admin still approves or rejects each submission, oldest first. Once approved, it is shown to a judge beside the code letter, the same way the event description is." }),
+    hint("Off by default. Turning this on lets a House Manager submit one item per entry after registering — Admin still approves or rejects each submission, oldest first. Once approved, it is shown to a judge beside the code letter, the same way the event description is."),
     materialLabelField,
-    el("div.hint", { text: "Leave both blank to accept submissions for as long as this is switched on. Set either to close the window at a specific time — useful for song titles that need to reach the sound crew before the event runs." }),
+    hint("Leave both blank to accept submissions for as long as this is switched on. Set either to close the window at a specific time — useful for song titles that need to reach the sound crew before the event runs."),
     materialWindowBox
   ]);
 
@@ -395,7 +393,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       materialsBox,
       el("fieldset", {}, [
         el("legend", { text: "Registration window override" }),
-        el("div.hint", { text: "Leave blank to use the fest-wide window." }),
+        hint("Leave blank to use the fest-wide window."),
         el("div.grid.grid-2", {}, [field("Opens", regStart), field("Deadline", regEnd)])
       ]),
       checkbox("Blind judging for this event", blind, v => blind = v)
@@ -571,7 +569,7 @@ function importDialog(categories, settings, classification, refresh) {
             out.appendChild(notice("warn", el("div", {}, [
               el("strong", { text: `Imported ${ops.length}. Skipped ${errors.length}.` }),
               el("ul", {}, errors.map(e => el("li", { text: e }))),
-              el("div.hint", { text: "Fix these rows in the file and import them again — the rows above were not added." })
+              hint("Fix these rows in the file and import them again — the rows above were not added.")
             ])));
             toast(`Imported ${ops.length}, skipped ${errors.length}.`, true);
             return false;

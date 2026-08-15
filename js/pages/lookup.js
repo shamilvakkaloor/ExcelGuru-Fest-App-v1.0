@@ -1,7 +1,7 @@
 // Participant lookup. Costs 1–2 reads per search: participants are queried
 // by chest number or name, and the result card comes from one pre-built
 // participantPublic document.
-import { el, card, input, field, empty, badge, debounce, notice } from "../lib/ui.js";
+import { el, card, input, field, empty, badge, debounce, notice, hint } from "../lib/ui.js";
 import { getAll, getOne, where, limit, orderBy } from "../lib/db.js";
 import { topbar } from "../app.js";
 import { queryParams } from "../lib/router.js";
@@ -29,7 +29,7 @@ export default async function lookupPage(root) {
     const term = box.value.trim();
     out.innerHTML = "";
     if (term.length < 2) return;
-    out.appendChild(el("div.hint", { text: "Searching…" }));
+    out.appendChild(hint("Searching…"));
 
     let matches = [];
     try {
@@ -124,7 +124,7 @@ async function renderCard(p, settings) {
         ]),
         e.published ? resultCell(e) : badge("Not published", "badge-warn")
       ])))
-    : el("div.hint", { text: "Not registered for any event yet." });
+    : hint("Not registered for any event yet.");
 
   // I22 — the number a spectator searching a chest number actually wants.
   const totals = pub?.totalPoints !== undefined && pub?.totalPoints !== null

@@ -12,7 +12,7 @@
 //
 // Real winners get real certificates through chest-number lookup, which is
 // authenticated by knowing the chest number and prints only true results.
-import { el, card, empty, field, input, button, notice, toast, guard } from "../lib/ui.js";
+import { el, card, empty, field, input, button, notice, toast, guard, hint } from "../lib/ui.js";
 import { getAll, getOne } from "../lib/db.js";
 import { topbar } from "../app.js";
 import { renderPageHTML } from "../lib/designRender.js";
@@ -79,7 +79,7 @@ function templateCard(design, cfg, allowFreeText) {
       preview.innerHTML = renderPageHTML(design, build());
     } catch (e) {
       preview.innerHTML = "";
-      preview.appendChild(el("div.hint", { text: "Preview unavailable." }));
+      preview.appendChild(hint("Preview unavailable."));
     }
   };
   name.addEventListener("input", render);

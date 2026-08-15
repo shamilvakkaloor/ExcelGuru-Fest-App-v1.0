@@ -7,9 +7,7 @@
 //
 // Applied in domain/scoring.js aggregate(), alongside earned points, so a
 // house or participant total is the only number anyone has to reconcile.
-import { el, card, field, input, select, table, button, badge, toast, guard,
-         notice, empty, modal, confirmDialog, loading, debounce,
-         friendlyError } from "../../lib/ui.js";
+import { el, card, field, input, select, table, button, badge, toast, guard, notice, empty, modal, confirmDialog, loading, debounce, friendlyError, hint } from "../../lib/ui.js";
 import { getAll, add, remove, where, limit, orderBy } from "../../lib/db.js";
 import { housePluralTerm, houseTerm } from "../../domain/constants.js";
 import { queueRepublish } from "../../domain/republish.js";
@@ -138,7 +136,7 @@ function adjustmentDialog(houses, hTerm, refresh) {
       ? await getAll("participants", where("chestNumber", "==", term), limit(6)).catch(() => [])
       : [];
     const matches = [...byChest, ...byName].filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
-    if (!matches.length) { searchOut.appendChild(el("div.hint", { text: "No match." })); return; }
+    if (!matches.length) { searchOut.appendChild(hint("No match.")); return; }
     for (const p of matches) {
       searchOut.appendChild(button(`${p.name} — #${p.chestNumber ?? "—"} · ${p.houseName || ""}`, {
         class: "btn-sm", style: "display:block;width:100%;text-align:left;margin-bottom:.3rem",
