@@ -1,6 +1,6 @@
 # Fest Tabulation — Architecture
 
-**Specification, v8.7 — as built.** Supersedes v7.2.1.
+**Specification, v9 — as built.** Supersedes v7.2.1.
 
 Sections marked **⚠ NEW** do not exist in the shipped code. Sections marked
 **⚠ FIX** exist but are wrong, with the root cause stated. Everything else is

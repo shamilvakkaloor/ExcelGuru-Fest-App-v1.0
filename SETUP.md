@@ -1,6 +1,6 @@
 # Setup guide
 
-*Matches app version 8.7.*
+*Matches app version 9.*
 
 Everything below is done in a web browser. No terminal, no Node, no npm, no
 credit card. Budget about 15 minutes for the first run.
@@ -24,7 +24,8 @@ is used here. Back out.
 
 ### 2. Turn on Firestore
 
-- Left sidebar → **Build → Firestore Database** → Create database
+- Left sidebar → **Databases and Storage → Firestore** → Create database
+- Edition: **Standard**
 - Location: pick the one closest to you (`asia-south1` for India,
   `europe-west1` for Europe). **This cannot be changed later.**
 - Start in **production mode**. Rules get replaced in step 5 anyway.
@@ -32,7 +33,7 @@ is used here. Back out.
 
 ### 3. Turn on Authentication
 
-- Left sidebar → **Build → Authentication** → Get started
+- Left sidebar → **Security → Authentication** → Get started
 - **Email/Password** → toggle **Enable** → Save
 
 Leave "Email link (passwordless)" off. Nobody in this app has a real email
@@ -64,7 +65,7 @@ Save the file. This is the only file you edit.
 
 This step is what makes the app safe. Do not skip it.
 
-- **Firestore Database → Rules** tab
+- **Firestore → Rules** tab
 - Delete everything in the editor
 - Open `firestore.rules` from this folder, copy the whole file, paste it in
 - **Publish**
@@ -79,7 +80,7 @@ typing these tables in by hand, and it never creates one you do not need.
 
 Create them up front only if you would rather not hit an error mid-fest.
 
-- **Firestore Database → Indexes** tab → **Composite** → Create index
+- **Firestore → Indexes** tab → Create index
 - If you are asked to choose an index type, pick **Structured**. (Vector
   indexes are for AI embedding similarity search and are not used here.)
 - Query scope is **Collection** for all of them.
