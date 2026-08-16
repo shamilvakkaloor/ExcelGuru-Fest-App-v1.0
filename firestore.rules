@@ -599,6 +599,21 @@ service cloud.firestore {
                         || (isJudge() && resource.data.judgeUid == request.auth.uid));
     }
 
+    // I20 — a judge's one-per-event "how did this go" note, separate from
+    // any individual entry's score so it survives an Unfinalize/re-score and
+    // is never mistaken for something that moves points. Admin/Co-Admin see
+    // it; a House or a participant never can, matching what the fest asked
+    // for. Not gated on resultLocked() — a judge writes this once they are
+    // DONE judging, which is often exactly when the event gets finalized.
+    match /judgeEventNotes/{id} {
+      allow read: if isStaff() || (isJudge() && resource.data.judgeUid == request.auth.uid);
+      allow create, update: if isStaff()
+                            || (isJudge()
+                                && request.resource.data.judgeUid == request.auth.uid
+                                && assignedToEvent(request.resource.data.eventId));
+      allow delete: if isStaff() || (isJudge() && resource.data.judgeUid == request.auth.uid);
+    }
+
     // Absence is its own document rather than a field on the registration,
     // so a judge can mark it without being able to read or alter the entry.
     match /entryFlags/{flagId} {

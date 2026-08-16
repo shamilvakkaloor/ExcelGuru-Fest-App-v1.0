@@ -161,11 +161,13 @@ export default async function judgePage(root) {
   async function paint() {
     const eventId = picker.value;
     panel.innerHTML = "";
-    const [entries, myScores, flags] = await Promise.all([
+    const [entries, myScores, flags, noteRow] = await Promise.all([
       getOne("judgingEntries", eventId),
       getAll("scores", where("eventId", "==", eventId), where("judgeUid", "==", session.user.uid)),
-      getAll("entryFlags", where("eventId", "==", eventId))
+      getAll("entryFlags", where("eventId", "==", eventId)),
+      getOne("judgeEventNotes", eventId + "_" + session.user.uid).catch(() => null)
     ]);
+    let myNote = noteRow;
 
     /* v8 — DIRECT events are judged too, they are just judged differently:
      * the judge picks a placement from the ladder instead of typing a mark.
@@ -252,6 +254,43 @@ export default async function judgePage(root) {
     panel.appendChild(notice("info",
       "Type a score, then press Save (or Enter). Nothing is stored until you do. Leave a score blank only if the entry is marked absent."));
 
+    if (!isDirect) {
+      const noteBox = el("textarea", { rows: 3,
+        placeholder: "How did judging this event go overall? Seen by organisers only." });
+      noteBox.value = myNote?.remark || "";
+      const noteState = el("span.hint", { style: "margin:0", text: myNote ? "saved" : "" });
+      const noteSaveBtn = button("Save", { class: "btn-sm btn-accent", disabled: true });
+      noteBox.addEventListener("input", () => {
+        const changed = noteBox.value.trim() !== (myNote?.remark || "");
+        noteSaveBtn.disabled = !changed;
+        noteState.textContent = changed ? "unsaved" : (myNote ? "saved" : "");
+      });
+      noteSaveBtn.addEventListener("click", guard(async () => {
+        const text = noteBox.value.trim();
+        const id = eventId + "_" + session.user.uid;
+        noteSaveBtn.disabled = true;
+        noteState.textContent = "saving…";
+        if (!text) {
+          await remove("judgeEventNotes", id);
+          myNote = null;
+          noteState.textContent = "";
+          toast("Note cleared.");
+          return;
+        }
+        await put("judgeEventNotes", id, {
+          eventId, judgeUid: session.user.uid, judgeName: session.name,
+          remark: text, updatedAt: Date.now()
+        });
+        myNote = { remark: text };
+        noteState.textContent = "saved";
+        toast("Saved.");
+      }));
+      panel.appendChild(card(el("div", {}, [
+        noteBox,
+        el("div.btn-row", { style: "margin-top:.4rem" }, [noteSaveBtn, noteState])
+      ]), "Your overall experience judging this event"));
+    }
+
     /**
      * Score input with explicit save.
      *
@@ -295,21 +334,33 @@ export default async function judgePage(root) {
         type: "number", min: 0, max: scale, step: "0.01", inputmode: "decimal",
         value: existing?.score ?? "", style: "max-width:110px", disabled: absentBy[r.regId]
       });
+      // I20 — a remark against this code letter, saved alongside the score
+      // since a scores doc always needs a valid score to write at all (see
+      // firestore.rules). Admin/Co-Admin only ever read it; it never reaches
+      // the House or the participant.
+      const remarkBox = el("textarea", {
+        rows: 1, placeholder: "Remark (optional, seen by organisers only)",
+        style: "max-width:220px;min-width:160px", disabled: absentBy[r.regId]
+      });
+      remarkBox.value = existing?.remark || "";
       const state = el("span.hint", { style: "margin:0;white-space:nowrap",
         text: existing ? "saved" : "" });
       const saveBtn = button("Save", { class: "btn-sm btn-accent", disabled: true });
 
       const markDirty = () => {
-        const changed = box.value.trim() !== String(existing?.score ?? "");
+        const changed = box.value.trim() !== String(existing?.score ?? "") ||
+          remarkBox.value.trim() !== (existing?.remark || "");
         saveBtn.disabled = !changed;
         state.textContent = changed ? "unsaved" : (existing ? "saved" : "");
         state.style.color = changed ? "var(--marigold-d)" : "";
       };
       box.addEventListener("input", markDirty);
+      remarkBox.addEventListener("input", markDirty);
       box.addEventListener("keydown", e => { if (e.key === "Enter" && !saveBtn.disabled) saveBtn.click(); });
 
       saveBtn.addEventListener("click", guard(async () => {
         const raw = box.value.trim();
+        const remark = remarkBox.value.trim();
         const id = `${eventId}_${r.regId}_${session.user.uid}`;
         saveBtn.disabled = true;
         state.textContent = "saving…";
@@ -330,16 +381,19 @@ export default async function judgePage(root) {
         }
         await put("scores", id, {
           eventId, regId: r.regId, judgeUid: session.user.uid, judgeName: session.name,
-          score: val, timestamp: Date.now(), enteredByAdminOverride: false
+          score: val, remark: remark || null, timestamp: Date.now(), enteredByAdminOverride: false
         });
-        scoreBy[r.regId] = { score: val };
+        scoreBy[r.regId] = { score: val, remark };
         state.textContent = "saved"; state.style.color = "var(--ok)";
         toast("Saved " + val + ".");
         updateProgress();
       }));
 
-      return el("div", { style: "display:flex;gap:.4rem;align-items:center;justify-content:flex-end" },
-        [box, saveBtn, state]);
+      return el("div", { style: "display:flex;flex-direction:column;gap:.3rem;align-items:flex-end" }, [
+        el("div", { style: "display:flex;gap:.4rem;align-items:center;justify-content:flex-end" },
+          [box, saveBtn, state]),
+        remarkBox
+      ]);
     }
 
     function updateProgress() {

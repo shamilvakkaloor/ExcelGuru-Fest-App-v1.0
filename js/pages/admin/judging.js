@@ -64,7 +64,7 @@ export default async function judging(root) {
     panel.innerHTML = "";
     if (!event) return;
 
-    const [regs, judgeAssignments, scores, flags, result, directRows, ladderDoc, overrideRows, materialRows] =
+    const [regs, judgeAssignments, scores, flags, result, directRows, ladderDoc, overrideRows, materialRows, notes] =
       await Promise.all([
         getAll("registrations", where("eventId", "==", event.id)),
         getAll("judgeAssignments", where("eventId", "==", event.id)),
@@ -77,7 +77,10 @@ export default async function judging(root) {
         getAll("scoreOverrides", where("eventId", "==", event.id)).catch(() => []),
         event.materialsEnabled
           ? getAll("eventMaterials", where("eventId", "==", event.id)).catch(() => [])
-          : Promise.resolve([])
+          : Promise.resolve([]),
+        // I20 — a judge's one-per-event remark. Admin/Co-Admin only; never
+        // reaches a public or House-facing screen.
+        getAll("judgeEventNotes", where("eventId", "==", event.id)).catch(() => [])
       ]);
     const overrideBy = Object.fromEntries(overrideRows.map(o => [o.regId, o]));
     const materialByReg = Object.fromEntries(
@@ -157,6 +160,15 @@ export default async function judging(root) {
       el("p.hint", { style: "margin-top:.7rem" , text:
         "Admin can fill a missing judge's score or correct one already submitted. A blank score is never read as zero — mark the entry Absent instead." })
     ]), event.name));
+
+    if (notes.length) {
+      panel.appendChild(card(el("div", {}, notes.map(n => el("div", {
+        style: "padding:.5rem 0;border-top:1px solid var(--line)"
+      }, [
+        el("strong", { text: n.judgeName || "Judge" }),
+        el("div.hint", { style: "white-space:pre-wrap;margin:.2rem 0 0", text: n.remark })
+      ]))), "Judges' overall remarks"));
+    }
 
     if (published) {
       panel.appendChild(notice("warn",
@@ -373,6 +385,12 @@ export default async function judging(root) {
         paint();
       }));
 
+      // I20 — the judge's own remark against this entry, if they left one.
+      // Admin/Co-Admin only, same as everywhere else it surfaces.
+      const remarkHint = existing?.remark
+        ? el("span.hint", { style: "margin:0", title: existing.remark, text: "remark" })
+        : null;
+
       // v9.2 — freeze ONE judge's mark on ONE entry out of the average,
       // as a correction, without touching that judge's marks anywhere
       // else. The mark itself is kept, not deleted — un-freezing restores
@@ -392,7 +410,8 @@ export default async function judging(root) {
           paint();
         })
       });
-      return el("div", { style: "display:flex;flex-direction:column;gap:.25rem;align-items:flex-start" }, [box, excludeBtn]);
+      return el("div", { style: "display:flex;flex-direction:column;gap:.25rem;align-items:flex-start" },
+        [box, excludeBtn, remarkHint]);
     }
   }
 }
