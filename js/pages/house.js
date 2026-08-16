@@ -76,6 +76,8 @@ async function registerTab(panel, house, refresh) {
   const cfg = { ...DEFAULTS.festSettings, ...(settings || {}) };
   const lim = { ...DEFAULTS.participantLimits, ...(limits || {}) };
   const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
+  const typeName = Object.fromEntries(types.map(t => [t.id, t.name]));
+  const tierName = Object.fromEntries(tiers.map(t => [t.id, t.name]));
   const countBy = countByEvent(ourRegs);
   // Constraint groups and an event lookup, needed to evaluate "at most N of
   // these" at registration time.
@@ -166,6 +168,13 @@ async function registerTab(panel, house, refresh) {
               ])
             : null
         ])},
+      // I13 — visible per row, not just filterable. The filter bar above
+      // already let a House Manager narrow by Type/Tier but never showed
+      // which value applied to any given row.
+      ...(cfg.useTypeTier ? [{ key: "classification", label: "Type / Tier", render: e => {
+        const bits = [typeName[e.typeId], tierName[e.tierId]].filter(Boolean);
+        return bits.length ? el("span", { text: bits.join(" · ") }) : el("span.hint", { text: "—" });
+      }}] : []),
       { key: "entries", label: "Ours", num: true, render: e => {
           // I12 — the per-house cap applies to every class now, so it is
           // displayed for every class too. v6 showed "—" for individual
@@ -188,7 +197,7 @@ async function registerTab(panel, house, refresh) {
             class: "btn-sm " + (full ? "" : "btn-accent"),
             disabled: full,
             onclick: () => entryDialog(e, house, people, cfg, lim, catName, countBy[e.id] || 0, refresh,
-                                       constraintGroups, eventById)
+                                       constraintGroups, eventById, ourRegs)
           });
         }}
     ], rows), "Open events"));
@@ -196,7 +205,7 @@ async function registerTab(panel, house, refresh) {
 }
 
 function entryDialog(event, house, people, settings, limits, catName, used, refresh,
-                     constraintGroups = [], eventById = {}) {
+                     constraintGroups = [], eventById = {}, ourRegs = []) {
   // A mixed-category event offers everyone from ANY category it names —
   // eventAcceptsCategory() is the single place that rule lives.
   const eligible = eventCategoryIds(event).length
@@ -204,6 +213,15 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
     : people;
   const chosen = new Set();
   const group = isGroupClass(event.eventClass);
+
+  // I12 — who is already in an entry for THIS event, so the picker can
+  // show that rather than let a House Manager pick the same person again
+  // by mistake. A group entry adds several people to one roster on
+  // purpose, so this only disables re-selection for an individual event —
+  // group participants stay pickable, since a second entry legitimately
+  // needs its own roster.
+  const alreadyIn = new Set(
+    ourRegs.filter(r => r.eventId === event.id).flatMap(r => r.participantIds || []));
 
   /* A whole-team event has no roster to pick, so the participant picker is
    * replaced by a plain confirmation. Showing an empty, unusable picker
@@ -271,18 +289,26 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
 
     for (const p of shown) {
       const selected = chosen.has(p.id);
-      const cardEl = el("button.pick-card" + (selected ? ".selected" : ""), { type: "button" }, [
+      // Blocking re-selection only for an INDIVIDUAL event — one person,
+      // one entry, there. A group event can legitimately field the same
+      // person again in a second entry ("Red A" / "Red B"), so that stays
+      // pickable; the badge below still shows it either way.
+      const inThis = alreadyIn.has(p.id);
+      const blocked = inThis && !group;
+      const cardEl = el("button.pick-card" + (selected ? ".selected" : "") + (blocked ? " pick-card-disabled" : ""),
+        { type: "button", disabled: blocked }, [
         avatar(p, 46),
         el("div.pick-body", {}, [
           el("div.pick-name", { text: p.name }),
           el("div.pick-meta", {}, [
             el("span.mono", { text: "#" + (p.chestNumber ?? "") }),
-            p.className ? el("span", { text: " · " + p.className }) : null
+            p.className ? el("span", { text: " · " + p.className }) : null,
+            inThis ? el("span", { style: "color:var(--ok);font-weight:600", text: " · Already registered" }) : null
           ])
         ]),
-        el("span.pick-tick", { text: selected ? "✓" : "" })
+        el("span.pick-tick", { text: selected ? "✓" : (inThis ? "✓" : "") })
       ]);
-      cardEl.addEventListener("click", () => {
+      if (!blocked) cardEl.addEventListener("click", () => {
         if (chosen.has(p.id)) chosen.delete(p.id);
         else {
           if (group && chosen.size >= perEntryMax) { toast(`At most ${perEntryMax} per entry.`, true); return; }

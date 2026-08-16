@@ -107,7 +107,15 @@ export async function registerEntry({ event, house, participants, settings, limi
   // for individual events, so the cap the Events screen offered was silently
   // ignored on exactly the class that most needed it. null = unlimited.
   const entryCap = maxEntriesFor(event);
-  const seed = await tallySeed(event.id, house.id);
+  /* I14 — tallySeed() used to run on EVERY registration, even though its
+   * own doc comment says it is "only used when the tally does not exist
+   * yet" — after the first entry for this (event, house) pair, the
+   * transaction's own tx.get(tallyRef) below already has an authoritative
+   * value and this query's result is thrown away unread. A single-doc
+   * existence check is cheap regardless of how many registrations exist;
+   * the expensive query now runs only the one time it can actually matter. */
+  const existingTally = await getOne("entryCounts", tallyId(event.id, house.id)).catch(() => null);
+  const seed = existingTally ? null : await tallySeed(event.id, house.id);
   const regId = `${event.id}_${house.id}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
   /* ── v9 — constraint groups and reserved slots ───────────────────
@@ -129,11 +137,15 @@ export async function registerEntry({ event, house, participants, settings, limi
   const groups = (constraintGroups || []).filter(g => g.enabled !== false);
   let priorByParticipant = {};
   if (groups.length && participants.length) {
-    for (const p of participants) {
+    // I14 — independent per-participant queries, run in parallel rather
+    // than one after another. A 6-member group entry used to pay for 6
+    // serialized round trips here before the transaction even opened.
+    const pairs = await Promise.all(participants.map(async p => {
       const regs = await getAll("registrations", where("participantIds", "array-contains", p.id))
         .catch(() => []);
-      priorByParticipant[p.id] = regs.map(r => r.eventId);
-    }
+      return [p.id, regs.map(r => r.eventId)];
+    }));
+    priorByParticipant = Object.fromEntries(pairs);
   }
 
   let reservationTaken = null;
@@ -160,12 +172,14 @@ export async function registerEntry({ event, house, participants, settings, limi
     const clash = participants.find(p => tally.memberIds.includes(p.id));
     if (clash) throw new Error(`${clash.name} is already entered in this event.`);
 
-    const snaps = [];
-    for (const p of participants) {
-      const snap = await tx.get(docRef("participants", p.id));
-      if (!snap.exists()) throw new Error(`${p.name} no longer exists.`);
-      snaps.push({ id: p.id, data: snap.data() });
-    }
+    // tx.get() reads don't depend on each other, so a group entry's
+    // members are fetched together rather than one at a time (I14).
+    const snapResults = await Promise.all(
+      participants.map(p => tx.get(docRef("participants", p.id))));
+    const snaps = snapResults.map((snap, i) => {
+      if (!snap.exists()) throw new Error(`${participants[i].name} no longer exists.`);
+      return { id: participants[i].id, data: snap.data() };
+    });
     for (const s of snaps) {
       /* THE PARTICIPANT'S OWN CATEGORY decides their caps — never the
        * event's. This matters for General events, which have no category:
@@ -240,13 +254,14 @@ export async function registerEntry({ event, house, participants, settings, limi
     });
   });
 
-  // Lookup card — merged so it never clobbers other events.
-  for (const p of participants) {
-    await put("participantPublic", p.id, {
-      name: p.name, chestNumber: p.chestNumber ?? "", houseName: house.name,
-      events: { [event.id]: { name: event.name, code: event.code || "", published: false } }
-    });
-  }
+  // Lookup card — merged so it never clobbers other events. Independent
+  // per-participant writes, so they go in parallel rather than one after
+  // another (I14) — a 6-member group entry was paying for 6 more
+  // serialized round trips here, on top of the ones before the transaction.
+  await Promise.all(participants.map(p => put("participantPublic", p.id, {
+    name: p.name, chestNumber: p.chestNumber ?? "", houseName: house.name,
+    events: { [event.id]: { name: event.name, code: event.code || "", published: false } }
+  })));
   return regId;
 }
 

@@ -88,7 +88,6 @@ a  { color: var(--teal); }
   object-fit: contain;
 }
 .btn-ghost { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.22); color: #EEF2F8; }
-.btn-ghost:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.35); }
 .topbar .brand {
   font-family: var(--display); font-weight: 700; font-size: 1rem;
   letter-spacing: -.01em; display: flex; align-items: center; gap: .55rem;
@@ -110,7 +109,6 @@ a  { color: var(--teal); }
   border: 1px solid transparent; white-space: nowrap;
 }
 .sidenav a { transition: background .15s ease, color .15s ease; }
-.sidenav a:hover { background: #E4EBE1; color: var(--ink); }
 .sidenav a.active { background: var(--grad-cool); color: #fff; box-shadow: 0 2px 8px rgba(108,75,214,.28); }
 
 /* ═══ Surfaces ════════════════════════════════════════════════ */
@@ -120,7 +118,6 @@ a  { color: var(--teal); }
   margin-bottom: 1rem;
   transition: box-shadow .18s ease, transform .18s ease;
 }
-a.card:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
 .card > h2:first-child, .card > h3:first-child { margin-top: 0; }
 .card-head { display: flex; align-items: center; gap: .75rem; margin-bottom: .9rem; flex-wrap: wrap; }
 .card-head h2, .card-head h3 { margin: 0; }
@@ -158,7 +155,6 @@ input, select, textarea {
   border-radius: var(--r-sm); background: var(--surface);
   min-height: 44px; transition: border-color .15s ease, box-shadow .15s ease;
 }
-input:hover, select:hover, textarea:hover { border-color: #B6C5B3; }
 input:focus, select:focus, textarea:focus {
   border-color: var(--teal); box-shadow: 0 0 0 3px rgba(14,110,99,.12); outline: none;
 }
@@ -181,15 +177,11 @@ button, .btn {
   text-decoration: none; white-space: nowrap;
 }
 button, .btn { transition: background .15s ease, border-color .15s ease, transform .08s ease; }
-button:hover, .btn:hover { background: #EDF1EA; border-color: #C9D4C6; }
 button:active, .btn:active { transform: translateY(1px); }
 button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-button:disabled:hover { background: var(--surface); border-color: var(--line); }
 .btn-primary { background: var(--rail-bg); border-color: var(--rail-bg); color: #fff; }
-.btn-primary:hover { background: var(--marigold-d); border-color: var(--marigold-d); }
 .btn-accent { background: var(--grad-warm); border-color: transparent; color: #fff;
               box-shadow: 0 2px 8px rgba(30,158,99,.3); font-weight: 700; }
-.btn-accent:hover { filter: brightness(1.06); background: var(--grad-warm); }
 .btn-danger { background: var(--danger-bg); border-color: #EEC9C6; color: var(--danger); }
 .btn-sm { min-height: 34px; padding: .25rem .6rem; font-size: .8rem; }
 .btn-row { display: flex; gap: .5rem; flex-wrap: wrap; }
@@ -205,7 +197,6 @@ th {
 }
 td { padding: .55rem .6rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
 tbody tr { transition: background .12s ease; }
-tbody tr:hover { background: #F6F9F4; }
 td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem; }
 .mono { font-family: var(--mono); }
 
@@ -412,7 +403,6 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
   transition: transform .18s ease, box-shadow .18s ease;
   position: relative; overflow: hidden;
 }
-.tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
 .tile::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--grad-cool); }
 .tile:nth-child(2)::before { background: var(--grad-warm); }
 .tile:nth-child(3)::before { background: var(--grad-mint); }
@@ -433,7 +423,6 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
   background: var(--surface); cursor: pointer; width: 100%; min-height: 62px;
   transition: border-color .15s ease, background .15s ease, transform .1s ease;
 }
-.pick-card:hover { border-color: var(--sky); background: #F7FAFF; }
 .pick-card.selected { border-color: var(--teal); background: #EAF6F5; }
 .pick-card .pick-body { flex: 1; min-width: 0; }
 .pick-card .pick-name { font-weight: 600; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -445,9 +434,12 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
   background: var(--line);
 }
 .pick-card.selected .pick-tick { background: var(--teal); }
+/* I12 — a participant already in this event's roster, not re-selectable
+   for an individual event (see house.js entryDialog). */
+.pick-card-disabled { cursor: not-allowed; opacity: .7; background: var(--paper); }
+.pick-card-disabled .pick-tick { background: var(--ok); }
 
 tr.row-ours { background: #FFFAEC; }
-tr.row-ours:hover { background: #FFF4D8; }
 
 /* ═══ Certificate studio ══════════════════════════════════════ */
 .studio { display: grid; grid-template-columns: 232px 1fr 248px; gap: 0;
@@ -473,7 +465,6 @@ tr.row-ours:hover { background: #FFF4D8; }
   display: flex; align-items: center; gap: .45rem; padding: .38rem .5rem;
   border-radius: var(--r-sm); font-size: .82rem; cursor: pointer; margin-bottom: .15rem;
 }
-.layer-row:hover { background: #EEF2F8; }
 .layer-row.active { background: var(--rail-bg); color: #fff; }
 .layer-row .lname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .layer-row .ltype { font-size: .68rem; opacity: .65; text-transform: uppercase; }
@@ -485,7 +476,6 @@ tr.row-ours:hover { background: #FFF4D8; }
   font-size: .72rem; padding: .22rem .5rem; border-radius: 0;
   border: 1px solid var(--line); background: var(--surface); cursor: pointer;
 }
-.chip:hover { border-color: var(--sky); background: #F0F7FF; }
 
 @media (max-width: 1000px) {
   .studio { grid-template-columns: 1fr; }
@@ -547,7 +537,6 @@ button.filter-trigger {
   border: 1px solid var(--line); border-radius: 0;
   background: transparent; cursor: pointer; color: var(--ink);
 }
-button.filter-trigger:hover { border-color: var(--accent, #4C7A5A); }
 button.filter-trigger.on {
   border-color: var(--accent, #4C7A5A);
   box-shadow: inset 0 0 0 1px var(--accent, #4C7A5A);
@@ -572,7 +561,6 @@ button.filter-trigger.on {
   padding: .32rem .45rem; border-radius: 0;
   font-size: .87rem; cursor: pointer;
 }
-.filter-opt:hover { background: var(--line); }
 .filter-opt input { margin: 0; flex: none; }
 .filter-sep { height: 1px; background: var(--line); margin: .3rem 0; }
 button.filter-clear { margin-left: auto; }
@@ -618,7 +606,6 @@ button.pick-card {
   padding: .45rem .55rem; border: 1px solid var(--line); border-radius: 0;
   background: transparent; cursor: pointer; width: 100%;
 }
-button.pick-card:hover { border-color: var(--accent, #4C7A5A); }
 button.pick-card.selected {
   border-color: var(--accent, #4C7A5A);
   box-shadow: inset 0 0 0 1px var(--accent, #4C7A5A);
@@ -704,7 +691,6 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   transition: background .15s ease, color .15s ease;
 }
 .rail-item span { line-height: 1.1; }
-.rail-item:hover { background: rgba(255,255,255,.07); color: var(--rail-ink-on); }
 .rail-item.on { background: rgba(30,158,99,.16); color: var(--rail-ink-on); }
 .rail-item.on .icon { color: var(--marigold); }
 
@@ -726,7 +712,6 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   border: 0; background: transparent; color: var(--ink-3);
   cursor: pointer; padding: .25rem; border-radius: 0; line-height: 0;
 }
-.navpanel-collapse:hover { background: var(--line); color: var(--ink); }
 
 .navsearch {
   display: flex; align-items: center; gap: .45rem;
@@ -754,7 +739,6 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   transition: background .12s ease, color .12s ease;
 }
 .navitem .icon { color: var(--ink-3); flex: none; }
-.navitem:hover { background: var(--line); color: var(--ink); }
 .navitem.on { background: var(--rail-bg); color: #fff; font-weight: 500; }
 .navitem.on .icon { color: var(--marigold); }
 
@@ -764,7 +748,6 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   border-left: 2px solid transparent;
   color: var(--ink-2); text-decoration: none; font-size: .84rem;
 }
-.navsubitem:hover { color: var(--ink); }
 .navsubitem.on { border-left-color: var(--marigold); color: var(--ink); font-weight: 600; }
 .navempty { padding: 1rem .6rem; color: var(--ink-3); font-size: .86rem; }
 
@@ -794,7 +777,6 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   font-size: .86rem; color: var(--ink-3); min-width: 0;
 }
 .crumbs a { color: var(--ink-3); text-decoration: none; }
-.crumbs a:hover { color: var(--ink); }
 .crumbs strong { color: var(--ink); font-weight: 600; }
 .crumbs .icon { flex: none; opacity: .5; }
 
@@ -930,7 +912,6 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
 
 .boot-meta { margin-top: 1.6rem; font-size: .8rem; color: #8FA3B5; line-height: 1.7; }
 .boot-meta a { color: var(--marigold); text-decoration: none; }
-.boot-meta a:hover { text-decoration: underline; }
 
 /* Anyone who has asked for less motion gets the words and none of the
    movement — the screen still communicates, it just holds still. */
@@ -949,7 +930,6 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   padding: .32rem .65rem; border-radius: 0;
   color: rgba(255,255,255,.72); text-decoration: none; font-size: .87rem;
 }
-.publicnav a:hover { background: rgba(255,255,255,.1); color: #fff; }
 .publicnav a.on { background: rgba(255,255,255,.14); color: #fff; font-weight: 500; }
 .publicnav .icon { opacity: .85; }
 .btn-signout { display: inline-flex; align-items: center; gap: .35rem; }
@@ -1021,7 +1001,6 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   border: 1px solid rgba(255,255,255,.25); background: transparent;
   color: #fff; font: inherit; cursor: pointer;
 }
-.boot-diag button:hover { background: rgba(255,255,255,.12); }
 
 /* ══ v8 — phone audit ════════════════════════════════════════════════
  * The 7.2 shell was made responsive; the pages inside it were not. Below
@@ -1114,7 +1093,6 @@ button.chip {
   padding: .26rem .66rem; font-size: .82rem; border-radius: 0;
   border: 1px solid var(--line); background: transparent; cursor: pointer;
 }
-button.chip:hover { border-color: var(--accent, #4C7A5A); }
 button.chip.on {
   background: var(--accent, #4C7A5A); border-color: var(--accent, #4C7A5A); color: #fff;
 }
@@ -1198,9 +1176,7 @@ button.chip.on {
   border: 1px solid transparent; border-radius: 0;
   background: transparent; color: inherit; cursor: pointer;
 }
-.theme-toggle:hover { background: rgba(127,127,127,.16); }
 .rail .theme-toggle { width: 100%; height: auto; padding: .55rem .2rem; color: var(--rail-ink); }
-.rail .theme-toggle:hover { color: var(--rail-ink-on); }
 
 /* Admin-only English/Malayalam switch for hint text — see lib/i18n.js. */
 .lang-toggle { display: flex; gap: 2px; padding: 0 .3rem .35rem; }
@@ -1209,7 +1185,6 @@ button.chip.on {
   padding: .32rem 0; border: 1px solid transparent; border-radius: 0;
   background: transparent; color: var(--rail-ink); cursor: pointer;
 }
-.lang-btn:hover { color: var(--rail-ink-on); }
 .lang-btn.on { border-color: var(--marigold); background: rgba(30,158,99,.16); color: var(--rail-ink-on); }
 
 /* A waiting-count on a nav item — small, but it is the difference between
@@ -1222,3 +1197,46 @@ button.chip.on {
   font-size: .68rem; font-weight: 700; line-height: 1;
 }
 .navitem.on .nav-count { background: var(--marigold); color: #fff; }
+
+/* I2 / B2 — hover feedback, mouse-only.
+ * Every :hover rule in this file used to apply unconditionally, which on
+ * iOS Safari and most touch browsers means the FIRST tap on a button or
+ * link only triggers the simulated hover state; the actual click needs a
+ * SECOND tap. That is the "everywhere, needs two clicks" report — House
+ * Managers and judges use this app from a phone as often as a desk. Touch
+ * devices report `hover: none`, so gating every hover rule behind this
+ * media query removes the simulated hover entirely there and a single
+ * tap fires the click immediately, while a mouse still gets the same
+ * visual feedback as before. */
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.35); }
+  .sidenav a:hover { background: #E4EBE1; color: var(--ink); }
+  a.card:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
+  input:hover, select:hover, textarea:hover { border-color: #B6C5B3; }
+  button:hover, .btn:hover { background: #EDF1EA; border-color: #C9D4C6; }
+  button:disabled:hover { background: var(--surface); border-color: var(--line); }
+  .btn-primary:hover { background: var(--marigold-d); border-color: var(--marigold-d); }
+  .btn-accent:hover { filter: brightness(1.06); background: var(--grad-warm); }
+  tbody tr:hover { background: #F6F9F4; }
+  .tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
+  .pick-card:hover { border-color: var(--sky); background: #F7FAFF; }
+  .pick-card-disabled:hover { border-color: var(--line); background: var(--paper); }
+  tr.row-ours:hover { background: #FFF4D8; }
+  .layer-row:hover { background: #EEF2F8; }
+  .chip:hover { border-color: var(--sky); background: #F0F7FF; }
+  button.filter-trigger:hover { border-color: var(--accent, #4C7A5A); }
+  .filter-opt:hover { background: var(--line); }
+  button.pick-card:hover { border-color: var(--accent, #4C7A5A); }
+  .rail-item:hover { background: rgba(255,255,255,.07); color: var(--rail-ink-on); }
+  .navpanel-collapse:hover { background: var(--line); color: var(--ink); }
+  .navitem:hover { background: var(--line); color: var(--ink); }
+  .navsubitem:hover { color: var(--ink); }
+  .crumbs a:hover { color: var(--ink); }
+  .boot-meta a:hover { text-decoration: underline; }
+  .publicnav a:hover { background: rgba(255,255,255,.1); color: #fff; }
+  .boot-diag button:hover { background: rgba(255,255,255,.12); }
+  button.chip:hover { border-color: var(--accent, #4C7A5A); }
+  .theme-toggle:hover { background: rgba(127,127,127,.16); }
+  .rail .theme-toggle:hover { color: var(--rail-ink-on); }
+  .lang-btn:hover { color: var(--rail-ink-on); }
+}
