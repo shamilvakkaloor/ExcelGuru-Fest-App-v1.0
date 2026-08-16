@@ -1,7 +1,7 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty,
          badge, confirmDialog, filterBar, modal } from "../../lib/ui.js";
 import { getAll, getOne, put, remove, where } from "../../lib/db.js";
-import { finalizeEvent, computeEventResult } from "../../domain/publish.js";
+import { finalizeEvent, computeEventResult, unfinalizeEvent } from "../../domain/publish.js";
 import { averageOf, gradeFor, resolvePoints, gradeScaleFrom, gradeLabel } from "../../domain/scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, classLabel, eventLabel, EVENT_CLASSES,
          isGeneralClass, typeTierFilters, eventFilterKeys, effectiveResultMode,
@@ -81,7 +81,7 @@ export default async function judging(root) {
       ]);
     const overrideBy = Object.fromEntries(overrideRows.map(o => [o.regId, o]));
     const materialByReg = Object.fromEntries(
-      materialRows.filter(m => m.status === "approved").map(m => [m.registrationId, m.title]));
+      materialRows.filter(m => m.status === "approved").map(m => [m.registrationId, m]));
 
     // v8 — a "direct" event is not scored by judges. Admin picks each
     // placement from the ladder's positions.
@@ -124,17 +124,26 @@ export default async function judging(root) {
       : result.publishStatus === PUBLISH_STATUS.PUBLISHED ? badge("Published", "badge-ok")
       : badge("Finalized", "badge-live");
 
-    /* ── I14 — PUBLISHED MEANS FROZEN ──────────────────────────────
+    /* ── I14 / I22 — FINALIZED MEANS FROZEN ────────────────────────
      * v6 rendered an editable score box regardless of publish state, and
      * the rules permitted an Admin score write at any time. An Admin could
      * therefore change a mark the public had already seen; the snapshot
      * rebuilt and a house total moved with no trace.
      *
+     * v9.2 widened the freeze: it used to lift the moment an event was
+     * merely finalized-not-published, on the theory that re-finalizing was
+     * itself "the correction". That let a judge or Admin silently edit a
+     * mark whose rank/points had already been computed and shown on the
+     * Judging screen, with nothing to say it had changed. Now ANY existing
+     * result — Finalized or Published — locks editing; a correction goes
+     * through Unfinalize first, which is itself an explicit, visible act.
+     *
      * The UI lock below is advisory. The enforcement that matters is in
-     * firestore.rules, which denies writes to scores and entryFlags while
-     * the event's result is Published.
+     * firestore.rules, which denies writes to scores, entryFlags,
+     * directResults and scoreOverrides once a results doc exists at all.
      */
-    const locked = result?.publishStatus === PUBLISH_STATUS.PUBLISHED;
+    const locked = !!result;
+    const published = result?.publishStatus === PUBLISH_STATUS.PUBLISHED;
 
     panel.appendChild(card(el("div", {}, [
       el("div.btn-row", {}, [badge(classLabel(event.eventClass)), statusBadge,
@@ -149,10 +158,14 @@ export default async function judging(root) {
         "Admin can fill a missing judge's score or correct one already submitted. A blank score is never read as zero — mark the entry Absent instead." })
     ]), event.name));
 
-    if (locked) {
+    if (published) {
       panel.appendChild(notice("warn",
         "This event is published, so its scores and absences are read-only. " +
-        "To correct one, unpublish it on the Results screen first — then finalize and publish again."));
+        "To correct one, unpublish it on the Results screen first, then Unfinalize below."));
+    } else if (locked) {
+      panel.appendChild(notice("warn",
+        "This event is finalized, so its scores and absences are read-only. " +
+        "Unfinalize it below to make a correction — that reopens editing without touching what's already been recorded."));
     }
 
     const rows = lettered.sort((a, b) => a.codeLetter.localeCompare(b.codeLetter));
@@ -172,7 +185,13 @@ export default async function judging(root) {
 
     if (event.materialsEnabled) {
       cols.push({ key: "material", label: event.materialLabel || "Material",
-        render: r => materialByReg[r.id] || el("span.hint", { text: "—" }) });
+        render: r => {
+          const m = materialByReg[r.id];
+          if (!m) return el("span.hint", { text: "—" });
+          return m.link
+            ? el("a", { href: m.link, target: "_blank", rel: "noopener", text: m.title })
+            : el("span", { text: m.title });
+        }});
     }
 
     if (isDirect) {
@@ -189,8 +208,16 @@ export default async function judging(root) {
     }
 
     if (!isDirect) cols.push({ key: "avg", label: "Average", num: true, render: r => {
-      const vals = columns.map(c => scoreBy[r.id + "|" + c.uid]?.score).filter(v => typeof v === "number");
-      const avg = averageOf(vals);
+      // Mirrors loadEventEntries() exactly — frozen marks dropped, an
+      // added mark (override) joined in — so this live preview never
+      // disagrees with what Finalize is about to compute.
+      const vals = columns.map(c => scoreBy[r.id + "|" + c.uid])
+        .filter(s => s && typeof s.score === "number" && !s.excluded)
+        .map(s => s.score);
+      const ov = overrideBy[r.id];
+      const allVals = (ov && ov.value !== null && ov.value !== undefined)
+        ? [...vals, Number(ov.value)] : vals;
+      const avg = averageOf(allVals);
       if (absentBy[r.id]) return badge("Absent", "badge-danger");
       if (avg === null) return el("span.hint", { text: "—" });
       const pct = (avg / scale) * 100;
@@ -200,22 +227,22 @@ export default async function judging(root) {
       ]);
     }});
 
-    /* An override replaces the average this entry is ranked on. The judges'
-     * marks stay underneath untouched, so removing the override restores
-     * the true average — which is what makes this safe to use during a
-     * dispute and reverse afterwards. */
-    if (!isDirect) cols.push({ key: "override", label: "Override", render: r => {
+    /* An override joins the judges' marks as one more value in the same
+     * average, rather than replacing it — see publish.js loadEventEntries.
+     * Their marks stay underneath untouched either way, so removing the
+     * override restores the average to exactly what the judges gave. */
+    if (!isDirect) cols.push({ key: "override", label: "Add a mark", render: r => {
       const ov = overrideBy[r.id];
       return el("div.btn-row", {}, [
         ov ? badge(String(ov.value), "badge-warn") : null,
-        button(ov ? "Change" : "Override", {
+        button(ov ? "Change" : "Add", {
           class: "btn-sm", disabled: locked,
           onclick: () => overrideDialog(event, r, ov, scale, paint)
         }),
-        ov ? button("Clear", { class: "btn-sm btn-danger", disabled: locked,
+        ov ? button("Remove", { class: "btn-sm btn-danger", disabled: locked,
           onclick: guard(async () => {
             await remove("scoreOverrides", event.id + "_" + r.id);
-            toast("Override removed — the judges' average applies again.");
+            toast("Removed — the judges' own average applies again.");
             paint();
           })}) : null
       ]);
@@ -244,6 +271,20 @@ export default async function judging(root) {
         toast("Finalized. Publish it from the Results screen.");
         paint();
       })}),
+      // Visible once a result exists and is not yet public — the one state
+      // a correction actually needs to move out of. Once published, this
+      // button would only confuse: Unpublish is the first step there, on
+      // the Results screen, not here.
+      locked && !published
+        ? button("Unfinalize", { class: "btn-danger", onclick: guard(async () => {
+            if (!await confirmDialog("Unfinalize event",
+              "Scores and absences reopen for editing. Nothing already entered is changed or lost — " +
+              "this only removes the computed result so it can be redone.", "Unfinalize")) return;
+            await unfinalizeEvent(event.id);
+            toast("Unfinalized — scores are editable again.");
+            paint();
+          })})
+        : null,
       /* The computed table used to appear only once an event was finalized,
        * which is the one moment it is least useful — the question an Admin
        * actually has is "what will finalizing do?". It now previews from the
@@ -254,7 +295,7 @@ export default async function judging(root) {
           const btn = e.target;
           if (panel.querySelector(".computed-table")) { showComputed(panel, null, btn); return; }
           const preview = await computeEventResult(event.id);
-          showComputed(panel, preview, btn, !result, settings);
+          showComputed(panel, preview, btn, !result, settings, event);
         })
       })
     ]));
@@ -325,12 +366,33 @@ export default async function judging(root) {
           eventId: event.id, regId: reg.id, judgeUid: col.uid, judgeName: col.name,
           score: val, timestamp: Date.now(),
           enteredByAdminOverride: true,
+          excluded: !!existing?.excluded,
           ...(existing && existing.score !== val ? { correctedFromScore: existing.score } : {})
         });
         toast(existing ? "Score corrected." : "Score saved.");
         paint();
       }));
-      return box;
+
+      // v9.2 — freeze ONE judge's mark on ONE entry out of the average,
+      // as a correction, without touching that judge's marks anywhere
+      // else. The mark itself is kept, not deleted — un-freezing restores
+      // it exactly, the same reversibility an override already has.
+      if (!existing) return box;
+      const excludeBtn = button(existing.excluded ? "Frozen" : "Freeze", {
+        class: "btn-sm" + (existing.excluded ? " btn-danger" : ""),
+        disabled: locked,
+        title: existing.excluded
+          ? "This mark is excluded from the average. Click to include it again."
+          : "Exclude this one mark from the average, as a correction — the judge's other marks are unaffected.",
+        onclick: guard(async () => {
+          await put("scores", `${event.id}_${reg.id}_${col.uid}`, {
+            ...existing, excluded: !existing.excluded
+          });
+          toast(existing.excluded ? "Mark restored to the average." : "Mark frozen out of the average.");
+          paint();
+        })
+      });
+      return el("div", { style: "display:flex;flex-direction:column;gap:.25rem;align-items:flex-start" }, [box, excludeBtn]);
     }
   }
 }
@@ -346,7 +408,7 @@ export default async function judging(root) {
  * `data` is either a stored result document (`.entries`) or the return of
  * computeEventResult (`.rows` plus `.blockers`). Passing null just closes it.
  */
-function showComputed(panel, data, trigger, isPreview = false, settings = null) {
+function showComputed(panel, data, trigger, isPreview = false, settings = null, event = null) {
   const existing = panel.querySelector(".computed-table");
   if (existing) {
     existing.remove();
@@ -371,7 +433,7 @@ function showComputed(panel, data, trigger, isPreview = false, settings = null) 
     table([
       { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger") : el("span.rank-medal", { text: "#" + r.rank }) },
       { key: "codeLetter", label: "Code", render: r => el("span.mono", { text: r.codeLetter }) },
-      { key: "names", label: "Entry", render: r => entryLabel({ ...r, eventClass: event.eventClass }, event)
+      { key: "names", label: "Entry", render: r => (event ? entryLabel({ ...r, eventClass: event.eventClass }, event) : null)
           || el("span.hint", { text: r.houseName || "Whole team" }) },
       { key: "houseName", label: "House" },
       { key: "averageScore", label: "Average", num: true, render: r =>
@@ -398,41 +460,43 @@ function showComputed(panel, data, trigger, isPreview = false, settings = null) 
 }
 
 /**
- * Set the average this entry is ranked on, in place of the judges'.
+ * Add one more mark to this entry's average, alongside the judges' real
+ * scores — not in place of them.
  *
- * Requires a reason, and the reason is stored on the result — an override
- * that cannot be explained afterwards is indistinguishable from tampering,
- * and this is the one screen where that distinction matters most.
+ * Requires a reason, and the reason is stored on the result — a mark added
+ * by hand that cannot be explained afterwards is indistinguishable from
+ * tampering, and this is the one screen where that distinction matters most.
  */
 function overrideDialog(event, reg, existing, scale, refresh) {
   const value = input({ type: "number", min: 0, max: scale, value: existing?.value ?? "" });
-  const reason = el("textarea", { rows: 3, placeholder: "Why this entry is not being ranked on the judges' average." });
+  const reason = el("textarea", { rows: 3, placeholder: "Why this entry needs an extra mark." });
   reason.value = existing?.reason || "";
 
   modal({
-    title: "Override score — " + (reg.codeLetter || ""),
+    title: "Add a mark — " + (reg.codeLetter || ""),
     body: el("div", {}, [
       notice("warn",
-        "This replaces the average this entry is ranked on. The judges' own marks are kept and are not " +
-        "changed — clearing the override restores them. The percentage, grade, rank and points are all " +
-        "recalculated from the value below exactly as they would be from a real average."),
+        "This joins the judges' real marks as one more value in the SAME average — a 3-judge entry with " +
+        "this added becomes a 4-way average. The judges' own marks are kept and are not changed — removing " +
+        "this restores their average exactly. The percentage, grade, rank and points all follow from that " +
+        "average, same as for any other entry."),
       field(`Score out of ${scale}`, value),
       field("Reason", reason, "Required. Stored on the result and shown alongside it.")
     ]),
     actions: [
       { label: "Cancel" },
-      { label: "Save override", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
+      { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
           const v = Number(value.value);
           if (value.value === "" || isNaN(v) || v < 0 || v > scale) {
             toast(`Enter a score between 0 and ${scale}.`, true); return false;
           }
-          if (!reason.value.trim()) { toast("Give a reason for the override.", true); return false; }
+          if (!reason.value.trim()) { toast("Give a reason for this mark.", true); return false; }
           await put("scoreOverrides", event.id + "_" + reg.id, {
             eventId: event.id, regId: reg.id, value: v,
             reason: reason.value.trim(),
             setBy: session.name || "", setAt: Date.now()
           });
-          toast("Override saved. Finalize again to apply it.");
+          toast("Saved. Finalize again to apply it.");
           close(true); refresh();
         })
       }

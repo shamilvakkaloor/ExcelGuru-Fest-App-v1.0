@@ -28,8 +28,11 @@ export function appealWindowState(result, settings, now = Date.now()) {
   if (!result || result.publishStatus !== "Published") {
     return { open: false, reason: "This result is not published yet." };
   }
-  const hours = Number(settings.appealWindowHours) || 24;
-  const closesAt = (result.publishedAtMs || 0) + hours * 3600 * 1000;
+  // v9.2 — minutes, not hours. appealWindowHours is read only as a
+  // fallback for a fest that saved its window before this change.
+  const minutes = Number(settings.appealWindowMinutes)
+    || (Number(settings.appealWindowHours) || 24) * 60;
+  const closesAt = (result.publishedAtMs || 0) + minutes * 60 * 1000;
   if (now > closesAt) return { open: false, reason: "The appeal window for this result has closed.", closesAt };
   return { open: true, closesAt };
 }

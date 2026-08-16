@@ -89,9 +89,18 @@ js/pages/              One module per screen; admin screens under pages/admin/
 - **Preview and finalize share one code path.** `computeEventResult()` does
   everything `finalizeEvent()` does except write. Never add a second
   implementation of the points model for a preview.
-- **Overrides replace the input, not the output.** A score override replaces
-  the average and lets percentage/grade/rank/points follow; it does not set a
-  rank directly, which would let the stored rank and score contradict.
+- **Overrides are another input, not the output.** A score override joins the
+  judges' real marks as one more value averaged in — a 3-judge entry with an
+  override becomes a 4-way average — and lets percentage/grade/rank/points
+  follow from that; it never sets a rank directly, which would let the stored
+  rank and score contradict. A judge's individual mark can also be frozen
+  (excluded) on one entry without touching that judge's marks elsewhere;
+  excluded scores are kept, not deleted, so un-freezing restores them exactly.
+- **Once finalized, scores are locked — not just once published.** Security
+  Rules gate `scores`/`entryFlags`/`directResults`/`scoreOverrides` writes on
+  a `results` doc existing at all, Finalized or Published. Correcting a mark
+  after finalize means Unfinalize first (`unfinalizeEvent()`), which itself
+  refuses on a published event — unpublish first.
 
 ## Recent additions worth knowing
 

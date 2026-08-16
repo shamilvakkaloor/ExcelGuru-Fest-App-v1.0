@@ -188,7 +188,12 @@ export async function writeJudgingEntries(event, regs, settings = null) {
   let materialByReg = {};
   if (event.materialsEnabled) {
     const materials = await getAll("eventMaterials", where("eventId", "==", event.id)).catch(() => []);
-    for (const m of materials) if (m.status === "approved") materialByReg[m.registrationId] = m.title;
+    // The link was submitted alongside the title but only the title ever
+    // reached the judge — Admin could see both on the Event material tab,
+    // a judge saw text with nowhere to click.
+    for (const m of materials) if (m.status === "approved") {
+      materialByReg[m.registrationId] = { title: m.title, link: m.link || "" };
+    }
   }
 
   await put("judgingEntries", event.id, {
@@ -209,9 +214,11 @@ export async function writeJudgingEntries(event, regs, settings = null) {
       .filter(r => r.codeLetter)
       .sort((a, b) => a.codeLetter.localeCompare(b.codeLetter))
       .map(r => blind
-        ? { regId: r.id, codeLetter: r.codeLetter, material: materialByReg[r.id] || "" }
+        ? { regId: r.id, codeLetter: r.codeLetter,
+            material: materialByReg[r.id]?.title || "", materialLink: materialByReg[r.id]?.link || "" }
         : { regId: r.id, codeLetter: r.codeLetter, label: r.wholeTeam ? r.houseName : (r.participantNames || []).join(", "),
-            houseName: r.houseName, material: materialByReg[r.id] || "" })
+            houseName: r.houseName,
+            material: materialByReg[r.id]?.title || "", materialLink: materialByReg[r.id]?.link || "" })
   }, false);
 }
 

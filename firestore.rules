@@ -67,6 +67,19 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/results/$(eventId)).data.publishStatus == "Published";
     }
 
+    // v9.2 / I22 — a FINALIZED event freezes scores too, not just a
+    // published one. A results doc only ever exists once finalizeEvent()
+    // has run at least once, Finalized or Published, so its mere existence
+    // is exactly "this event's marks have already been computed into a
+    // result — editing now needs Unfinalize first, not a silent rewrite."
+    // Used only for scores/entryFlags/directResults/scoreOverrides, the
+    // four things that move points; codeLetter reassignment and
+    // judgingEntries stay on resultPublished() as before — a lettering
+    // fix between finalize and publish is not a score correction.
+    function resultLocked(eventId) {
+      return exists(/databases/$(database)/documents/results/$(eventId));
+    }
+
     // The appeal window closes itself. publishedAtMs is plain epoch
     // milliseconds set alongside the server timestamp at publish time —
     // rules can only compare request.time against a value they can convert
@@ -83,14 +96,20 @@ service cloud.firestore {
     }
     function appealWindowOpenFor(res) {
       let s = settings();
-      let hours = s.appealWindowHours == null ? 24 : s.appealWindowHours;
+      // v9.2 — minutes, not hours. appealWindowHours is read only as a
+      // fallback for a fest that saved its window before this change,
+      // matching js/domain/appeals.js's appealWindowState() exactly —
+      // client and rules must agree, or one refuses what the other allows.
+      let minutes = s.appealWindowMinutes != null
+        ? s.appealWindowMinutes
+        : (s.appealWindowHours == null ? 24 : s.appealWindowHours) * 60;
       // publishedAtMs is v9. An event published BEFORE this upgrade does
       // not carry it, so its window reads as closed — the safe answer, and
       // the same one appealWindowState() reaches in the browser. Publish
       // the event again to open an appeal window on it.
       return res.publishStatus == "Published"
         && res.publishedAtMs != null
-        && request.time <= timestampOf(res.publishedAtMs + hours * 60 * 60 * 1000);
+        && request.time <= timestampOf(res.publishedAtMs + minutes * 60 * 1000);
     }
 
     // ── Configuration ────────────────────────────────────────────────
@@ -190,7 +209,7 @@ service cloud.firestore {
       // A judge assigned to the event may set placements — a direct event is
       // judged, just by picking a place rather than typing a mark. Same
       // published-lock as scores, because a placement moves points too.
-      allow write: if !resultPublished(
+      allow write: if !resultLocked(
                         request.method == "delete"
                           ? resource.data.eventId
                           : request.resource.data.eventId)
@@ -312,7 +331,7 @@ service cloud.firestore {
     match /scoreOverrides/{id} {
       allow read: if isStaff();
       allow write: if isAdmin()
-                   && !resultPublished(request.method == "delete"
+                   && !resultLocked(request.method == "delete"
                         ? resource.data.eventId
                         : request.resource.data.eventId);
     }
@@ -566,7 +585,7 @@ service cloud.firestore {
 
       // A judge may write only their own score, only for an event they are
       // assigned to, and only a number inside the fest's score scale.
-      allow create, update: if !resultPublished(request.resource.data.eventId)
+      allow create, update: if !resultLocked(request.resource.data.eventId)
                             && (isAdmin()
                                 || (isJudge()
                                     && request.resource.data.judgeUid == request.auth.uid
@@ -575,7 +594,7 @@ service cloud.firestore {
                                     && request.resource.data.score >= 0
                                     && request.resource.data.score <= settings().scoreScale));
 
-      allow delete: if !resultPublished(resource.data.eventId)
+      allow delete: if !resultLocked(resource.data.eventId)
                     && (isAdmin()
                         || (isJudge() && resource.data.judgeUid == request.auth.uid));
     }
@@ -587,7 +606,7 @@ service cloud.firestore {
 
       // An absence flag moves points exactly as much as a score does, so it
       // is frozen on the same condition.
-      allow write: if !resultPublished(
+      allow write: if !resultLocked(
                         request.method == "delete" ? resource.data.eventId : request.resource.data.eventId)
                    && (isStaff()
                        || (isJudge() && assignedToEvent(
@@ -606,7 +625,12 @@ service cloud.firestore {
       allow create: if isStaff() && request.resource.data.publishStatus != "Published";
       allow update: if isStaff()
                     && (isAdmin() || request.resource.data.publishStatus != "Published");
-      allow delete: if isAdmin();
+      // I22 — Unfinalize deletes this doc outright. Refusing the delete on
+      // a Published result forces the real order of operations: Unpublish
+      // on the Results screen first (a Co-Admin can do that far end too),
+      // THEN Unfinalize — never a Published result vanishing in one step
+      // with the public snapshot left pointing at nothing.
+      allow delete: if isAdmin() && resource.data.publishStatus != "Published";
     }
 
     // ── Public snapshots ─────────────────────────────────────────────

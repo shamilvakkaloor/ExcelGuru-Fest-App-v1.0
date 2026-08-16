@@ -204,8 +204,12 @@ export default async function judgePage(root) {
                { label: "My score", value: r => scoreBy[r.regId]?.score ?? "" }], entries.entries)) }),
       button("Print", { class: "btn-sm", onclick: () => printDocument({
         title: entries.eventName, subtitle: entries.blind ? "Blind judging — code letters only" : "",
+        // Was hard-coded blank — a scored entry printed with an empty Score
+        // column even though the CSV export two buttons over reads the
+        // same scoreBy correctly. Now prints whatever is actually saved,
+        // same as the CSV: blank only for an entry not yet scored.
         bodyHTML: htmlTable([{ label: "Code", key: "codeLetter" }, { label: "Entry", value: r => r.label || "" },
-                             { label: "Score", value: () => "" }], entries.entries) }) })
+                             { label: "Score", value: r => scoreBy[r.regId]?.score ?? "" }], entries.entries) }) })
     ]), entries.eventName));
 
     panel.appendChild(card(table([
@@ -217,7 +221,12 @@ export default async function judgePage(root) {
       // even for a blind event: this is about the performance's content,
       // not who is performing it, so it carries no identity to hide.
       ...(entries.materialLabel ? [
-        { key: "material", label: entries.materialLabel, render: r => r.material || el("span.hint", { text: "—" }) }
+        { key: "material", label: entries.materialLabel, render: r => {
+            if (!r.material) return el("span.hint", { text: "—" });
+            return r.materialLink
+              ? el("a", { href: r.materialLink, target: "_blank", rel: "noopener", text: r.material })
+              : el("span", { text: r.material });
+          }}
       ] : []),
       isDirect
         ? { key: "placement", label: "Placement", render: r => placementCell(r) }

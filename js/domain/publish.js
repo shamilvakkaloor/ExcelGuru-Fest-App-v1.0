@@ -5,7 +5,7 @@
 // pre-built document per event plus one leaderboard document. A spectator
 // loading /results costs 2–4 Firestore reads instead of several thousand,
 // which is what keeps a whole fest inside the free tier's 50,000 reads/day.
-import { getAll, getOne, put, batchWrite, where, serverTimestamp } from "../lib/db.js";
+import { getAll, getOne, put, remove, batchWrite, where, serverTimestamp } from "../lib/db.js";
 import { computeResults, computeDirectResults, finalizeBlockers, directFinalizeBlockers,
          resolvePoints, ladderKey, aggregate, studentScore, rankLeaderboard,
          tallyBoard, gradeScaleFrom, championshipStandings, categoryBreakdown } from "./scoring.js";
@@ -54,19 +54,31 @@ export async function loadEventEntries(eventId) {
   const overrideBy = Object.fromEntries(overrides.map(o => [o.regId, o]));
 
   return regs.map(r => {
-    /* v9 — AN OVERRIDE REPLACES THE AVERAGE, NOT THE RANK.
+    /* v9.2 — AN OVERRIDE IS ANOTHER MARK, AVERAGED IN — NOT A REPLACEMENT.
      *
-     * The overridden value re-enters the ordinary pipeline, so the
-     * percentage, the grade, the dense ranking and the points all follow
-     * from it exactly as they would from a real average. Overriding the
-     * rank directly would let the stored rank and the stored score
-     * contradict each other on the same row, which is unexplainable to
-     * anyone reading the result afterwards.
+     * Earlier this replaced the whole scores array with a single value,
+     * which meant an Admin's one number silently outweighed however many
+     * judges had actually scored the entry. It now joins the real marks as
+     * one more input to the SAME average — a 3-judge entry with one
+     * override becomes a 4-way average — which is what actually happens
+     * when an Admin fills a missing judge's column too (that path has
+     * always worked this way, via a `scores` doc under that judge's own
+     * uid). The override still never touches rank/percent/grade/points
+     * directly; those keep following from whatever the average comes out
+     * to, exactly as before.
      *
-     * The judges' original marks are left untouched underneath, so an
-     * override can be removed and the true average returns. */
+     * A judge's individual mark can also be independently EXCLUDED
+     * (`excluded: true` on that one `scores` doc) — a freeze for the one
+     * entry it's wrong on, without touching that judge's marks anywhere
+     * else. Excluded marks are kept in Firestore, not deleted, so
+     * un-freezing restores the exact original number. */
     const ov = overrideBy[r.id];
-    const realScores = (byReg[r.id] || []).map(s => Number(s.score));
+    const realScores = (byReg[r.id] || [])
+      .filter(s => !s.excluded)
+      .map(s => Number(s.score));
+    const allScores = ov && ov.value !== null && ov.value !== undefined
+      ? [...realScores, Number(ov.value)]
+      : realScores;
     return {
       regId: r.id,
       houseId: r.houseId,
@@ -87,9 +99,7 @@ export async function loadEventEntries(eventId) {
       codeLetter: r.codeLetter || "",
       entryNumber: r.entryNumber || 1,
       isAbsent: !!absentBy[r.id],
-      scores: ov && ov.value !== null && ov.value !== undefined
-        ? [Number(ov.value)]
-        : realScores,
+      scores: allScores,
       overridden: !!ov,
       overrideReason: ov?.reason || "",
       placement: directBy[r.id]?.placement ?? null,
@@ -289,6 +299,26 @@ export async function unpublishEvent(eventId) {
   await put("results", eventId, { publishStatus: PUBLISH_STATUS.FINALIZED, stagedForPublish: false });
   await batchWrite([{ type: "delete", path: "publicResults", id: eventId }]);
   await rebuildPublicSnapshots();
+}
+
+/**
+ * v9 — undo a finalize entirely, back to "not finalized". Scores and
+ * absences are locked the moment a results doc exists (Security Rules gate
+ * on that, not just on Published — see I22), so a correction now needs this
+ * explicit step first rather than silently editing under a finalized result.
+ *
+ * Refuses on a published event — unpublish() first. That ordering is not
+ * just a courtesy: the security rules only allow deleting a `results` doc
+ * that is not published, precisely so a live public result can never
+ * vanish out from under a spectator without an explicit unpublish first.
+ */
+export async function unfinalizeEvent(eventId) {
+  const existing = await getOne("results", eventId);
+  if (!existing) return;
+  if (existing.publishStatus === PUBLISH_STATUS.PUBLISHED) {
+    throw new Error("This event is published. Unpublish it on the Results screen first.");
+  }
+  await remove("results", eventId);
 }
 
 /**

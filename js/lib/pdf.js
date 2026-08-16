@@ -24,6 +24,39 @@ function waitForFonts(win, maxMs) {
   });
 }
 
+/**
+ * Wait for every &lt;img&gt; already in the print document to finish loading
+ * (or fail) before calling print().
+ *
+ * B10 — a participant photo set by pasting a Drive link (as opposed to an
+ * uploaded, base64 one) used to print as the placeholder silhouette even
+ * though it displays fine on the live participant list. A prior fix tried
+ * fetching the link and inlining it as a data URL before printing, on the
+ * theory that the print window's synchronous print() couldn't await a live
+ * image load — but that fetch needs the image host to send CORS headers
+ * for a cross-origin *read*, and Google's photo-serving CDN only sends
+ * them for &lt;img&gt;-tag *display*, not for fetch(); the "fix" silently failed
+ * every time and was never the right shape of fix. The actual problem was
+ * always just the print race, so this uses a plain &lt;img src="photoURL"&gt;
+ * (exactly what the participant list already does successfully) and gives
+ * every image up to `maxMs` to finish loading before print() fires.
+ */
+function waitForImages(win, maxMs) {
+  const imgs = [...win.document.images];
+  if (!imgs.length) return Promise.resolve();
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    let remaining = imgs.length;
+    const settle = () => { if (--remaining <= 0) finish(); };
+    for (const img of imgs) {
+      if (img.complete) settle();
+      else { img.addEventListener("load", settle, { once: true }); img.addEventListener("error", settle, { once: true }); }
+    }
+    setTimeout(finish, maxMs);
+  });
+}
+
 export function printDocument({ title, subtitle, bodyHTML, landscape = false, bare = false }) {
   const win = window.open("", "_blank", "width=900,height=700");
   if (!win) {
@@ -52,7 +85,7 @@ export function printDocument({ title, subtitle, bodyHTML, landscape = false, ba
 </head><body>${bodyHTML}</body></html>`);
     win.document.close();
     win.focus();
-    waitForFonts(win, 2500).then(() => win.print());
+    Promise.all([waitForFonts(win, 2500), waitForImages(win, 4000)]).then(() => win.print());
     return;
   }
 

@@ -1032,7 +1032,14 @@ async function appealsTab(panel) {
   const s = { ...DEFAULTS.festSettings, ...(s0 || {}) };
 
   let enabled = !!s.appealsEnabled;
-  const windowHours = input({ type: "number", min: 1, value: s.appealWindowHours ?? 24, style: "max-width:110px" });
+  // v9.2 — minutes, not hours. A fest running back-to-back events often
+  // wants a window measured in tens of minutes ("before the next event
+  // starts"), and hours-only forced typing decimals (.3 for 18 minutes) to
+  // get there. appealWindowHours is read as a fallback for a fest that set
+  // it before this change — never written again once minutes is saved.
+  const windowMinutes = input({ type: "number", min: 1,
+    value: s.appealWindowMinutes ?? Math.round((Number(s.appealWindowHours) || 24) * 60),
+    style: "max-width:110px" });
   const maxActive = input({ type: "number", min: 1, value: s.appealMaxActive ?? 2, style: "max-width:110px" });
 
   panel.appendChild(notice("info",
@@ -1045,7 +1052,7 @@ async function appealsTab(panel) {
 
   panel.appendChild(card(el("div", {}, [
     checkbox("Appeals enabled", enabled, v => enabled = v),
-    field("Appeal window (hours after publish)", windowHours,
+    field("Appeal window (minutes after publish)", windowMinutes,
       "The window opens automatically the moment a result is published, and closes itself — there is no " +
       "separate switch to remember."),
     field("Active appeals per house", maxActive,
@@ -1054,12 +1061,12 @@ async function appealsTab(panel) {
   ]), "Appeals"));
 
   panel.appendChild(el("div.btn-row", {}, button("Save settings", { class: "btn-accent", onclick: guard(async () => {
-    const hours = Number(windowHours.value);
+    const minutes = Number(windowMinutes.value);
     const active = Number(maxActive.value);
-    if (isNaN(hours) || hours < 1) { toast("The appeal window must be at least 1 hour.", true); return; }
+    if (isNaN(minutes) || minutes < 1) { toast("The appeal window must be at least 1 minute.", true); return; }
     if (isNaN(active) || active < 1) { toast("Active appeals per house must be at least 1.", true); return; }
     await put("config", "festSettings", {
-      appealsEnabled: enabled, appealWindowHours: hours, appealMaxActive: active
+      appealsEnabled: enabled, appealWindowMinutes: minutes, appealMaxActive: active
     });
     window.__APPEALS_ENABLED__ = enabled;
     toast("Settings saved.");
@@ -1820,8 +1827,12 @@ async function dangerTab(panel) {
   const status = el("div");
   const goBtn = button("Delete everything and start over", { class: "btn-danger", disabled: true });
 
+  // Case-insensitive: the field label CSS-uppercases the quoted fest name
+  // for display ("TYPE THE FEST NAME TO CONFIRM — "SARGAM 2026""), so typing
+  // exactly what's visually shown used to fail a case-sensitive compare.
   const checkReady = () => {
-    goBtn.disabled = nameCheck.value.trim() !== festName || !pw.value || (!!guardDoc && !guardPw.value);
+    goBtn.disabled = nameCheck.value.trim().toLowerCase() !== festName.toLowerCase()
+      || !pw.value || (!!guardDoc && !guardPw.value);
   };
   nameCheck.addEventListener("input", checkReady);
   pw.addEventListener("input", checkReady);
@@ -1915,7 +1926,7 @@ async function runGroupDelete(group, guardDoc, panel) {
       { label: "Cancel" },
       { label: "Delete", kind: "danger", closes: false, busyLabel: "Deleting…",
         onClick: guard(async close => {
-          if (nameCheck.value.trim() !== confirmWord) {
+          if (nameCheck.value.trim().toLowerCase() !== confirmWord.toLowerCase()) {
             toast(`Type "${confirmWord}" exactly to confirm.`, true);
             return false;
           }
@@ -1985,19 +1996,35 @@ function guardChangeBox(guardDoc) {
 
 
 async function passwordTab(panel) {
+  const guardDoc = await getOne("guard", "deleteGuard");
+
   const cur = input({ type: "password", autocomplete: "current-password" });
   const nw  = input({ type: "password", autocomplete: "new-password" });
   const nw2 = input({ type: "password", autocomplete: "new-password" });
+  const guardPw = input({ type: "password", autocomplete: "off" });
 
   panel.appendChild(card(el("div", {}, [
+    guardDoc
+      ? el("div.hint", { text:
+          "Guarded by the delete-everything password too — the same one Danger Zone asks for. " +
+          "Anyone who could change the Admin password could otherwise lock the real Admin out." })
+      : null,
     field("Current password", cur),
     field("New password", nw, "Between 3 and 8 characters."),
     field("Confirm new password", nw2),
+    guardDoc ? field("Delete-everything password", guardPw,
+      "The separate password set in Danger Zone.") : null,
     el("div.btn-row", {}, button("Change password", { class: "btn-accent", onclick: guard(async () => {
       const err = validatePassword(nw.value, nw2.value);
       if (err) { toast(err, true); return; }
+      if (guardDoc) {
+        const { verifyGuardPassword } = await import("../../lib/crypto.js");
+        if (!await verifyGuardPassword(guardPw.value, guardDoc)) {
+          toast("That delete-everything password is not correct.", true); return;
+        }
+      }
       await changeOwnPassword(cur.value, nw.value);
-      cur.value = nw.value = nw2.value = "";
+      cur.value = nw.value = nw2.value = guardPw.value = "";
       toast("Password changed.");
     })}))
   ]), "Change my password"));

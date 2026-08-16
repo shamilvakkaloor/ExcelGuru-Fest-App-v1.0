@@ -9,7 +9,7 @@ import { getAll, getOne, put, patch, remove, where } from "../../lib/db.js";
 import { printDocument } from "../../lib/pdf.js";
 import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
 import { renderCanvas, renderPageHTML, previewData } from "../../lib/designRender.js";
-import { compressImage, resolvePrintPhotos, resolvePrintPhoto } from "../../lib/photo.js";
+import { compressImage, photoSrc } from "../../lib/photo.js";
 import { PUBLISH_STATUS, classLabel, EVENT_CLASSES } from "../../domain/constants.js";
 import { highestRankAwarded, gradeLabel } from "../../domain/scoring.js";
 
@@ -28,14 +28,16 @@ export default async function generator(root) {
     wrapper.appendChild(el("h1", { text: "Certificates & posters" }));
     wrapper.appendChild(loading("Loading designs…"));
 
-    const [saved, results, types, tiers] = await Promise.all([
+    const [saved, results, types, tiers, categories] = await Promise.all([
       getAll("designs").catch(() => []),
       getAll("results").catch(() => []),
       getAll("programTypes").catch(() => []),
-      getAll("programTiers").catch(() => [])
+      getAll("programTiers").catch(() => []),
+      getAll("categories").catch(() => [])
     ]);
     const typeName = Object.fromEntries(types.map(t => [t.id, t.name]));
     const tierName = Object.fromEntries(tiers.map(t => [t.id, t.name]));
+    const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
     wrapper.innerHTML = "";
     wrapper.appendChild(el("h1", { text: "Certificates & posters" }));
 
@@ -87,7 +89,7 @@ export default async function generator(root) {
             // One certificate on demand, found by chest number — for the
             // person standing at the desk saying theirs did not print.
             button("Print one", { class: "btn-sm",
-              onclick: () => singleDialog(normalise(d), published, typeName, tierName) }),
+              onclick: () => singleDialog(normalise(d), published, typeName, tierName, catName) }),
             button("Edit", { class: "btn-sm", onclick: () => openEditor(normalise(d), d.id) }),
             button("Generate", { class: "btn-sm btn-accent", onclick: () => generateDialog(normalise(d)) }),
             button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
@@ -383,6 +385,7 @@ export default async function generator(root) {
     // maps themselves were never fetched here (only paintList() had them).
     const typeName = Object.fromEntries(types.map(t => [t.id, t.name]));
     const tierName = Object.fromEntries(tiers.map(t => [t.id, t.name]));
+    const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
     const published = results.filter(r => r.publishStatus === PUBLISH_STATUS.PUBLISHED);
 
     /* B4 — THE CERTIFICATE POPULATION BUG.
@@ -459,31 +462,9 @@ export default async function generator(root) {
             if (mode.value === "eventranks") {
               const res = published.find(r => r.id === eventSel.value);
               if (!res) { toast("Pick an event with published results.", true); return false; }
-              const entries = (res.entries || []).filter(e => !e.isAbsent && e.rank);
-              if (!entries.length) { toast("No ranked placements for that event.", true); return false; }
-              const lines = entries
-                .slice()
-                .sort((a, b) => a.rank - b.rank)
-                .map(e => {
-                  const who = (e.participantNames && e.participantNames.length > 1)
-                    ? (e.houseName || "")
-                    : [e.participantNames?.[0], e.houseName].filter(Boolean).join(" — ");
-                  const gradeSuffix = e.grade ? ` (${gradeLabel(e.grade, settings)})` : "";
-                  return `${placeLabel(e.rank)} — ${who}${gradeSuffix}`;
-                });
-              const html = renderPageHTML(d, {
-                fest: settings?.festName || "", school: settings?.schoolName || "",
-                date: new Date().toLocaleDateString(),
-                event: res.eventName, category: res.categoryName || "",
-                eventResults: lines.join("\n")
-              });
-              printDocument({
-                title: (d.name || "Event results") + " — " + res.eventName, bare: true,
-                landscape: d.page.w > d.page.h,
-                bodyHTML: `<style>.design-page{position:relative;overflow:hidden;}
-                  @page{size:${d.page.w}mm ${d.page.h}mm;margin:0;}
-                  body{margin:0;}</style>` + html
-              });
+              if (!printEventRanks(d, res, settings, catName)) {
+                toast("No ranked placements for that event.", true); return false;
+              }
               close(true);
               return;
             }
@@ -508,7 +489,6 @@ export default async function generator(root) {
             const pages = [];
 
             const wantRank = r => !picked.size || picked.has(r);
-            const photoMapAll = await resolvePrintPhotos(participants);
 
             if (mode.value === "registered" || mode.value === "participants") {
               // "registered" does NOT require a published result — that was
@@ -535,10 +515,10 @@ export default async function generator(root) {
                   name: p.name, chest: p.chestNumber ?? "",
                   house: houses.find(h => h.id === p.houseId)?.name || "",
                   category: p.categoryName || "", class: p.className || "",
-                  // A Drive-linked photo is fetched and inlined as a data
-                  // URL up front — see resolvePrintPhotos() — so it prints
-                  // instead of falling back to the placeholder silhouette.
-                  photo: photoMapAll.get(p.id) || "",
+                  // A plain <img src> — same as the participant list, which
+                  // already displays this successfully — not a fetched data
+                  // URL. See waitForImages() in lib/pdf.js for why.
+                  photo: photoSrc(p),
                   /* No single event is in scope for a participation
                    * certificate. If every one of their results shares a
                    * Type, that is unambiguous and worth printing; a mix
@@ -564,7 +544,7 @@ export default async function generator(root) {
                       ...base,
                       name: p.name, chest: p.chestNumber ?? "",
                       house: e.houseName || "", category: p.categoryName || "", class: p.className || "",
-                      photo: photoMapAll.get(p.id) || "",
+                      photo: photoSrc(p),
                       type: typeName[res.typeId] || "", tier: tierName[res.tierId] || "",
                       event: res.eventName, rank: placeLabel(e.rank), grade: e.grade ? gradeLabel(e.grade, settings) : "",
                       results: `${res.eventName} — ${placeLabel(e.rank)}`
@@ -618,14 +598,68 @@ function placeLabel(rank) {
   return { 1: "First", 2: "Second", 3: "Third" }[rank] || (rank + "th");
 }
 
+/** True for a design built around {eventResults} — the "every rank on one
+ * page" poster/screen templates — rather than one participant's own data.
+ * Checked by content, not a saved `kind` field, so it still works for an
+ * older saved design that predates TEMPLATE_LIST carrying kind at all. */
+function usesEventResults(design) {
+  return (design.elements || []).some(e => e.type === "text" && /\{eventResults\}/.test(e.text || ""));
+}
+
 /**
- * Print one participant's certificate, found by chest number or name.
+ * Build and print the "every rank on one page" design for one event.
+ * Shared by the batch Generate flow and the single-event search below, so
+ * the two can never drift into building the page differently.
+ * Returns false when the event has nothing ranked to show.
+ */
+function printEventRanks(design, res, settings, catName) {
+  const entries = (res.entries || []).filter(e => !e.isAbsent && e.rank);
+  if (!entries.length) return false;
+  const lines = entries
+    .slice()
+    .sort((a, b) => a.rank - b.rank)
+    .map(e => {
+      const who = (e.participantNames && e.participantNames.length > 1)
+        ? (e.houseName || "")
+        : [e.participantNames?.[0], e.houseName].filter(Boolean).join(" — ");
+      const gradeSuffix = e.grade ? ` (${gradeLabel(e.grade, settings)})` : "";
+      return `${placeLabel(e.rank)} — ${who}${gradeSuffix}`;
+    });
+  const html = renderPageHTML(design, {
+    fest: settings?.festName || "", school: settings?.schoolName || "",
+    date: new Date().toLocaleDateString(),
+    // B25 — res.categoryName was never a field on a `results` document
+    // (only categoryId is); this always rendered blank regardless of
+    // which event was picked. Looked up from the categories the caller
+    // already has, same as everywhere else in this file.
+    event: res.eventName, category: catName?.[res.categoryId] || "",
+    eventResults: lines.join("\n")
+  });
+  printDocument({
+    title: (design.name || "Event results") + " — " + res.eventName, bare: true,
+    landscape: design.page.w > design.page.h,
+    bodyHTML: `<style>.design-page{position:relative;overflow:hidden;}
+      @page{size:${design.page.w}mm ${design.page.h}mm;margin:0;}
+      body{margin:0;}</style>` + html
+  });
+  return true;
+}
+
+/**
+ * Print one participant's certificate, found by chest number or name —
+ * OR, for an "every rank on one page" design, print one EVENT's results,
+ * found by event code or name. The two designs need opposite search
+ * subjects (B24): a certificate is about a person, this poster is about
+ * an event, and searching participants for it would never find anything.
  *
  * The batch run is for producing everything at once; this is for the single
- * person who turns up afterwards. It prints their REAL results, unlike the
- * public template gallery, because staff are asking on their behalf.
+ * person (or event) who needs it on its own. It prints REAL published
+ * results, unlike the public template gallery, because staff are asking on
+ * their behalf.
  */
-function singleDialog(design, published, typeName, tierName) {
+function singleDialog(design, published, typeName, tierName, catName) {
+  if (usesEventResults(design)) { singleEventDialog(design, published, catName); return; }
+
   const search = input({ placeholder: "Chest number or name", autocomplete: "off" });
   const out = el("div");
   let found = null;
@@ -671,7 +705,7 @@ function singleDialog(design, published, typeName, tierName) {
             name: p.name, chest: p.chestNumber ?? "",
             house: houses.find(h => h.id === p.houseId)?.name || p.houseName || "",
             category: p.categoryName || "", class: p.className || "",
-            photo: await resolvePrintPhoto(p),
+            photo: photoSrc(p),
             type: first ? (typeName[first.res.typeId] || "") : "",
             tier: first ? (tierName[first.res.tierId] || "") : "",
             event: first?.res.eventName || "",
@@ -698,6 +732,54 @@ function singleDialog(design, published, typeName, tierName) {
     title: "Print one — " + (design.name || "design"),
     body: el("div", {}, [
       el("p.hint", { text: "Find a participant and print their certificate on its own. Uses their real published results." }),
+      field("Search", search),
+      el("div.btn-row", {}, button("Search", { onclick: doSearch })),
+      out
+    ]),
+    actions: [{ label: "Close" }]
+  });
+}
+
+/** The event-search counterpart to singleDialog(), for an "every rank on
+ * one page" design — B24. Searches published events by code or name
+ * instead of participants, since this design has no one participant to
+ * find. */
+function singleEventDialog(design, published, catName) {
+  const search = input({ placeholder: "Event code or name", autocomplete: "off" });
+  const out = el("div");
+
+  const doSearch = guard(async () => {
+    out.innerHTML = "";
+    const term = search.value.trim().toLowerCase();
+    if (!term) return;
+    const settings = await getOne("config", "festSettings");
+    const matches = published.filter(r =>
+      String(r.eventCode ?? "").toLowerCase() === term ||
+      String(r.eventName || "").toLowerCase().includes(term)).slice(0, 8);
+
+    if (!matches.length) { out.appendChild(notice("warn", "No published event matches that.")); return; }
+
+    for (const res of matches) {
+      const rankedCount = (res.entries || []).filter(e => !e.isAbsent && e.rank).length;
+      out.appendChild(el("div", { style: "display:flex;gap:.6rem;align-items:center;padding:.45rem 0;border-top:1px solid var(--line)" }, [
+        el("div", { style: "flex:1;min-width:0" }, [
+          el("div", {}, [el("strong", { text: res.eventName }), " ",
+            el("span.mono", { text: res.eventCode || "" })]),
+          el("div.hint", { style: "margin:0", text: `${rankedCount} ranked placement${rankedCount === 1 ? "" : "s"}` })
+        ]),
+        button("Print", { class: "btn-sm btn-accent", onclick: () => {
+          if (!printEventRanks(design, res, settings, catName)) toast("No ranked placements for that event.", true);
+        }})
+      ]));
+    }
+  });
+
+  search.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+
+  modal({
+    title: "Print one — " + (design.name || "design"),
+    body: el("div", {}, [
+      el("p.hint", { text: "Find an event and print its results board on its own. Uses its real published results." }),
       field("Search", search),
       el("div.btn-row", {}, button("Search", { onclick: doSearch })),
       out

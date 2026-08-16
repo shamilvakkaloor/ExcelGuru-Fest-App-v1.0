@@ -193,7 +193,11 @@ export const DEFAULTS = {
     // automatically at publish and closes itself; there is no separate
     // "open appeals" switch to remember to flip.
     appealsEnabled: false,
+    // v9.2 — minutes, not hours. appealWindowHours stays only so a fest
+    // that saved a window before this change still reads correctly; it is
+    // never written again once appealWindowMinutes is saved.
     appealWindowHours: 24,
+    appealWindowMinutes: 24 * 60,
     appealMaxActive: 2,
 
     // v9 — messaging. Off by default: nothing about the nav or any
