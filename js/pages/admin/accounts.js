@@ -1,4 +1,4 @@
-import { el, card, field, input, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, checkbox, hint } from "../../lib/ui.js";
+import { el, card, field, input, select, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, checkbox, hint } from "../../lib/ui.js";
 import { getAll, getOne, put, add, patch, remove, batchWrite } from "../../lib/db.js";
 import { createAccount, revokeAccount, reissueLogin, slugify, validatePassword, loginNames } from "../../lib/session.js";
 import { queueRepublish } from "../../domain/republish.js";
@@ -43,9 +43,10 @@ export default async function accounts(root, query = {}) {
 }
 
 async function renderTab(panel, spec, refresh) {
-  const [records, directory, settings, allHouses] = await Promise.all([
+  const [records, directory, settings, allHouses, venues] = await Promise.all([
     getAll(spec.collection), loginNames(spec.id),
-    getOne("config", "festSettings"), getAll("houses")
+    getOne("config", "festSettings"), getAll("houses"),
+    spec.id === "stage" ? getAll("venues") : Promise.resolve([])
   ]);
   const cfg = { ...DEFAULTS.festSettings, ...(settings || {}) };
   const dirBySlug = Object.fromEntries(directory.map(d => [d.slug, d]));
@@ -56,7 +57,7 @@ async function renderTab(panel, spec, refresh) {
 
   panel.appendChild(card(el("div.btn-row", {}, [
     button("Add " + label.replace(/s$/, ""), { class: "btn-accent",
-      onclick: () => addDialog(spec, records, allHouses, cfg, refresh) }),
+      onclick: () => addDialog(spec, records, allHouses, cfg, refresh, venues) }),
     // I19 — the repair described in ARCHITECTURE section 4.5.
     button("Repair logins", {
       onclick: () => repairDialog(spec, records, dirBySlug, refresh) })
@@ -112,12 +113,19 @@ async function renderTab(panel, spec, refresh) {
     }
     columns.push({ key: "adjustmentPoints", label: "Adjustment", num: true, render: r => String(r.adjustmentPoints || 0) });
   }
+  if (spec.id === "stage") {
+    const venueName = Object.fromEntries(venues.map(v => [v.id, v.name]));
+    columns.push({ key: "venue", label: "Scope", render: r => r.venueId
+      ? el("span", { text: (venueName[r.venueId] || "(venue removed)") +
+          (r.startTime && r.endTime ? ` · ${r.startTime}–${r.endTime}` : "") })
+      : el("span.hint", { text: "Every event" }) });
+  }
   columns.push({ key: "status", label: "Access", render: r =>
     dirBySlug[r.slug || slugify(r.name)]
       ? (r.uid ? badge("Active", "badge-ok") : badge("Needs repair", "badge-warn"))
       : badge("No login", "badge-warn") });
   columns.push({ key: "act", label: "", render: r => el("div.btn-row", {}, [
-    button("Edit", { class: "btn-sm", onclick: () => editDialog(spec, r, allHouses, cfg, refresh) }),
+    button("Edit", { class: "btn-sm", onclick: () => editDialog(spec, r, allHouses, cfg, refresh, venues) }),
     button("Password", { class: "btn-sm", onclick: () => passwordDialog(spec, r, dirBySlug, refresh) }),
     button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
       if (!await confirmDialog("Delete " + r.name,
@@ -297,11 +305,49 @@ function houseFields(existing, cfg) {
   };
 }
 
-function addDialog(spec, existing, houses, cfg, refresh) {
+/* ── Stage Manager scope: one venue, one time window ─────────────────── */
+// I15 — unscoped by default (sees every event, the v9 behaviour). Scoping to
+// a venue stores the venue's Firestore doc id, never its display name, so a
+// rename never orphans the assignment (see venues.js). The window is plain
+// HH:MM the admin types — it is not tied to any particular day's slots, so
+// it applies on every day the fest runs, matching what was asked for: "cover
+// the Main Auditorium from 10:00 to 13:00."
+function stageFields(existing, venues) {
+  let scoped = !!existing?.venueId;
+  const venueSelect = select(
+    [{ value: "", label: "Choose a venue…" }, ...venues.map(v => ({ value: v.id, label: v.name }))],
+    { value: existing?.venueId || "" });
+  const startInput = el("input", { type: "time", value: existing?.startTime || "" });
+  const endInput = el("input", { type: "time", value: existing?.endTime || "" });
+  const fields = el("div.grid.grid-3", { style: "display:" + (scoped ? "" : "none") }, [
+    field("Venue", venueSelect), field("From", startInput), field("Until", endInput)
+  ]);
+  const scopeToggle = checkbox("Scope this Stage Manager to one venue and time window", scoped, v => {
+    scoped = v; fields.style.display = v ? "" : "none";
+  });
+
+  return {
+    node: el("div", {}, [
+      scopeToggle, fields,
+      hint("Unscoped Stage Managers see every event, as before. Scoped ones see only events " +
+        "scheduled at that venue within that time window, on any day.")
+    ]),
+    collect() {
+      if (!scoped) return { venueId: null, startTime: null, endTime: null };
+      if (!venueSelect.value) throw new Error("Choose a venue, or turn the scope off.");
+      if (!startInput.value || !endInput.value) throw new Error("Give both a start and an end time.");
+      if (startInput.value >= endInput.value) throw new Error("The end time must be after the start time.");
+      return { venueId: venueSelect.value, startTime: startInput.value, endTime: endInput.value };
+    }
+  };
+}
+
+function addDialog(spec, existing, houses, cfg, refresh, venues = []) {
   const name = input({ placeholder: spec.id === "house" ? "e.g. Falcons" : "Full name" });
   const pw   = input({ type: "password", autocomplete: "new-password" });
   const pw2  = input({ type: "password", autocomplete: "new-password" });
   const houseBits = spec.id === "house" ? houseFields(null, cfg) : null;
+  const stageBits = spec.id === "stage" ? stageFields(null, venues) : null;
   const label = spec.id === "house" ? housePluralTerm(cfg) : spec.label;
 
   modal({
@@ -309,6 +355,7 @@ function addDialog(spec, existing, houses, cfg, refresh) {
     body: el("div", {}, [
       field("Name", name),
       houseBits ? houseBits.node : null,
+      stageBits ? stageBits.node : null,
       field("Password", pw, "3 to 8 characters. Share it with them directly."),
       field("Confirm password", pw2)
     ]),
@@ -320,6 +367,10 @@ function addDialog(spec, existing, houses, cfg, refresh) {
           if (err) { toast(err, true); return false; }
 
           let extra = {};
+          if (stageBits) {
+            try { extra = stageBits.collect(); }
+            catch (e) { toast(e.message, true); return false; }
+          }
           if (houseBits) {
             try { extra = houseBits.collect(null, houses); }
             catch (e) { toast(e.message, true); return false; }
@@ -466,7 +517,7 @@ function repairDialog(spec, records, dirBySlug, refresh) {
   });
 }
 
-async function editDialog(spec, record, houses, cfg, refresh) {
+async function editDialog(spec, record, houses, cfg, refresh, venues = []) {
   const name = input({ value: record.name });
   // Contacts live in their own staff-only document, so they are fetched
   // here rather than being part of the house record.
@@ -476,17 +527,23 @@ async function editDialog(spec, record, houses, cfg, refresh) {
   const houseBits = spec.id === "house"
     ? houseFields({ ...record, ...(contactDoc || {}) }, cfg)
     : null;
+  const stageBits = spec.id === "stage" ? stageFields(record, venues) : null;
 
   modal({
     title: "Edit " + record.name,
     body: el("div", {}, [
       field("Name", name, "The login dropdown keeps the original entry, so this is a display name change."),
-      houseBits ? houseBits.node : null
+      houseBits ? houseBits.node : null,
+      stageBits ? stageBits.node : null
     ]),
     actions: [
       { label: "Cancel" },
       { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
           const data = { name: name.value.trim() };
+          if (stageBits) {
+            try { Object.assign(data, stageBits.collect()); }
+            catch (e) { toast(e.message, true); return false; }
+          }
           if (houseBits) {
             try { Object.assign(data, houseBits.collect(record.id, houses)); }
             catch (e) { toast(e.message, true); return false; }
