@@ -634,6 +634,30 @@ check("v9 — custom with no points set awards nothing, no fallback to class", (
   return [r.source, r.rankPoints];
 })(), ["custom", {}]);
 
+/* v9 — category as a points axis, and per-event custom grade points */
+check("naming Category uses the category's own ladder",
+  ladderKey("category", { categoryId: "senior" }),
+  "category_senior");
+
+const V9_CATEGORY_LADDERS = { ...V8_LADDERS, category_senior: { rankPoints: { 1: 25, 2: 15 } } };
+check("a Category-sourced event uses that category's ladder, not its class",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "category", categoryId: "senior" }, V9_CATEGORY_LADDERS, V8_GRADE).rankPoints,
+  { 1: 25, 2: 15 });
+
+check("a mixed event's category source reads its first categoryId",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "category", categoryId: "senior", categoryIds: ["senior", "junior"] }, V9_CATEGORY_LADDERS, V8_GRADE).rankPoints,
+  { 1: 25, 2: 15 });
+
+check("a custom event with its own grade points ignores the shared table", (() => {
+  const r = resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "custom",
+    customRankPoints: { 1: 30 }, customGradePoints: { A: 99, Without: 0 } }, V8_LADDERS, V8_GRADE);
+  return [r.gradePoints, r.rankPoints];
+})(), [{ A: 99, Without: 0 }, { 1: 30 }]);
+
+check("a custom event with no grade points of its own falls back to the shared table",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "custom", customRankPoints: { 1: 30 } }, V8_LADDERS, V8_GRADE).gradePoints,
+  V8_GRADE);
+
 /* Gradeless events */
 const V8_E = [{ regId: "a", scores: [90] }, { regId: "b", scores: [80] }];
 const V8_TH = { aMin: 85, bMin: 70, cMin: 50 };

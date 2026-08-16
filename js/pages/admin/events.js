@@ -6,6 +6,7 @@ import { EVENT_CLASSES, STAGES, classLabel, isGroupClass, isGeneralClass,
          eventCategoryIds, isMixedCategory } from "../../domain/constants.js";
 import { parseCSVObjects, readFile, toCSV, downloadText } from "../../lib/csv.js";
 import { renderLadderEditor } from "./settings.js";
+import { gradeScaleFrom, WITHOUT } from "../../domain/scoring.js";
 
 export default async function events(root) {
   root.appendChild(el("h1", { text: "Events" }));
@@ -123,7 +124,7 @@ export default async function events(root) {
         return bits.length ? el("span", { text: bits.join(" · ") }) : el("span.hint", { text: "—" });
       }}] : []),
       // Where this event's points come from, when that can vary.
-      ...((cfg.pointsAxes?.stage || cfg.pointsAxes?.type || cfg.pointsAxes?.tier ||
+      ...((cfg.pointsAxes?.stage || cfg.pointsAxes?.type || cfg.pointsAxes?.tier || cfg.pointsAxes?.category ||
            rows.some(r => r.pointsFrom === "custom"))
         ? [{ key: "pointsFrom", label: "Points from", render: r => {
             const v = r.pointsFrom || "class";
@@ -159,7 +160,12 @@ export default async function events(root) {
   }
 }
 
-function eventDialog(existing, categories, settings, classification, refresh) {
+async function eventDialog(existing, categories, settings, classification, refresh) {
+  // v9.2 — needed only for the "own grade points" toggle below (item 5).
+  // Fetched here rather than passed in, so this dialog stays the one place
+  // that knows it needs it; the modal simply opens a beat later.
+  const gradePoints = { ...DEFAULTS.gradePoints, ...(await getOne("config", "gradePoints") || {}) };
+  const gradeScale = gradeScaleFrom(settings || DEFAULTS.festSettings);
   const name  = input({ value: existing?.name || "" });
   const code  = input({ value: existing?.code || "", placeholder: "Leave blank to auto-number" });
   const cls   = select(EVENT_CLASSES.map(c => ({ value: c.id, label: c.label })), { value: existing?.eventClass || EVENT_CLASSES[0].id });
@@ -183,6 +189,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       b.addEventListener("click", () => {
         mixedPicked.has(c.id) ? mixedPicked.delete(c.id) : mixedPicked.add(c.id);
         paintMixed();
+        syncPoints();
       });
       mixedBox.appendChild(b);
     }
@@ -233,9 +240,10 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   // ladder, no fest-wide switch required.
   const pointsOptions = POINTS_FROM.filter(o =>
     o.value === "class" || o.value === "custom" ||
-    (o.value === "stage" && axes.stage) ||
-    (o.value === "type"  && axes.type && useTypeTier) ||
-    (o.value === "tier"  && axes.tier && useTypeTier));
+    (o.value === "stage"    && axes.stage) ||
+    (o.value === "type"     && axes.type && useTypeTier) ||
+    (o.value === "tier"     && axes.tier && useTypeTier) ||
+    (o.value === "category" && axes.category));
   const pointsFrom = select(pointsOptions, { value: existing?.pointsFrom || "class" });
 
   const classBox = el("fieldset", {}, [
@@ -251,10 +259,41 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   const customLadder = { rankPoints: { ...(existing?.customRankPoints || DEFAULTS.rankPoints) } };
   const customBox = el("div");
   renderLadderEditor(customBox, customLadder, {}, null);
+
+  /* v9.2 (item 5) — an event with custom rank points can also give its own
+   * grade points a different value from the shared table, the same choice
+   * every axis ladder already offers on the Points & grades tab. Left off,
+   * it keeps inheriting the shared table exactly as before this existed —
+   * see resolvePoints() in scoring.js. */
+  let customGrades = { ...(existing?.customGradePoints || {}) };
+  let useOwnGrades = !!existing?.customGradePoints;
+  const readOwnGrades = () => {
+    const out = { [WITHOUT]: 0 };
+    for (const g of gradeScale) out[g.id] = Number(gradeInputs[g.id]?.value ?? gradePoints[g.id] ?? 0) || 0;
+    return out;
+  };
+  const gradeInputs = {};
+  for (const g of gradeScale) {
+    gradeInputs[g.id] = input({ type: "number", value: customGrades[g.id] ?? gradePoints[g.id] ?? 0 });
+    gradeInputs[g.id].addEventListener("input", () => { if (useOwnGrades) customGrades = readOwnGrades(); });
+  }
+  const gradeGrid = el("div.grid.grid-3", { style: useOwnGrades ? "" : "display:none" },
+    gradeScale.map(g => field(`${g.label} (${g.minPercent}%+)`, gradeInputs[g.id])));
+  const ownGradesToggle = checkbox("This event uses its own grade points", useOwnGrades, v => {
+    useOwnGrades = v;
+    gradeGrid.style.display = v ? "" : "none";
+    customGrades = v ? readOwnGrades() : {};
+  });
+
   const customFieldset = el("fieldset", {}, [
     el("legend", { text: "Custom points for this event" }),
-    hint("This event's own rank ladder, worth more or less than its class/stage/type/tier default. Grade points, if this event awards them, still come from the shared grade table."),
-    customBox
+    hint("This event's own rank ladder, worth more or less than its class/stage/type/tier default."),
+    customBox,
+    gradeScale.length ? el("div", { style: "margin-top:.8rem" }, [
+      hint("Leave off to use the shared grade table."),
+      ownGradesToggle,
+      gradeGrid
+    ]) : null
   ]);
   customFieldset.style.display = "none";
 
@@ -275,11 +314,15 @@ function eventDialog(existing, categories, settings, classification, refresh) {
     if (v === "stage") msg = "Uses the ladder configured for " + (stage.value === "onStage" ? "On stage" : "Off stage") + ".";
     if (v === "type")  msg = typeSel.value ? "Uses the ladder for this Type." : "No Type is set, so this event will fall back to its class ladder.";
     if (v === "tier")  msg = tierSel.value ? "Uses the ladder for this Tier." : "No Tier is set, so this event will fall back to its class ladder.";
+    if (v === "category") msg = (mixedOn ? mixedPicked.size : cat.value)
+      ? "Uses the ladder for this event's category." + (mixedOn && mixedPicked.size > 1
+          ? " A mixed event reads the ladder for the first category picked above." : "")
+      : "No category is set, so this event will fall back to its class ladder.";
     if (v === "custom") msg = "Uses only the ladder set below — no fallback.";
     pointsWarn.textContent = msg;
     customFieldset.style.display = v === "custom" ? "" : "none";
   }
-  [pointsFrom, typeSel, tierSel, stage].forEach(n => n.addEventListener("change", syncPoints));
+  [pointsFrom, typeSel, tierSel, stage, cat].forEach(n => n.addEventListener("change", syncPoints));
 
   /* ── v8 — gradeless and direct results ────────────────────────────
    * Two independent switches, both defaulting to v7 behaviour.
@@ -476,6 +519,7 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             tierId: useTypeTier ? (tierSel.value || null) : (existing?.tierId ?? null),
             pointsFrom: pointsFrom.value || "class",
             customRankPoints: pointsFrom.value === "custom" ? { ...customLadder.rankPoints } : null,
+            customGradePoints: pointsFrom.value === "custom" && useOwnGrades ? { ...customGrades } : null,
             awardsGradePoints: awardsGrade,
             excludeFromTotals,
             resultMode: resultMode.value || "scored",
@@ -575,7 +619,7 @@ function importDialog(categories, settings, classification, refresh) {
             // pointsFrom must name a real axis; anything unrecognised falls
             // back to the class ladder rather than silently zeroing points.
             const pfRaw = String(r.pointsfrom || "class").trim().toLowerCase();
-            const pointsFrom = ["class", "stage", "type", "tier"].includes(pfRaw) ? pfRaw : "class";
+            const pointsFrom = ["class", "stage", "type", "tier", "category"].includes(pfRaw) ? pfRaw : "class";
             if (pfRaw && pointsFrom !== pfRaw) {
               errors.push(`Row ${rowNo}: unknown pointsFrom "${r.pointsfrom}" — using the class ladder.`);
             }

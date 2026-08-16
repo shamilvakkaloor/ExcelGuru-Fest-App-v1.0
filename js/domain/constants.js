@@ -82,11 +82,12 @@ export const CHEST_ALLOCATIONS = [
  * resolvePoints() for exactly how that resolution works.
  */
 export const POINTS_FROM = [
-  { value: "class",  label: "Event class (default)" },
-  { value: "stage",  label: "Stage" },
-  { value: "type",   label: "Type" },
-  { value: "tier",   label: "Tier" },
-  { value: "custom", label: "Custom for this event" }
+  { value: "class",    label: "Event class (default)" },
+  { value: "stage",    label: "Stage" },
+  { value: "type",     label: "Type" },
+  { value: "tier",     label: "Tier" },
+  { value: "category", label: "Category" },
+  { value: "custom",   label: "Custom for this event" }
 ];
 
 /* Fest-wide policy. `both` keeps the per-event choice; the other two force
@@ -140,7 +141,7 @@ export const DEFAULTS = {
     // Each switch turns on POINTS for that axis. Off by default, so an
     // event's pointsFrom stays "class" everywhere and scoring is
     // unchanged from v7 until an Admin deliberately opts in.
-    pointsAxes: { stage: false, type: false, tier: false },
+    pointsAxes: { stage: false, type: false, tier: false, category: false },
     useTypeTier: false,          // shows Type/Tier as filters even with no points
     useTiebreakers: true,        // off hides the tiebreaker order entirely
     hasDeleteGuard: false,       // set once guard/deleteGuard exists

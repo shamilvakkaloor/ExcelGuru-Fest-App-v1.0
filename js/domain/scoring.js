@@ -91,9 +91,13 @@ export function gradeFor(percent, thresholdsOrScale) {
 
 /** The document id a ladder is stored under, for a given source. */
 export function ladderKey(pointsFrom, event) {
-  if (pointsFrom === "stage") return "stage_" + (event.stage || "onStage");
-  if (pointsFrom === "type")  return "type_" + (event.typeId || "");
-  if (pointsFrom === "tier")  return "tier_" + (event.tierId || "");
+  if (pointsFrom === "stage")    return "stage_" + (event.stage || "onStage");
+  if (pointsFrom === "type")     return "type_" + (event.typeId || "");
+  if (pointsFrom === "tier")     return "tier_" + (event.tierId || "");
+  // v9.2 — a mixed-category event's categoryId is already the FIRST of its
+  // categoryIds (see events.js), so this reads the same ladder a
+  // single-category event with that category would.
+  if (pointsFrom === "category") return "category_" + (event.categoryId || "");
   return event.eventClass;                      // "class" — the default
 }
 
@@ -123,7 +127,11 @@ export function resolvePoints(event, ladders, globalGradePoints) {
   if (from === "custom") {
     return {
       rankPoints: event.customRankPoints || {},
-      gradePoints: globalGradePoints || {},
+      // v9.2 — an event can also give its own grade points a different
+      // value from the shared table, same choice every axis ladder
+      // already offers. Leaving it off (customGradePoints null/absent)
+      // keeps inheriting the shared table, same as before this existed.
+      gradePoints: event.customGradePoints || globalGradePoints || {},
       source: "custom",
       fellBack: false
     };

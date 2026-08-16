@@ -701,9 +701,9 @@ async function publicTab(panel) {
 
 /* ── Points & grades ───────────────────────────────────────────────── */
 async function pointsTab(panel) {
-  const [gradePoints, settings, types, tiers] = await Promise.all([
+  const [gradePoints, settings, types, tiers, categories] = await Promise.all([
     getOne("config", "gradePoints"), getOne("config", "festSettings"),
-    getAll("programTypes"), getAll("programTiers")
+    getAll("programTypes"), getAll("programTiers"), getAll("categories")
   ]);
   const s = { ...DEFAULTS.festSettings, ...(settings || {}) };
   const gp = { ...DEFAULTS.gradePoints, ...(gradePoints || {}) };
@@ -734,6 +734,7 @@ async function pointsTab(panel) {
     !s.useTypeTier ? el("p.hint", { text: "Turn on Type & Tier classification first, on the Type & Tier tab." }) : null,
     checkbox("Award points by Tier", axes.tier, v => { axes.tier = v; paintAxisTabs(); },
       { disabled: !s.useTypeTier }),
+    checkbox("Award points by Category", axes.category, v => { axes.category = v; paintAxisTabs(); }),
     notice("info",
       "These switches decide which axes CAN carry points. Nothing changes for an existing " +
       "event until you also set its \u201CPoints from\u201D on the Events screen — at a time, " +
@@ -800,6 +801,11 @@ async function pointsTab(panel) {
     const doc = await getOne("pointsConfig", "tier_" + t.id);
     tierLadders[t.id] = { rankPoints: { ...(doc?.rankPoints || DEFAULTS.rankPoints) }, gradePoints: doc?.gradePoints || null };
   }
+  const categoryLadders = {};
+  for (const c of categories) {
+    const doc = await getOne("pointsConfig", "category_" + c.id);
+    categoryLadders[c.id] = { rankPoints: { ...(doc?.rankPoints || DEFAULTS.rankPoints) }, gradePoints: doc?.gradePoints || null };
+  }
 
   function paintAxisTabs() {
     axisBox.innerHTML = "";
@@ -823,6 +829,14 @@ async function pointsTab(panel) {
           tiers.map(t => ({ id: t.id, label: t.name })), tierLadders, gp, gradeScale));
       }
     }
+    if (axes.category) {
+      if (!categories.length) {
+        axisBox.appendChild(notice("warn", "No categories have been added yet — add them on the Categories tab."));
+      } else {
+        axisBox.appendChild(axisLadderCard("Rank points — by Category",
+          categories.map(c => ({ id: c.id, label: c.name })), categoryLadders, gp, gradeScale));
+      }
+    }
   }
 
   panel.appendChild(card(el("div", {}, [
@@ -842,6 +856,7 @@ async function pointsTab(panel) {
     }
     if (axes.type) for (const [id, l] of Object.entries(typeLadders)) await put("pointsConfig", "type_" + id, ladderPayload(l));
     if (axes.tier) for (const [id, l] of Object.entries(tierLadders)) await put("pointsConfig", "tier_" + id, ladderPayload(l));
+    if (axes.category) for (const [id, l] of Object.entries(categoryLadders)) await put("pointsConfig", "category_" + id, ladderPayload(l));
 
     await put("config", "gradePoints", readGradePoints());
     await patch("config", "festSettings", { pointsAxes: axes });
