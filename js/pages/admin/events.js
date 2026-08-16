@@ -2,7 +2,8 @@ import { el, card, field, input, select, checkbox, button, table, toast, guard, 
 import { getAll, getOne, add, patch, remove, nextCounter, raiseCounter, batchWrite } from "../../lib/db.js";
 import { EVENT_CLASSES, STAGES, classLabel, isGroupClass, isGeneralClass,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, DEFAULTS,
-         POINTS_FROM, RESULT_MODES, typeTierFilters, eventFilterKeys } from "../../domain/constants.js";
+         POINTS_FROM, RESULT_MODES, typeTierFilters, eventFilterKeys,
+         eventCategoryIds, isMixedCategory } from "../../domain/constants.js";
 import { parseCSVObjects, readFile, toCSV, downloadText } from "../../lib/csv.js";
 import { renderLadderEditor } from "./settings.js";
 
@@ -163,6 +164,43 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   const code  = input({ value: existing?.code || "", placeholder: "Leave blank to auto-number" });
   const cls   = select(EVENT_CLASSES.map(c => ({ value: c.id, label: c.label })), { value: existing?.eventClass || EVENT_CLASSES[0].id });
   const cat   = select([{ value: "", label: "—" }, ...categories.map(c => ({ value: c.id, label: c.name }))], { value: existing?.categoryId || "" });
+
+  /* ── v9 — mixed-category events ────────────────────────────────────
+   * One event open to several categories at once ("Handwriting, Kids and
+   * Sub Junior together"). It stays ONE event with ONE combined ranking —
+   * the categories widen who may enter, they do not split the result.
+   * Limits are unaffected: each participant is always measured against
+   * their OWN category, exactly as for a General event.
+   */
+  let mixedOn = eventCategoryIds(existing).length > 1;
+  const mixedPicked = new Set(eventCategoryIds(existing));
+  const mixedBox = el("div.chip-row");
+  function paintMixed() {
+    mixedBox.innerHTML = "";
+    for (const c of categories) {
+      const on = mixedPicked.has(c.id);
+      const b = el("button.chip" + (on ? ".on" : ""), { type: "button", text: c.name });
+      b.addEventListener("click", () => {
+        mixedPicked.has(c.id) ? mixedPicked.delete(c.id) : mixedPicked.add(c.id);
+        paintMixed();
+      });
+      mixedBox.appendChild(b);
+    }
+  }
+  paintMixed();
+  const mixedField = field("Categories this event is open to", mixedBox,
+    "Pick every category that may enter. They compete together in one ranking — " +
+    "there is no separate 1st place per category. Each participant still counts " +
+    "against their own category's entry limits.");
+  const mixedToggle = checkbox("Open to more than one category", mixedOn, v => {
+    mixedOn = v; syncMixed();
+  });
+  function syncMixed() {
+    const general = isGeneralClass(cls.value);
+    mixedToggle.style.display = general ? "none" : "";
+    mixedField.style.display = (!general && mixedOn) ? "" : "none";
+    catField.style.display = (!general && !mixedOn) ? "" : "none";
+  }
   const stage = select(STAGES, { value: existing?.stage || "onStage" });
   const perEntry = input({ type: "number", min: 1, value: existing?.maxParticipantsPerEntry || 1 });
   // I12 — ONE pair of per-house caps, applied to all four classes. v6 had two
@@ -356,7 +394,9 @@ function eventDialog(existing, categories, settings, classification, refresh) {
   function syncClass() {
     const group = isGroupClass(cls.value);
     perEntryBox.style.display = group ? "" : "none";
-    catField.style.display = isGeneralClass(cls.value) ? "none" : "";
+    // syncMixed owns catField's visibility now — a mixed event hides the
+    // single-category select and shows the chip picker instead.
+    syncMixed();
     // I31 — minimums are hidden entirely when the fest has them switched off.
     // An always-visible field that is always blank is noise.
     minBox.style.display = settings?.useMinEntryCaps ? "" : "none";
@@ -379,7 +419,9 @@ function eventDialog(existing, categories, settings, classification, refresh) {
       field("Event name", name),
       field("Event code", code),
       field("Event class", cls),
+      mixedToggle,
       catField,
+      mixedField,
       field("Description", description,
         "Rules and regulations, scoring criteria. Shown to judges when they open this event to score, and on the public event list."),
       field("Stage", stage),
@@ -408,6 +450,11 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             toast("The minimum entries per house cannot be above the maximum.", true);
             return false;
           }
+          const useMixed = mixedOn && !isGeneralClass(cls.value);
+          if (useMixed && mixedPicked.size < 2) {
+            toast("Pick at least two categories, or turn off “Open to more than one category”.", true);
+            return false;
+          }
           let finalCode = code.value.trim();
           if (!finalCode) finalCode = String(await nextCounter("eventCode")).padStart(2, "0");
           const data = {
@@ -415,7 +462,14 @@ function eventDialog(existing, categories, settings, classification, refresh) {
             code: finalCode,
             eventClass: cls.value,
             description: description.value.trim(),
-            categoryId: isGeneralClass(cls.value) ? null : (cat.value || null),
+            /* categoryId stays the single-category answer, and is also set
+             * to the FIRST of a mixed set — so every existing consumer that
+             * reads only categoryId still shows something sensible rather
+             * than blank. eventCategoryIds() is what decides eligibility. */
+            categoryId: isGeneralClass(cls.value)
+              ? null
+              : (useMixed ? ([...mixedPicked][0] || null) : (cat.value || null)),
+            categoryIds: useMixed ? [...mixedPicked] : null,
             stage: stage.value,
             // v8 — classification and the single point source.
             typeId: useTypeTier ? (typeSel.value || null) : (existing?.typeId ?? null),
@@ -502,8 +556,19 @@ function importDialog(categories, settings, classification, refresh) {
             const cls = EVENT_CLASSES.find(c => c.id.toLowerCase() === clsRaw)?.id;
             if (!cls) { errors.push(`Row ${rowNo}: eventClass must be one of ${EVENT_CLASSES.map(c => c.id).join(", ")}.`); continue; }
             const general = isGeneralClass(cls);
-            const catId = general ? null : (catByName[(r.category || "").toLowerCase()] || null);
-            if (!general && r.category && !catId) errors.push(`Row ${rowNo}: unknown category "${r.category}" — left blank.`);
+            /* A mixed-category event round-trips as "Kids + Sub Junior" —
+             * the same separator eventCategoryLabel() writes on export, so
+             * exporting and re-importing keeps the event intact. */
+            const catNames = String(r.category || "").split("+")
+              .map(s => s.trim()).filter(Boolean);
+            const catIds = general ? [] : catNames
+              .map(n => {
+                const id = catByName[n.toLowerCase()] || null;
+                if (!id) errors.push(`Row ${rowNo}: unknown category "${n}" — ignored.`);
+                return id;
+              })
+              .filter(Boolean);
+            const catId = catIds[0] || null;
             const typeId = usesTypeTier ? await ensureAxis("programTypes", typeByName, r.type) : null;
             const tierId = usesTypeTier ? await ensureAxis("programTiers", tierByName, r.tier) : null;
 
@@ -522,6 +587,7 @@ function importDialog(categories, settings, classification, refresh) {
               code: r.code || null,
               eventClass: cls,
               categoryId: catId,
+              categoryIds: catIds.length > 1 ? catIds : null,
               stage: (r.stage || "").toLowerCase().includes("off") ? "offStage" : "onStage",
               typeId, tierId, pointsFrom, resultMode,
               description: (r.description || "").trim(),

@@ -10,7 +10,8 @@ import { registerEntry, registerMany, withdrawEntry, windowState, canWithdraw, c
 import { substitutionWindow, requestSubstitution, SUB_STATUS } from "../domain/substitution.js";
 import { DEFAULTS, GENDERS, classLabel, isGroupClass, isGeneralClass, eventLabel,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, entryCompletion,
-         typeTierFilters, eventFilterKeys, entryLabel } from "../domain/constants.js";
+         typeTierFilters, eventFilterKeys, entryLabel,
+         eventCategoryIds, eventAcceptsCategory } from "../domain/constants.js";
 import { compareChest, allocateChest, takenChestNumbers, readChestCounter,
          raiseChestCounter, chestSortKey } from "../domain/chest.js";
 import { gradeLabel } from "../domain/scoring.js";
@@ -196,7 +197,11 @@ async function registerTab(panel, house, refresh) {
 
 function entryDialog(event, house, people, settings, limits, catName, used, refresh,
                      constraintGroups = [], eventById = {}) {
-  const eligible = event.categoryId ? people.filter(p => p.categoryId === event.categoryId) : people;
+  // A mixed-category event offers everyone from ANY category it names —
+  // eventAcceptsCategory() is the single place that rule lives.
+  const eligible = eventCategoryIds(event).length
+    ? people.filter(p => eventAcceptsCategory(event, p.categoryId))
+    : people;
   const chosen = new Set();
   const group = isGroupClass(event.eventClass);
 
@@ -956,7 +961,7 @@ function subDialog(registration, event, house, settings, refresh) {
   getAll("participants", where("houseId", "==", house.id)).then(people => {
     const eligible = people
       .filter(p => !(registration.participantIds || []).includes(p.id))
-      .filter(p => !event.categoryId || p.categoryId === event.categoryId)
+      .filter(p => eventAcceptsCategory(event, p.categoryId))
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
     inSel.innerHTML = "";
     if (!eligible.length) {

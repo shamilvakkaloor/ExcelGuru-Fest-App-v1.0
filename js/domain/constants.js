@@ -301,18 +301,55 @@ export const POOL_LABEL = {
 export function eventLabel(event, catName) {
   if (!event) return "";
   const code = event.code ? event.code + " · " : "";
-  const cat = isGeneralClass(event.eventClass)
-    ? "General"
-    : (catName?.[event.categoryId] || event.categoryName || "");
-  return code + event.name + (cat ? " (" + cat + ")" : "");
+  const cat = eventCategoryLabel(event, catName);
+  return code + event.name + (cat && cat !== "—" ? " (" + cat + ")" : "");
+}
+
+/* ── v9 — mixed-category events ────────────────────────────────────────
+ *
+ * An event may be open to SEVERAL categories at once — a handwriting
+ * competition for Kids and Sub Junior together. That is stored as
+ * `categoryIds: [...]`, and `categoryId` stays as it was for the ordinary
+ * single-category case, so no existing event needs migrating and every
+ * caller that only ever reads `categoryId` keeps working.
+ *
+ * The three states, in the order they are checked:
+ *   general class          → open to everyone, no category at all
+ *   categoryIds non-empty  → mixed: open to exactly those categories
+ *   categoryId set         → the ordinary single-category event
+ *
+ * A mixed event still produces ONE combined ranking — everyone entered
+ * competes against everyone else. It is a wider door, not a split result.
+ */
+export function eventCategoryIds(event) {
+  if (!event || isGeneralClass(event.eventClass)) return [];
+  const many = Array.isArray(event.categoryIds) ? event.categoryIds.filter(Boolean) : [];
+  if (many.length) return [...new Set(many)];
+  return event.categoryId ? [event.categoryId] : [];
+}
+
+/** Is this event open to a participant in `categoryId`? */
+export function eventAcceptsCategory(event, categoryId) {
+  if (!event || isGeneralClass(event.eventClass)) return true;
+  const ids = eventCategoryIds(event);
+  if (!ids.length) return true;              // no category set — treat as open
+  return ids.includes(categoryId);
+}
+
+/** True when the event names more than one category. */
+export function isMixedCategory(event) {
+  return eventCategoryIds(event).length > 1;
 }
 
 /** Just the category part, for tables that give it its own column. */
 export function eventCategoryLabel(event, catName) {
   if (!event) return "";
-  return isGeneralClass(event.eventClass)
-    ? "General"
-    : (catName?.[event.categoryId] || event.categoryName || "—");
+  if (isGeneralClass(event.eventClass)) return "General";
+  const ids = eventCategoryIds(event);
+  if (!ids.length) return event.categoryName || "—";
+  const names = ids.map(id => catName?.[id]).filter(Boolean);
+  if (!names.length) return event.categoryName || "—";
+  return names.join(" + ");
 }
 
 /** Code letters A…Z, then AA, AB… so an event is never capped at 26 entries. */
@@ -441,7 +478,11 @@ export function typeTierFilters({ types = [], tiers = [], enabled = true } = {})
 /** The filter keys an event row must expose for the axes above to work. */
 export function eventFilterKeys(event, { catName } = {}) {
   return {
-    filterCategory: isGeneralClass(event.eventClass) ? "__general" : (event.categoryId || ""),
+    // An array, so a mixed-category event surfaces under EVERY category it
+    // is open to — filterBar.matches() already accepts one.
+    filterCategory: isGeneralClass(event.eventClass)
+      ? "__general"
+      : (eventCategoryIds(event).length ? eventCategoryIds(event) : ""),
     filterClass: event.eventClass || "",
     filterStage: event.stage || "onStage",
     filterType: event.typeId || "",

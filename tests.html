@@ -31,7 +31,9 @@ import { highestRankAwarded, boardMatchesEvent, tallyBoard, championshipStanding
          categoryBreakdown } from "./js/domain/scoring.js";
 import { overlaps, findClashes, describeClashes } from "./js/domain/clashes.js";
 import { codeLetterAt, entryCap, maxEntriesFor, minEntriesFor, entryCompletion,
-         rankCountFromLadder, publicRankLimit, rankIsPublic, GENDERS } from "./js/domain/constants.js";
+         rankCountFromLadder, publicRankLimit, rankIsPublic, GENDERS,
+         eventCategoryIds, eventAcceptsCategory, isMixedCategory,
+         eventCategoryLabel, eventFilterKeys, eventLabel } from "./js/domain/constants.js";
 import { derivePattern, incrementLetters, nextChestValue, chestSortKey, compareChest,
          matchesSeed, nextSeededValue, rangeClash, rangeOwner, overlappingRanges,
          ownershipError, allocateChest, normalizeChest } from "./js/domain/chest.js";
@@ -924,6 +926,51 @@ check("slots with no time are ignored",
   findClashes([{ eventId: "e1", dayId: "d1" }, { eventId: "e2", dayId: "d1" }], V87_PEOPLE).length, 0);
 check("a clash summary names the person",
   /Ann/.test(describeClashes(findClashes(V87_SLOTS, V87_PEOPLE))), true);
+
+/* v9 — mixed-category events. One event open to several categories at
+ * once, competing in ONE combined ranking. */
+const V9_CATNAME = { k: "Kids", sj: "Sub Junior", jr: "Junior" };
+const V9_MIXED   = { eventClass: "categoryIndividual", code: "12", name: "Handwriting",
+                     categoryId: "k", categoryIds: ["k", "sj"] };
+const V9_SINGLE  = { eventClass: "categoryIndividual", code: "13", name: "Essay", categoryId: "jr" };
+const V9_GENERAL = { eventClass: "generalIndividual", code: "14", name: "Quiz" };
+
+check("a mixed event lists every category it is open to",
+  eventCategoryIds(V9_MIXED), ["k", "sj"]);
+
+check("a single-category event still reports exactly one",
+  eventCategoryIds(V9_SINGLE), ["jr"]);
+
+check("a general event names no category at all",
+  eventCategoryIds(V9_GENERAL), []);
+
+check("only an event with two or more categories counts as mixed",
+  [isMixedCategory(V9_MIXED), isMixedCategory(V9_SINGLE), isMixedCategory(V9_GENERAL)],
+  [true, false, false]);
+
+check("a mixed event accepts either of its categories and refuses the rest",
+  [eventAcceptsCategory(V9_MIXED, "k"),
+   eventAcceptsCategory(V9_MIXED, "sj"),
+   eventAcceptsCategory(V9_MIXED, "jr")],
+  [true, true, false]);
+
+check("a single-category event is unchanged by the mixed-category code",
+  [eventAcceptsCategory(V9_SINGLE, "jr"), eventAcceptsCategory(V9_SINGLE, "k")],
+  [true, false]);
+
+check("a general event accepts anyone",
+  eventAcceptsCategory(V9_GENERAL, "whatever"), true);
+
+check("a mixed event's label names both categories",
+  eventCategoryLabel(V9_MIXED, V9_CATNAME), "Kids + Sub Junior");
+
+// The label is what the CSV export writes, so this is also the round-trip
+// format the importer has to be able to read back.
+check("a mixed event's category survives into its full display label",
+  eventLabel(V9_MIXED, V9_CATNAME), "12 · Handwriting (Kids + Sub Junior)");
+
+check("a mixed event is filterable under EVERY category it is open to",
+  eventFilterKeys(V9_MIXED).filterCategory, ["k", "sj"]);
 
 // The summary must run LAST — it used to sit mid-file, from a point in
 // this file's history where that mid-point was briefly the end. Every

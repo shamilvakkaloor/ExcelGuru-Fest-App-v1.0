@@ -19,6 +19,7 @@
 import { db, docRef, getOne, getAll, add, patch, put, remove, where,
          runTransaction, serverTimestamp } from "../lib/db.js";
 import { checkCaps, applyCounts, limitsForCategory } from "./limits.js";
+import { eventAcceptsCategory, eventCategoryIds } from "./constants.js";
 
 export const SUB_STATUS = {
   PENDING:  "pending",
@@ -58,8 +59,11 @@ export async function requestSubstitution({ registration, event, outgoing, incom
     throw new Error(`${incoming.name} is already in this entry.`);
   }
   if (incoming.houseId !== house.id) throw new Error(`${incoming.name} is not in your house.`);
-  if (event.categoryId && incoming.categoryId !== event.categoryId) {
-    throw new Error(`${incoming.name} is not in this event's category.`);
+  // Mixed-category events accept a replacement from ANY category they name.
+  if (!eventAcceptsCategory(event, incoming.categoryId)) {
+    throw new Error(eventCategoryIds(event).length > 1
+      ? `${incoming.name} is not in any of this event's categories.`
+      : `${incoming.name} is not in this event's category.`);
   }
 
   // One open request per entry keeps the approval queue unambiguous.

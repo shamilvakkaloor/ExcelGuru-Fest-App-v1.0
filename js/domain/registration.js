@@ -16,7 +16,8 @@
 import { db, docRef, getOne, getAll, put, remove, where, runTransaction, serverTimestamp, deleteField } from "../lib/db.js";
 import { checkCaps, applyCounts, limitsForCategory, checkConstraints,
          reservationBlocker } from "./limits.js";
-import { isGroupClass, maxEntriesFor, teamName } from "./constants.js";
+import { isGroupClass, maxEntriesFor, teamName,
+         eventCategoryIds, eventAcceptsCategory } from "./constants.js";
 
 export const tallyId = (eventId, houseId) => `${eventId}_${houseId}`;
 
@@ -90,10 +91,16 @@ export async function registerEntry({ event, house, participants, settings, limi
   }
   if (wholeTeam) participants = [];
 
-  // Category events only accept participants from that category.
-  if (event.categoryId) {
-    const wrong = participants.filter(p => p.categoryId !== event.categoryId);
-    if (wrong.length) throw new Error(`${wrong[0].name} is not in this event's category.`);
+  /* Category events only accept participants from that category — or, for
+   * a mixed-category event, from ANY of the categories it names. */
+  const openTo = eventCategoryIds(event);
+  if (openTo.length) {
+    const wrong = participants.filter(p => !eventAcceptsCategory(event, p.categoryId));
+    if (wrong.length) {
+      throw new Error(openTo.length > 1
+        ? `${wrong[0].name} is not in any of this event's categories.`
+        : `${wrong[0].name} is not in this event's category.`);
+    }
   }
 
   // I12 — maxEntriesPerHouse applies to ALL FOUR CLASSES. v6 hard-coded 999
