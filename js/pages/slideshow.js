@@ -48,10 +48,14 @@ export default async function slideshowPage(root) {
       slides.push({
         title: ev.eventName,
         sub: [ev.categoryName, ev.eventCode].filter(Boolean).join(" · "),
-        items: top.map(e => ({
-          rank: e.rank, main: e.teamLabel || (e.names || []).join(", "), sub: e.houseName,
-          crest: houseStyle[e.houseId]?.logoData || null
-        }))
+        items: top.map(e => {
+          const est = houseStyle[e.houseId] || {};
+          return {
+            rank: e.rank, main: e.teamLabel || (e.names || []).join(", "), sub: e.houseName,
+            crest: est.logoData || null,
+            color: est.useAsNameColor ? est.color : null
+          };
+        })
       });
     }
     if (!slides.length) slides = [{ title: "No results published yet", items: [] }];

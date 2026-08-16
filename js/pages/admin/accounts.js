@@ -166,8 +166,16 @@ function houseFields(existing, cfg) {
 
   const colorInput = el("input", { type: "color", value: color || "#4C7A5A" });
   let useColor = !!color;
+  let useAsNameColor = !!existing?.useAsNameColor;
+  const nameColorToggle = checkbox(
+    "Use this colour for the participants' names on public displays",
+    useAsNameColor, v => useAsNameColor = v);
+  nameColorToggle.style.display = useColor ? "" : "none";
   const colorToggle = checkbox("Give this house a colour", useColor, v => {
-    useColor = v; colorInput.style.display = v ? "" : "none";
+    useColor = v;
+    colorInput.style.display = v ? "" : "none";
+    nameColorToggle.style.display = v ? "" : "none";
+    if (!v) { useAsNameColor = false; nameColorToggle.querySelector("input").checked = false; }
   });
   colorInput.style.display = useColor ? "" : "none";
 
@@ -212,7 +220,7 @@ function houseFields(existing, cfg) {
     ]),
     el("fieldset", {}, [
       el("legend", { text: "Identity (optional)" }),
-      colorToggle, colorInput,
+      colorToggle, colorInput, nameColorToggle,
       el("div", { style: "margin-top:.6rem" }, [
         logoPreview,
         el("div.btn-row", { style: "margin-top:.4rem" }, [
@@ -248,6 +256,7 @@ function houseFields(existing, cfg) {
         code: code.value.trim().toUpperCase(),
         adjustmentPoints: Number(adj.value) || 0,
         color: useColor ? colorInput.value : null,
+        useAsNameColor: useColor && useAsNameColor,
         logoData,
         /* Names only. NO PHONE NUMBERS ON THIS DOCUMENT.
          *

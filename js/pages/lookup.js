@@ -8,6 +8,7 @@ import { queryParams } from "../lib/router.js";
 import { chestSortKey, normalizeChest } from "../domain/chest.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { gradeLabel } from "../domain/scoring.js";
+import { nameColorStyle } from "../domain/houseColor.js";
 
 export default async function lookupPage(root) {
   root.appendChild(topbar());
@@ -16,8 +17,14 @@ export default async function lookupPage(root) {
 
   // Fetched once for the page, not per search result: config/festSettings is
   // cached by lib/db.js, but that cache is per page-load — one read here
-  // beats one per card.
-  const settings = await getOne("config", "festSettings").catch(() => null);
+  // beats one per card. publicLeaderboard carries houseStyle (color +
+  // whether that color should tint participant names), so a search result
+  // can color a name with no extra read per card.
+  const [settings, board] = await Promise.all([
+    getOne("config", "festSettings").catch(() => null),
+    getOne("publicLeaderboard", "main").catch(() => null)
+  ]);
+  const houseStyle = board?.houseStyle || {};
 
   const box = input({ placeholder: "Chest number or name", autocomplete: "off" });
   const out = el("div");
@@ -57,7 +64,7 @@ export default async function lookupPage(root) {
 
     out.innerHTML = "";
     if (!matches.length) { out.appendChild(empty("No match", "Check the spelling or the chest number.")); return; }
-    for (const p of matches) out.appendChild(await renderCard(p, settings));
+    for (const p of matches) out.appendChild(await renderCard(p, settings, houseStyle));
   }, 350);
 
   box.addEventListener("input", run);
@@ -67,9 +74,10 @@ export default async function lookupPage(root) {
   box.focus();
 }
 
-async function renderCard(p, settings) {
+async function renderCard(p, settings, houseStyle = {}) {
   const pub = await getOne("participantPublic", p.id).catch(() => null);
   const events = Object.entries(pub?.events || {}).map(([id, e]) => ({ id, ...e }));
+  const nameStyle = nameColorStyle(houseStyle, p.houseId);
 
   const head = el("div", { style: "display:flex;gap:.9rem;align-items:center;margin-bottom:.8rem" }, [
     p.photoURL ? el("img", {
@@ -78,7 +86,7 @@ async function renderCard(p, settings) {
       onerror: e => e.target.remove()
     }) : null,
     el("div", {}, [
-      el("h3", { text: p.name, style: "margin:0" }),
+      el("h3", { text: p.name, style: "margin:0" + (nameStyle ? ";" + nameStyle : "") }),
       el("div.hint", { style: "margin:0" }, [
         el("span.mono", { text: "#" + (p.chestNumber ?? "—") }),
         " · ", p.houseName || "", " · ", p.categoryName || ""

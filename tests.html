@@ -38,6 +38,7 @@ import { derivePattern, incrementLetters, nextChestValue, chestSortKey, compareC
          matchesSeed, nextSeededValue, rangeClash, rangeOwner, overlappingRanges,
          ownershipError, allocateChest, normalizeChest } from "./js/domain/chest.js";
 import { MM_PER_PX_AT_96DPI } from "./js/lib/designRender.js";
+import { shadeColor, darkenColor, lightenColor } from "./js/domain/houseColor.js";
 
 const out = document.getElementById("out");
 let pass = 0, fail = 0;
@@ -995,6 +996,24 @@ check("a mixed event's category survives into its full display label",
 
 check("a mixed event is filterable under EVERY category it is open to",
   eventFilterKeys(V9_MIXED).filterCategory, ["k", "sj"]);
+
+/* House color shading — item 3, score-card background/foreground */
+check("shadeColor mixes toward black at a negative amount",
+  shadeColor("#808080", -50), "#010101");
+
+check("shadeColor mixes toward white at a positive amount",
+  shadeColor("#808080", 50), "#ffffff");
+
+check("shadeColor clamps rather than wrapping past black or white",
+  [shadeColor("#101010", -100), shadeColor("#f0f0f0", 100)], ["#000000", "#ffffff"]);
+
+check("shadeColor accepts the 3-digit shorthand",
+  shadeColor("#fff", -50), shadeColor("#ffffff", -50));
+
+check("darkenColor is strictly darker than the source, lightenColor strictly lighter", (() => {
+  const src = "#4c7a5a";
+  return [darkenColor(src) < src, lightenColor(src) > src];
+})(), [true, true]);
 
 // The summary must run LAST — it used to sit mid-file, from a point in
 // this file's history where that mid-point was briefly the end. Every

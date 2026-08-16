@@ -9,6 +9,7 @@ import { classLabel, rankIsPublic } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { currentlyRunning } from "./home.js";
+import { darkenColor, lightenColor, nameColorStyle } from "../domain/houseColor.js";
 
 const SLIDE_MS = 9000;
 const REFRESH_MS = 120000;
@@ -56,7 +57,8 @@ export default async function screenPage(root) {
           rank: h.rank, main: h.name, value: (h.total ?? 0) + " pts",
           pct: Math.round((h.total / max) * 100),
           crest: houseStyle[h.id]?.logoData || null,
-          color: houseStyle[h.id]?.color || null
+          bg: houseStyle[h.id]?.color ? darkenColor(houseStyle[h.id].color) : null,
+          fg: houseStyle[h.id]?.color ? lightenColor(houseStyle[h.id].color) : null
         }))
       });
     }
@@ -82,7 +84,8 @@ export default async function screenPage(root) {
         sub: [ev.categoryName, classLabel(ev.eventClass)].filter(Boolean).join(" · "),
         rows: top.map(e => ({
           rank: e.rank, main: e.teamLabel || (e.names || []).join(", "), sub: e.houseName,
-          value: e.grade ? gradeLabel(e.grade, settings) : ""
+          value: e.grade ? gradeLabel(e.grade, settings) : "",
+          nameColor: nameColorStyle(houseStyle, e.houseId)
         }))
       });
     }
@@ -110,13 +113,15 @@ export default async function screenPage(root) {
       for (const r of s.rows) {
         const bar = el("i", { style: "width:0%" });
         requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = r.pct + "%"; }));
-        if (r.color) bar.style.background = r.color;
-        body.appendChild(el("div.screen-house", {}, [
+        if (r.fg) bar.style.background = r.fg;
+        body.appendChild(el("div.screen-house", {
+          style: r.bg ? `background:${r.bg};border-radius:12px;padding:1.1vh 1.2vw` : null
+        }, [
           hasMedal(r.rank) ? rankNode(r.rank, { size: 54, rankArt })
-                           : el("span.screen-rank", { text: "#" + r.rank }),
+                           : el("span.screen-rank", { text: "#" + r.rank, style: r.fg ? "color:" + r.fg : null }),
           r.crest ? el("img.house-crest", { src: r.crest, alt: "" }) : null,
-          el("span.screen-main", { text: r.main }),
-          el("span.screen-value", { text: r.value }),
+          el("span.screen-main", { text: r.main, style: r.fg ? "color:" + r.fg : null }),
+          el("span.screen-value", { text: r.value, style: r.fg ? "color:" + r.fg : null }),
           el("div.screen-bar", {}, bar)
         ]));
       }
@@ -135,7 +140,7 @@ export default async function screenPage(root) {
                                 : el("span.screen-rank", { text: "#" + r.rank }))
             : null,
           el("div", { style: "flex:1;min-width:0" }, [
-            el("div.screen-main", { text: r.main }),
+            el("div.screen-main", { text: r.main, style: r.nameColor || null }),
             r.sub ? el("div.screen-rowsub", { text: r.sub }) : null
           ]),
           r.value ? el("span.screen-value", { text: r.value }) : null

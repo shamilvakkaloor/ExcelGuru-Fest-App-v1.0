@@ -9,6 +9,7 @@ import { session } from "../lib/session.js";
 import { classLabel, rankIsPublic, houseTerm, housePluralTerm } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
+import { darkenColor, lightenColor, nameColorStyle } from "../domain/houseColor.js";
 
 export default async function homePage(root) {
   root.appendChild(topbar());
@@ -66,18 +67,25 @@ export default async function homePage(root) {
         requestAnimationFrame(() =>
           requestAnimationFrame(() => { bar.style.width = Math.round((valueOf(h) / max) * 100) + "%"; }));
         const style = board?.houseStyle?.[h.id] || {};
-        if (style.color) bar.style.background = style.color;
-        return el("div.podium-card." + cls, {
-          style: style.color ? "--house-color:" + style.color : null
+        // The score-card box takes a darker shade of the house's own color as
+        // its background and a lighter shade as its text, so one color pick
+        // yields a readable pair automatically instead of asking the admin
+        // to choose two colors that must be kept in sync by hand.
+        const bg = style.color ? darkenColor(style.color) : null;
+        const fg = style.color ? lightenColor(style.color) : null;
+        if (fg) bar.style.background = fg;
+        const card = el("div.podium-card." + cls, {
+          style: bg ? "background:" + bg : null
         }, [
-          el("div.pos", { text: "#" + h.rank }),
+          el("div.pos", { text: "#" + h.rank, style: fg ? "color:" + fg : null }),
           style.logoData
             ? el("img.house-crest", { src: style.logoData, alt: "" })
             : null,
-          el("div.hname", { text: h.name }),
-          el("div.hpts", { text: labelOf(h) }),
+          el("div.hname", { text: h.name, style: fg ? "color:" + fg : null }),
+          el("div.hpts", { text: labelOf(h), style: fg ? "color:" + fg : null }),
           el("div.hbar", {}, bar)
         ]);
+        return card;
       })),
       usingChampionship ? "Championship standings" : housePluralTerm(settings) + " standings",
       el("a.btn.btn-sm", { href: "#/results", text: "Full table" })));
@@ -112,7 +120,7 @@ export default async function homePage(root) {
             ? rankNode(w.rank, { size: 34, rankArt })
             : el("div.feed-rank.r" + w.rank, { text: String(w.rank) }),
           el("div", { style: "flex:1;min-width:0" }, [
-            el("div", { text: (w.names || []).join(", ") }),
+            el("div", { text: (w.names || []).join(", "), style: nameColorStyle(board?.houseStyle, w.houseId) }),
             el("div.hint", { style: "margin:0", text: w.houseName || "" })
           ]),
           badge(w.grade ? gradeLabel(w.grade, settings) : "")

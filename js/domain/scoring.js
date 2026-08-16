@@ -597,6 +597,7 @@ export function tallyBoard(board, resultDocs, eventById, meta = {}, opts = {}) {
           id: pid,
           name: (entry.participantNames || [])[i] || meta[pid]?.name || "",
           chestNumber: (entry.chestNumbers || [])[i] || meta[pid]?.chestNumber || "",
+          houseId: entry.houseId || meta[pid]?.houseId || null,
           houseName: entry.houseName || meta[pid]?.houseName || "",
           categoryName: meta[pid]?.categoryName || "",
           total: 0, events: 0

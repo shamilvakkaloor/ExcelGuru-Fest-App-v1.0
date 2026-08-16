@@ -7,6 +7,7 @@ import { topbar } from "../app.js";
 import { POOL_LABEL, classLabel, EVENT_CLASSES, rankIsPublic, isGroupClass } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
+import { nameColorStyle } from "../domain/houseColor.js";
 import { printDocument, htmlTable } from "../lib/pdf.js";
 import { toCSV, downloadText } from "../lib/csv.js";
 
@@ -104,7 +105,7 @@ export default async function resultsPage(root) {
     const shown = cap ? rows.slice(0, cap) : rows;
     panel.appendChild(card(table([
       { key: "rank", label: "Rank", render: rankCell },
-      { key: "name", label: "Participant" },
+      { key: "name", label: "Participant", render: r => el("span", { text: r.name, style: nameColorStyle(houseStyle, r.houseId) }) },
       { key: "chestNumber", label: "Chest", render: r => el("span.mono", { text: r.chestNumber || "" }) },
       { key: "houseName", label: hTerm, render: houseTag },
       { key: "events", label: "Events", num: true },
@@ -222,7 +223,7 @@ export default async function resultsPage(root) {
       const shown = talentLimit ? ranked.slice(0, talentLimit) : ranked;
       panel.appendChild(card(table([
         { key: "rank", label: "Rank", render: rankCell },
-        { key: "name", label: "Participant" },
+        { key: "name", label: "Participant", render: r => el("span", { text: r.name, style: nameColorStyle(houseStyle, r.houseId) }) },
         { key: "chestNumber", label: "Chest", render: r => el("span.mono", { text: r.chestNumber || "" }) },
         { key: "houseName", label: hTerm, render: houseTag },
         { key: "total", label: "Points", num: true }
@@ -287,7 +288,7 @@ export default async function resultsPage(root) {
           shown.length
             ? table([
                 { key: "rank", label: "Rank", render: rankCell },
-                { key: "names", label: "Participant", render: r => entryDisplay(r, ev) },
+                { key: "names", label: "Participant", render: r => entryDisplay(r, ev, houseStyle) },
                 { key: "houseName", label: hTerm, render: houseTag },
                 { key: "grade", label: "Grade", render: r => badge(gradeLabel(r.grade, board), gradeKind(r.grade)) },
                 { key: "totalPoints", label: "Points", num: true }
@@ -318,11 +319,14 @@ export default async function resultsPage(root) {
 // A group entry shows its team name first, roster underneath — the public
 // snapshot carries teamLabel precomputed, so this reads it rather than
 // re-deriving it from a house name and entry number.
-function entryDisplay(r, ev) {
-  if (!isGroupClass(ev.eventClass) || !r.teamLabel) return (r.names || []).join(", ");
-  if (r.wholeTeam) return el("span", { text: r.teamLabel });
+function entryDisplay(r, ev, houseStyle = {}) {
+  const nameStyle = nameColorStyle(houseStyle, r.houseId);
+  if (!isGroupClass(ev.eventClass) || !r.teamLabel) {
+    return el("span", { text: (r.names || []).join(", "), style: nameStyle });
+  }
+  if (r.wholeTeam) return el("span", { text: r.teamLabel, style: nameStyle });
   return el("div", {}, [
-    el("div", { text: r.teamLabel }),
+    el("div", { text: r.teamLabel, style: nameStyle }),
     el("div.hint", { style: "margin:0", text: (r.names || []).join(", ") })
   ]);
 }

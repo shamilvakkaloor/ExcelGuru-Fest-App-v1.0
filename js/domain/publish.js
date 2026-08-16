@@ -418,6 +418,7 @@ export async function rebuildPublicSnapshots() {
         meta[pid] ||= {
           name: (e.participantNames || [])[i] || "",
           chestNumber: (e.chestNumbers || [])[i] || "",
+          houseId: e.houseId || null,
           houseName: e.houseName || houseName[e.houseId] || "",
           categoryId: e.categoryId || null
         };
@@ -429,6 +430,7 @@ export async function rebuildPublicSnapshots() {
     id: pid,
     name: meta[pid]?.name || "",
     chestNumber: meta[pid]?.chestNumber || "",
+    houseId: meta[pid]?.houseId || null,
     houseName: meta[pid]?.houseName || "",
     categoryName: catName[meta[pid]?.categoryId] || "",
     pools,
@@ -581,7 +583,8 @@ export async function rebuildPublicSnapshots() {
       housePluralTerm: housePluralTerm(cfg.settings),
       rankArt: cfg.settings.rankArt || {},
       houseStyle: Object.fromEntries(houses.map(h =>
-        [h.id, { color: h.color || null, logoData: h.logoData || null }]))
+        [h.id, { color: h.color || null, logoData: h.logoData || null,
+                  useAsNameColor: !!(h.color && h.useAsNameColor) }]))
     }
   });
 
