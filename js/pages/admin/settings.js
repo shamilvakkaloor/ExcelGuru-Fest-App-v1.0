@@ -7,9 +7,10 @@ import { queueRepublish } from "../../domain/republish.js";
 import { rebuildContactSnapshot } from "../../domain/publish.js";
 import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timezone.js";
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
-import { wipeEverything } from "../../domain/reset.js";
+import { wipeEverything, wipeGroup, DELETE_GROUPS } from "../../domain/reset.js";
 import { compressImage, compressToBudget } from "../../lib/photo.js";
 import { applyFestName, applyLogoScale, applyHouseTerm } from "../../lib/shell.js";
+import { tr } from "../../lib/i18n.js";
 
 const TABS = [
   ["basic",          "Fest details"],
@@ -529,9 +530,9 @@ async function classificationTab(panel) {
   ]), "Classification axes"));
 
   if (!useTypeTier) {
-    panel.appendChild(notice("info",
+    panel.appendChild(notice("info", tr(
       "Turn this on to manage the list of Types and Tiers here — the Add/Edit " +
-      "controls for both only appear once it's switched on."));
+      "controls for both only appear once it's switched on.")));
     return;
   }
 
@@ -1771,8 +1772,33 @@ async function dangerTab(panel) {
     ]), "Delete-everything password"));
   }
 
+  /* ── Partial deletes ────────────────────────────────────────────────
+   * Clearing one slice is the common case — re-running a rehearsal, or
+   * throwing away test data before the real fest — and doing it by
+   * wiping the entire fest and setting it up again is a far bigger
+   * hammer than the job needs.
+   */
+  panel.appendChild(card(el("div", {}, [
+    el("p.hint", { text:
+      "Clear one part of the fest and keep the rest. The fest itself, every " +
+      "account and your own login all stay — only the data named is removed. " +
+      "Each of these still needs your delete-everything password." }),
+    ...DELETE_GROUPS.map(g => el("div", {
+      style: "padding:.75rem 0;border-top:1px solid var(--line)"
+    }, [
+      el("div", { style: "display:flex;gap:.75rem;align-items:flex-start;flex-wrap:wrap" }, [
+        el("div", { style: "flex:1;min-width:220px" }, [
+          el("strong", { text: g.label }),
+          hint(g.detail, { style: "margin:.15rem 0 0" })
+        ]),
+        button("Delete", { class: "btn-sm btn-danger",
+          onclick: guard(() => runGroupDelete(g, guardDoc, panel)) })
+      ])
+    ]))
+  ]), "Clear part of the fest"));
+
   panel.appendChild(notice("danger",
-    `This permanently deletes every event, participant, registration, score and result. There is no undo and no backup — this is not a "hide" or "archive", the data is gone.`));
+    `Everything below deletes the WHOLE fest — every event, participant, registration, score and result. There is no undo and no backup — this is not a "hide" or "archive", the data is gone.`));
 
   panel.appendChild(card(el("div", {}, [
     el("p", { text: "What this does, exactly:" }),
@@ -1859,6 +1885,62 @@ async function dangerTab(panel) {
       guardChangeBox(guardDoc)
     ]), "Change the delete-everything password"));
   }
+}
+
+/**
+ * Delete one slice of the fest.
+ *
+ * Gated on the same delete-everything password as a full wipe, and on
+ * typing the group's own name — a partial delete is smaller than a reset
+ * but every bit as irreversible, and "All participants" sitting one stray
+ * click away from a Delete button is exactly the shape of accident this
+ * screen exists to prevent.
+ */
+async function runGroupDelete(group, guardDoc, panel) {
+  const confirmWord = group.label;
+  const nameCheck = input({ placeholder: confirmWord });
+  const guardPw = input({ type: "password", autocomplete: "off" });
+  const status = el("div");
+
+  await modal({
+    title: "Delete — " + group.label,
+    body: el("div", {}, [
+      notice("danger", group.detail),
+      field(`Type "${confirmWord}" to confirm`, nameCheck),
+      guardDoc ? field("Delete-everything password", guardPw,
+        "The same separate password that guards a full reset.") : null,
+      status
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Delete", kind: "danger", closes: false, busyLabel: "Deleting…",
+        onClick: guard(async close => {
+          if (nameCheck.value.trim() !== confirmWord) {
+            toast(`Type "${confirmWord}" exactly to confirm.`, true);
+            return false;
+          }
+          if (guardDoc) {
+            const { verifyGuardPassword } = await import("../../lib/crypto.js");
+            if (!await verifyGuardPassword(guardPw.value, guardDoc)) {
+              toast("That delete-everything password is not correct.", true);
+              return false;
+            }
+          }
+          status.innerHTML = "";
+          const progress = hint("Starting…");
+          status.appendChild(progress);
+          const removed = await wipeGroup(group.id, {
+            onProgress: msg => { progress.textContent = msg; }
+          });
+          toast(removed
+            ? `Deleted ${removed} record${removed === 1 ? "" : "s"}.`
+            : "Nothing was there to delete.");
+          close(true);
+          dangerTab(clearPanel(panel));
+        })
+      }
+    ]
+  });
 }
 
 function guardSetupBox(panel) {
