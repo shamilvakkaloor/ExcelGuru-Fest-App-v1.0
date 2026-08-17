@@ -1,8 +1,8 @@
 // House Manager panel: register the house's own participants for events,
 // withdraw before code letters are assigned, and download the house's lists.
-import { el, card, field, input, select, button, table, toast, guard, notice, empty, badge, modal, confirmDialog, loading, filterBar, uniqOptions, hint } from "../lib/ui.js";
+import { el, card, field, input, select, button, table, toast, guard, notice, empty, badge, modal, confirmDialog, loading, filterBar, uniqOptions, hint, photoPicker, fmtDateTime } from "../lib/ui.js";
 import { avatar } from "../lib/photo.js";
-import { getAll, getOne, add, where } from "../lib/db.js";
+import { getAll, getOne, add, patch, where } from "../lib/db.js";
 import { appShell } from "../lib/shell.js";
 import { session } from "../lib/session.js";
 import { registerEntry, registerMany, withdrawEntry, windowState, canWithdraw, countByEvent }
@@ -49,7 +49,7 @@ export default async function housePage(root) {
    // to register on this house's behalf; empty for every fest that never
    // turns the feature on.
    ...(window.__ADMIN_REG_ENABLED__ ? [["adminRequests", "Admin requests"]] : []),
-   ["schedule", "Schedule"]];
+   ["schedule", "Schedule"], ["dates", "Important dates"]];
   TAB_LIST.forEach(([id, label]) => tabs.appendChild(button(label, {
       class: id === tab ? "active" : "", onclick: () => { tab = id; paint(); }
     })));
@@ -63,7 +63,7 @@ export default async function housePage(root) {
     const render = { register: registerTab, entries: entriesTab, subs: subsTab,
                      people: peopleTab, results: houseResultsTab, titles: houseTitlesTab,
                      appeals: appealsTab, adminRequests: adminRequestsTab,
-                     schedule: scheduleTab }[tab];
+                     schedule: scheduleTab, dates: datesTab }[tab];
     panel.innerHTML = "";
     await render(panel, house, paint);
   }
@@ -582,7 +582,12 @@ async function peopleTab(panel, house, refresh) {
         // Each participant against their OWN category's limits.
         const s = shortfalls(r.eventCounts, limitsForCategory(lim, r.categoryId), vocab);
         return s.length ? badge(`${s.length} unmet`, "badge-warn") : badge("OK", "badge-ok");
-      }}
+      }},
+    // I9 — same window as adding one: correcting "who is in my house" is
+    // the same act as adding them, on the same clock.
+    { key: "act", label: "", render: r => addOpen
+        ? button("Edit", { class: "btn-sm", onclick: () => houseEditDialog(r, house, categories, cfgS, refresh) })
+        : null }
   ], rows), "Our participants", [
     button("CSV", { class: "btn-sm", onclick: () => downloadText(house.name + "-participants.csv", toCSV(columns, rows)) }),
     button("Print / PDF", { class: "btn-sm", onclick: () => printDocument({
@@ -676,6 +681,73 @@ function houseAddDialog(house, categories, cfg, refresh) {
 }
 
 /**
+ * I9 — a House Manager correcting one of their own participant's details.
+ * Deliberately narrower than the Admin edit dialog: no house (this IS
+ * their house) and no chest number (it stays auto-allocated, the same
+ * policy houseAddDialog already applies) — firestore.rules refuses either
+ * from this side regardless, so there is nothing to gain by offering them.
+ */
+function houseEditDialog(existing, house, categories, cfg, refresh) {
+  const name = input({ value: existing.name || "" });
+  const cat  = select(categories.map(c => ({ value: c.id, label: c.name })), { value: existing.categoryId || "" });
+  const cls  = input({ value: existing.className || "", placeholder: "Class / grade" });
+  const dob  = input({ type: "date", value: existing.dob || "" });
+  const gender = select(GENDERS, { value: GENDERS.some(g => g.value === existing.gender) ? existing.gender : "" });
+  const picker = photoPicker(existing);
+
+  const autoMode = cfg.autoCategory || "none";
+  const autoNote = el("div");
+  function runAuto() {
+    if (autoMode === "none") return;
+    const res = resolveCategory({
+      cls: cls.value, dob: dob.value, categories,
+      mode: autoMode, winner: cfg.autoCategoryWinner || "dob"
+    });
+    autoNote.innerHTML = "";
+    if (!res.reason) return;
+    if (res.categoryId) cat.value = res.categoryId;
+    autoNote.appendChild(notice(res.clash ? "warn" : "info", res.reason));
+  }
+  if (autoMode !== "none") {
+    cls.addEventListener("input", runAuto);
+    dob.addEventListener("change", runAuto);
+  }
+
+  modal({
+    title: "Edit — " + existing.name,
+    body: el("div", {}, [
+      field("Name", name),
+      field("Class", cls),
+      (autoMode === "dob" || autoMode === "both") ? field("Date of birth", dob) : null,
+      field("Category", cat, autoMode !== "none" ? "Set automatically — you can still change it." : null),
+      autoNote,
+      field("Gender", gender),
+      el("label.field", {}, [el("span", { text: "Photo" }), picker.node])
+    ].filter(Boolean)),
+    actions: [
+      { label: "Cancel" },
+      { label: "Save", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
+          if (!name.value.trim()) { toast("Enter a name.", true); return false; }
+          if (!cat.value) { toast("Choose a category.", true); return false; }
+          await patch("participants", existing.id, {
+            name: name.value.trim(),
+            nameLower: name.value.trim().toLowerCase(),
+            categoryId: cat.value,
+            categoryName: categories.find(c => c.id === cat.value)?.name || "",
+            className: cls.value.trim(),
+            dob: dob.value || null,
+            gender: gender.value || null,
+            ...picker.getValue()
+          });
+          toast("Saved.");
+          close(true); refresh();
+        })
+      }
+    ]
+  });
+}
+
+/**
  * Our results — this house's own placements, published events only.
  *
  * Reads the public snapshot (`publicResults`), not the raw `results`
@@ -746,13 +818,17 @@ async function appealsTab(panel, house, refresh) {
     return;
   }
 
+  // I9 — an appeal is per (event, house), never per entry or rank — see
+  // fileAppeal(), which never takes a participant/entry at all, and
+  // admin/appeals.js, which only ever shows the event. Listing one row per
+  // RANKED result here was misleading: a house with three entries in one
+  // event saw three rows for something that is really one decision to
+  // make, and a rank column for information the appeal itself never uses.
   const rows = [];
   for (const ev of published) {
-    for (const e of ev.entries || []) {
-      if (e.houseId !== house.id) continue;
-      rows.push({ ...e, eventId: ev.eventId, eventName: ev.eventName, eventCode: ev.eventCode,
-                  result: ev, appeals: appealByEvent[ev.eventId] || [] });
-    }
+    if (!(ev.entries || []).some(e => e.houseId === house.id)) continue;
+    rows.push({ eventId: ev.eventId, eventName: ev.eventName, eventCode: ev.eventCode,
+                result: ev, appeals: appealByEvent[ev.eventId] || [] });
   }
 
   if (mine.length) {
@@ -774,8 +850,6 @@ async function appealsTab(panel, house, refresh) {
         el("div", { text: r.eventName }),
         r.eventCode ? el("div.hint", { style: "margin:0", text: r.eventCode }) : null
       ])},
-    { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger")
-        : (r.rank ? el("span.mono", { text: "#" + r.rank }) : el("span.hint", { text: "—" })) },
     { key: "act", label: "", render: r => {
         const active = r.appeals.find(a => a.status === "pending" || a.status === "upheld");
         if (active) return badge(APPEAL_STATUS_TEXT[active.status], APPEAL_STATUS_KIND[active.status]);
@@ -788,6 +862,7 @@ async function appealsTab(panel, house, refresh) {
 }
 
 function appealDialog(entry, house, settings, refresh) {
+  const feeRequired = settings.appealFeeRequired !== false;
   const reason = el("textarea", { rows: 3, placeholder: "What is being appealed, and why." });
   let screenshot = null;
   const sizeNote = hint("Attach a screenshot showing the appeal fee was paid.");
@@ -808,12 +883,15 @@ function appealDialog(entry, house, settings, refresh) {
     title: "Appeal — " + entry.eventName,
     body: el("div", {}, [
       field("Reason", reason, "Required. Explain what is being disputed."),
-      el("fieldset", {}, [
-        el("legend", { text: "Fee proof" }),
-        sizeNote,
-        button("Choose screenshot", { class: "btn-sm", onclick: () => shotFile.click() }),
-        preview
-      ])
+      // I9 — no fee this fest, no fee-proof section to fill in.
+      feeRequired
+        ? el("fieldset", {}, [
+            el("legend", { text: "Fee proof" }),
+            sizeNote,
+            button("Choose screenshot", { class: "btn-sm", onclick: () => shotFile.click() }),
+            preview
+          ])
+        : null
     ]),
     actions: [
       { label: "Cancel" },
@@ -917,6 +995,64 @@ async function scheduleTab(panel, house) {
       button("Print / PDF", { class: "btn-sm", onclick: () => printDocument({
         title: house.name + " — schedule", subtitle: window.__FEST_NAME__ || "", bodyHTML: htmlTable(columns, shown) }) })
     ]));
+  }
+}
+
+/**
+ * I9 — every start/deadline that governs this house, gathered in one
+ * place. Each window already lives somewhere else (Register, Our
+ * participants, Appeals) with its own gate; this tab changes nothing,
+ * it only answers "when does everything open and close" without having
+ * to hunt across every other tab for it.
+ */
+async function datesTab(panel, house) {
+  const [events, settings] = await Promise.all([
+    getAll("events"),
+    getOne("config", "festSettings")
+  ]);
+  const cfg = { ...DEFAULTS.festSettings, ...(settings || {}) };
+  const when = (start, end) => {
+    const s = fmtDateTime(start), e = fmtDateTime(end);
+    if (!s && !e) return "Open, no deadline set.";
+    return `Opens ${s || "immediately"} — closes ${e || "no deadline set"}.`;
+  };
+
+  panel.appendChild(card(el("div", {}, [
+    el("div", { style: "padding:.6rem 0" }, [
+      el("strong", { text: "Event registration" }),
+      el("div.hint", { style: "margin:.2rem 0 0", text: when(cfg.registrationWindow?.start, cfg.registrationWindow?.end) }),
+      el("div.hint", { style: "margin:.2rem 0 0", text: "The default for every event — an individual event below may override it." })
+    ]),
+    cfg.houseAddParticipants ? el("div", { style: "padding:.6rem 0;border-top:1px solid var(--line)" }, [
+      el("strong", { text: "Adding participants to " + house.name }),
+      el("div.hint", { style: "margin:.2rem 0 0", text: when(cfg.houseAddWindow?.start, cfg.houseAddWindow?.end) })
+    ]) : null,
+    cfg.appealsEnabled ? el("div", { style: "padding:.6rem 0;border-top:1px solid var(--line)" }, [
+      el("strong", { text: "Appeals" }),
+      el("div.hint", { style: "margin:.2rem 0 0", text:
+        `Opens the moment a result is published, and stays open for ${cfg.appealWindowMinutes ?? 1440} minutes after.` })
+    ]) : null
+  ].filter(Boolean)), "Fest-wide windows"));
+
+  const regOverrides = events.filter(e => e.registrationStart || e.registrationEnd);
+  if (regOverrides.length) {
+    panel.appendChild(card(table([
+      { key: "name", label: "Event" },
+      { key: "when", label: "Window", render: r => when(r.registrationStart, r.registrationEnd) }
+    ], regOverrides), "Events with their own registration window"));
+  }
+
+  const materialEvents = events.filter(e => e.materialsEnabled && (e.materialWindowStart || e.materialWindowEnd));
+  if (materialEvents.length) {
+    panel.appendChild(card(table([
+      { key: "name", label: "Event" },
+      { key: "label", label: "Submission", render: r => r.materialLabel || "Material" },
+      { key: "when", label: "Window", render: r => when(r.materialWindowStart, r.materialWindowEnd) }
+    ], materialEvents), "Events with a material submission window"));
+  }
+
+  if (!regOverrides.length && !materialEvents.length) {
+    panel.appendChild(hint("No event uses a different window from the fest-wide ones above."));
   }
 }
 

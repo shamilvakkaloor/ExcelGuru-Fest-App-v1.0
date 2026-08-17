@@ -148,6 +148,21 @@ service cloud.firestore {
       allow write: if isAdmin() || (inBootstrap() && signedIn());
     }
 
+    // I9 — append-only audit trail. Admin-only read, matching "which
+    // admin can see" — a Co-Admin, House or Judge seeing who-logged-in-when
+    // across every OTHER account would be a privacy leak this fest never
+    // asked for, not an oversight tool for them. Anyone signed in may
+    // append an entry, but only their OWN —
+    // request.resource.data.uid must equal the caller's own uid, so
+    // nobody can write a false entry attributed to someone else. Never
+    // update or delete: an audit log that can be edited after the fact
+    // is not an audit log.
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     match /houses/{houseId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -472,7 +487,20 @@ service cloud.firestore {
                         && resource.data.houseId == refId()
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventCounts"])
                         && (limits().overallMax == null
-                            || request.resource.data.eventCounts.overall <= limits().overallMax));
+                            || request.resource.data.eventCounts.overall <= limits().overallMax))
+                    // I9 — a House Manager may correct their own participant's
+                    // details (not move them to another house, and not the
+                    // chest number — that stays auto-allocated), gated on the
+                    // same add window as creating one: editing "who is in my
+                    // house" is the same act as adding them, on the same
+                    // clock.
+                    || (isHouse()
+                        && resource.data.houseId == refId()
+                        && houseAddOpen()
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(["name", "nameLower", "categoryId", "categoryName", "className", "dob",
+                                       "gender", "photoData", "photoURL", "photoSource",
+                                       "photoOriginalLink", "photoLinkUnverified"]));
     }
 
     // Per-house entry tally, one document per (event, house).

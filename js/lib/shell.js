@@ -193,7 +193,8 @@ function buildAreas() { return [
         { label: "Leaderboard",        icon: "trophy",  to: "/admin/settings?tab=leaderboard" },
         { label: "Appeals",            icon: "shield",  to: "/admin/settings?tab=appeals" },
         { label: "My password",        icon: "key",     to: "/admin/settings?tab=password" },
-        { label: "Danger zone",        icon: "alert",   to: "/admin/settings?tab=danger" }
+        { label: "Danger zone",        icon: "alert",   to: "/admin/settings?tab=danger" },
+        { label: "Activity log",       icon: "eye",     to: "/admin/auditLog" }
       ]
     }]
   },

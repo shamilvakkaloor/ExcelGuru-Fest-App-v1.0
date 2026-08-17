@@ -1,6 +1,7 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, checkbox, hint } from "../../lib/ui.js";
 import { getAll, getOne, put, add, patch, remove, batchWrite } from "../../lib/db.js";
-import { createAccount, revokeAccount, reissueLogin, slugify, validatePassword, loginNames } from "../../lib/session.js";
+import { createAccount, revokeAccount, reissueLogin, slugify, validatePassword, loginNames, session } from "../../lib/session.js";
+import { logAudit } from "../../domain/auditLog.js";
 import { queueRepublish } from "../../domain/republish.js";
 import { overlappingRanges, rangeClash, derivePattern } from "../../domain/chest.js";
 import { compressImage } from "../../lib/photo.js";
@@ -134,6 +135,8 @@ async function renderTab(panel, spec, refresh) {
       const entry = dirBySlug[slug];
       if (entry) await revokeAccount({ slug, uid: entry.uid });
       await remove(spec.collection, r.id);
+      logAudit({ uid: session.user.uid, role: session.role, name: session.name,
+        action: "account-deleted", details: `${spec.label} — ${r.name}` });
       toast("Deleted."); refresh();
     })})
   ])});
@@ -395,6 +398,8 @@ function addDialog(spec, existing, houses, cfg, refresh, venues = []) {
           // publicly-readable house record.
           if (houseBits) await put("houseContacts", id, houseBits.contacts());
 
+          logAudit({ uid: session.user.uid, role: session.role, name: session.name,
+            action: "account-created", details: `${spec.label} — ${record.name}` });
           toast(record.name + " created.");
           close(true);
           refresh();
@@ -445,6 +450,8 @@ function passwordDialog(spec, record, dirBySlug, refresh) {
             await migrateAssignments(oldUid, uid, record.name);
           }
 
+          logAudit({ uid: session.user.uid, role: session.role, name: session.name,
+            action: "password-changed", details: `${spec.label} — ${record.name}` });
           toast("Password updated for " + record.name + ".");
           close(true);
           refresh();
@@ -556,6 +563,8 @@ async function editDialog(spec, record, houses, cfg, refresh, venues = []) {
             await rebuildContactSnapshot().catch(() => {});
           }
           if (spec.id === "house") queueRepublish({ results: true });
+          logAudit({ uid: session.user.uid, role: session.role, name: session.name,
+            action: "account-edited", details: `${spec.label} — ${record.name}` });
           toast("Saved.");
           close(true);
           refresh();

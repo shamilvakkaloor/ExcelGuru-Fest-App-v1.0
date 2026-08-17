@@ -52,7 +52,11 @@ export async function fileAppeal({ event, result, house, settings, reason, feeSc
   const state = appealWindowState(result, settings);
   if (!state.open) throw new Error(state.reason);
   if (!reason?.trim()) throw new Error("Explain the reason for the appeal.");
-  if (!feeScreenshot) throw new Error("Attach a screenshot showing the appeal fee was paid.");
+  // I9 — an Admin can turn the fee off fest-wide (e.g. no fee this year).
+  // Defaults to required, matching the behaviour before this was a choice.
+  if (settings.appealFeeRequired !== false && !feeScreenshot) {
+    throw new Error("Attach a screenshot showing the appeal fee was paid.");
+  }
 
   const limit = Number(settings.appealMaxActive) || 2;
   const active = await activeAppealCount(house.id);

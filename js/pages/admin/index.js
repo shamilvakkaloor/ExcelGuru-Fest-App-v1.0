@@ -21,7 +21,8 @@ const SECTIONS = [
   { id: "materials",     label: "Event material", load: () => import("./materials.js") },
   { id: "venues",        label: "Schedule",      load: () => import("./venues.js") },
   { id: "generator",     label: "Certificates",  load: () => import("./generator.js") },
-  { id: "downloads",     label: "Downloads",     load: () => import("./downloads.js") }
+  { id: "downloads",     label: "Downloads",     load: () => import("./downloads.js") },
+  { id: "auditLog",      label: "Activity log",  load: () => import("./auditLog.js"),      adminOnly: true }
 ];
 
 export default async function adminPage(root, params, query) {

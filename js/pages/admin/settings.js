@@ -9,6 +9,7 @@ import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timez
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
 import { wipeEverything, wipeGroup, DELETE_GROUPS } from "../../domain/reset.js";
 import { registrationAlreadyStarted } from "../../domain/registrationRequests.js";
+import { logAudit } from "../../domain/auditLog.js";
 import { compressImage, compressToBudget } from "../../lib/photo.js";
 import { applyFestName, applyLogoScale, applyHouseTerm } from "../../lib/shell.js";
 import { tr } from "../../lib/i18n.js";
@@ -437,6 +438,7 @@ async function basicTab(panel) {
     window.__MESSAGING_ENABLED__ = messaging;
     await rebuildContactSnapshot().catch(() => {});
     queueRepublish({ schedule: true });
+    logAudit({ uid: session.user.uid, role: session.role, name: session.name, action: "settings-saved", details: "Fest details" });
 
     /* A policy change must reach events whose code letters are already out.
      * The mode is baked into judgingEntries when lettering happens, so
@@ -1091,6 +1093,7 @@ async function appealsTab(panel) {
   const s = { ...DEFAULTS.festSettings, ...(s0 || {}) };
 
   let enabled = !!s.appealsEnabled;
+  let feeRequired = s.appealFeeRequired !== false;
   // v9.2 — minutes, not hours. A fest running back-to-back events often
   // wants a window measured in tens of minutes ("before the next event
   // starts"), and hours-only forced typing decimals (.3 for 18 minutes) to
@@ -1116,7 +1119,11 @@ async function appealsTab(panel) {
       "separate switch to remember."),
     field("Active appeals per house", maxActive,
       "How many appeals a house may have pending or upheld at once. An appeal that is Overturned stops " +
-      "counting, so a house that is right is never blocked from raising the next one.")
+      "counting, so a house that is right is never blocked from raising the next one."),
+    checkbox("An appeal requires a fee screenshot", feeRequired, v => feeRequired = v),
+    el("div.hint", { text:
+      "On by default. Turn off for a fest that charges no appeal fee — the House Manager can then file an " +
+      "appeal without attaching anything." })
   ]), "Appeals"));
 
   panel.appendChild(el("div.btn-row", {}, button("Save settings", { class: "btn-accent", onclick: guard(async () => {
@@ -1125,7 +1132,8 @@ async function appealsTab(panel) {
     if (isNaN(minutes) || minutes < 1) { toast("The appeal window must be at least 1 minute.", true); return; }
     if (isNaN(active) || active < 1) { toast("Active appeals per house must be at least 1.", true); return; }
     await put("config", "festSettings", {
-      appealsEnabled: enabled, appealWindowMinutes: minutes, appealMaxActive: active
+      appealsEnabled: enabled, appealWindowMinutes: minutes, appealMaxActive: active,
+      appealFeeRequired: feeRequired
     });
     window.__APPEALS_ENABLED__ = enabled;
     toast("Settings saved.");
@@ -1921,6 +1929,13 @@ async function dangerTab(panel) {
     status.appendChild(progress);
 
     try {
+      // I9 — before the wipe, not after: wipeEverything removes the Admin's
+      // OWN account a few lines down, and an audit entry attributed to a
+      // uid that no longer exists is useless. auditLog itself is
+      // deliberately not in wipeEverything's collection list, so this
+      // survives the wipe it is describing.
+      await logAudit({ uid: session.user.uid, role: session.role, name: session.name,
+        action: "wipe-everything", details: festName });
       await wipeEverything({
         currentUid: session.user.uid,
         currentSlug: "admin",   // the only account that can ever hold the "admin" role
@@ -2002,6 +2017,8 @@ async function runGroupDelete(group, guardDoc, panel) {
           const removed = await wipeGroup(group.id, {
             onProgress: msg => { progress.textContent = msg; }
           });
+          await logAudit({ uid: session.user.uid, role: session.role, name: session.name,
+            action: "wipe-group", details: `${group.label} — ${removed} record${removed === 1 ? "" : "s"}` });
           toast(removed
             ? `Deleted ${removed} record${removed === 1 ? "" : "s"}.`
             : "Nothing was there to delete.");

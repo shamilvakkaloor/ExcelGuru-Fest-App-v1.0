@@ -11,6 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { auth, withSecondaryAuth, LOGIN_DOMAIN } from "./firebase.js";
 import { getOne, put, remove, getAll } from "./db.js";
+import { logAudit } from "../domain/auditLog.js";
 
 export const session = { user: null, role: null, refId: null, name: null, ready: false, error: null };
 
@@ -132,6 +133,9 @@ function sessionFor(uid, timeoutMs = 8000) {
 export async function login(slug, password) {
   const cred = await signInWithEmailAndPassword(auth, loginEmail(slug), padPassword(password));
   await sessionFor(cred.user.uid);
+  // I9 — every login, every role, fire-and-forget so a logging hiccup
+  // never blocks the sign-in it is describing.
+  logAudit({ uid: session.user?.uid, role: session.role, name: session.name, action: "login" });
   return session;
 }
 

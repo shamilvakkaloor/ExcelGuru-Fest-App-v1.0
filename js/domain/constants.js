@@ -212,6 +212,9 @@ export const DEFAULTS = {
     appealWindowHours: 24,
     appealWindowMinutes: 24 * 60,
     appealMaxActive: 2,
+    // On by default — matches the behaviour before this was a choice, so an
+    // existing fest's appeal flow does not silently change underneath it.
+    appealFeeRequired: true,
 
     // v9 — messaging. Off by default: nothing about the nav or any
     // account changes until an Admin turns it on.

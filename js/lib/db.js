@@ -2,12 +2,12 @@
 // database through this module, so read-cost decisions live in one place.
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  addDoc, query, where, orderBy, limit, onSnapshot, writeBatch,
+  addDoc, query, where, orderBy, limit, startAfter, onSnapshot, writeBatch,
   runTransaction, serverTimestamp, increment, deleteField
 } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 import { db } from "./firebase.js";
 
-export { where, orderBy, limit, serverTimestamp, increment, deleteField, runTransaction, db };
+export { where, orderBy, limit, startAfter, serverTimestamp, increment, deleteField, runTransaction, db };
 
 /** Read one document. Returns null if it does not exist. */
 /* ── Config cache — ARCHITECTURE section 12, P4 ──────────────────────
