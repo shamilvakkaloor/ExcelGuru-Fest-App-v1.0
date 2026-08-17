@@ -512,6 +512,25 @@ tr.row-ours { background: #FFFAEC; }
 .screen-now-sub { color: var(--marigold); font-size: clamp(1rem, 2vw, 1.7rem); margin-top: .4rem; }
 .screen-foot { color: #7B8DA0; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
 
+/* I9 — houses as rows, categories as columns, big-screen "points by
+   category" slide. */
+.screen-table { width: 100%; border-collapse: collapse; color: #fff; }
+.screen-table th, .screen-table td {
+  padding: 1vh 1vw; text-align: center; border-bottom: 1px solid rgba(255,255,255,.12);
+  font-size: clamp(.9rem, 1.7vw, 1.5rem);
+}
+.screen-table thead th {
+  color: #A9BBD0; font-size: clamp(.75rem, 1.2vw, 1.1rem);
+  text-transform: uppercase; letter-spacing: .04em; font-weight: 600;
+}
+.screen-table tbody th {
+  text-align: left; font-family: var(--display); font-weight: 700;
+  font-size: clamp(1rem, 1.9vw, 1.7rem);
+}
+.screen-table td { font-family: var(--mono); }
+.screen-table td.leader { color: var(--marigold); font-weight: 700; }
+.screen-table td.total { color: #fff; font-weight: 700; }
+
 /* ══ v7 ══════════════════════════════════════════════════════════════ */
 
 /* I1 — the fest lockup is a wordmark, not a square mark. */

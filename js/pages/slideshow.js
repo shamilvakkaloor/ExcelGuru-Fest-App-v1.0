@@ -20,6 +20,10 @@ export default async function slideshowPage(root) {
     // I2 / I4 — the projector obeys the same public limits as /results.
     const rankLimit = board?.rankLimit ?? 3;
     const talentLimit = Number(board?.talentBoardLimit) || 10;
+    // I9 — was hard-coded to the last 12 events with no setting to change
+    // it; 0 means every published event, matching every other "0 = show
+    // all" limit in this app.
+    const recentLimit = board?.slideshowRecentLimit ?? 12;
     rankArt = board?.rankArt || {};
     const houseStyle = board?.houseStyle || {};
 
@@ -35,14 +39,35 @@ export default async function slideshowPage(root) {
       });
     }
     if (board?.students?.length) {
-      slides.push({
-        title: "Student Talent",
-        items: board.students.slice(0, talentLimit || 10).map(s => ({
-          rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts"
-        }))
-      });
+      // I9 — one slide per category, instead of always one combined slide,
+      // when the Admin has switched it on. Dense re-ranking within each
+      // category mirrors /results' own reRank(), so a slide never shows a
+      // rank that skips a place.
+      if (board.slideshowTalentByCategory) {
+        const byCat = new Map();
+        for (const s of board.students) {
+          const key = s.categoryName || "All categories";
+          if (!byCat.has(key)) byCat.set(key, []);
+          byCat.get(key).push(s);
+        }
+        for (const [catName, list] of byCat) {
+          const ranked = reRank(list).slice(0, talentLimit || 10);
+          slides.push({
+            title: "Student Talent — " + catName,
+            items: ranked.map(s => ({ rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts" }))
+          });
+        }
+      } else {
+        slides.push({
+          title: "Student Talent",
+          items: board.students.slice(0, talentLimit || 10).map(s => ({
+            rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts"
+          }))
+        });
+      }
     }
-    for (const ev of events.slice(-12)) {
+    const recent = recentLimit ? events.slice(-recentLimit) : events;
+    for (const ev of recent) {
       const top = (ev.entries || []).filter(e => !e.isAbsent && rankIsPublic(e.rank, rankLimit));
       if (!top.length) continue;
       slides.push({
@@ -95,4 +120,14 @@ export default async function slideshowPage(root) {
   const tick = setInterval(paint, 8000);
   const refresh = setInterval(() => load().catch(() => {}), 120000);
   return () => { clearInterval(tick); clearInterval(refresh); };
+}
+
+// Dense ranking within one category — mirrors /results' own reRank(), so a
+// per-category slide never shows a rank that skips a place.
+function reRank(list) {
+  let rank = 0, prev = null;
+  return [...list].sort((a, b) => b.total - a.total).map(r => {
+    if (prev === null || r.total !== prev) { rank++; prev = r.total; }
+    return { ...r, rank };
+  });
 }

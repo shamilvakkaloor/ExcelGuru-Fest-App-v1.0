@@ -135,6 +135,8 @@ export const DEFAULTS = {
     publicRankLimit: null,       // null = derive from the rank ladder
     talentBoardLimit: 10,        // 0 = show all
     showGradesForUnranked: false,
+    slideshowRecentLimit: 12,    // 0 = show every published event
+    slideshowTalentByCategory: false,
     rankArt: {},                 // { "1": dataUrl, … } — overrides the built-ins
 
     // ── v8 ──────────────────────────────────────────────────────────

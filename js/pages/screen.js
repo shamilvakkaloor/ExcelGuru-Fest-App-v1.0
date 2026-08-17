@@ -63,6 +63,30 @@ export default async function screenPage(root) {
       });
     }
 
+    // I9 — houses as rows, categories as columns, points in each cell plus
+    // a Total column. Same categoryBreakdown the public results page's
+    // "Points by category" table already reads, so the two can never
+    // disagree — only the layout differs (that one lists categories as
+    // rows; a big screen reads better the other way round).
+    const cb = board?.categoryBreakdown;
+    if (cb?.rows?.length && cb.columns?.length) {
+      const cols = cb.columns.filter(c => cb.rows.some(r => (r.byCategory?.[c.id] || 0) > 0));
+      if (cols.length) {
+        built.push({
+          kind: "table", title: "Points by category",
+          columns: cols,
+          rows: cb.rows.map(r => ({
+            name: r.name,
+            cells: cols.map(c => ({
+              value: r.byCategory?.[c.id] || 0,
+              isLeader: cb.leaders?.[c.id]?.houseId === r.id && (r.byCategory?.[c.id] || 0) > 0
+            })),
+            total: r.total
+          }))
+        });
+      }
+    }
+
     if (board?.students?.length) {
       built.push({
         kind: "list", title: "Student talent",
@@ -132,6 +156,21 @@ export default async function screenPage(root) {
           el("div.screen-bar", {}, bar)
         ]));
       }
+    } else if (s.kind === "table") {
+      body.appendChild(el("table.screen-table", {}, [
+        el("thead", {}, el("tr", {}, [
+          el("th", { text: "" }),
+          ...s.columns.map(c => el("th", { text: c.name })),
+          el("th", { text: "Total" })
+        ])),
+        el("tbody", {}, s.rows.map(r => el("tr", {}, [
+          el("th", { text: r.name }),
+          ...r.cells.map(c => el("td", {
+            text: String(c.value), class: c.isLeader ? "leader" : ""
+          })),
+          el("td.total", { text: String(r.total) })
+        ])))
+      ]));
     } else if (s.kind === "now") {
       for (const r of s.rows) {
         body.appendChild(el("div.screen-now", {}, [

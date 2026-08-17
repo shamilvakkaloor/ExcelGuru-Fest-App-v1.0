@@ -56,10 +56,16 @@ export default async function settings(root, query = {}) {
 
 /* ── Fest details ──────────────────────────────────────────────────── */
 async function basicTab(panel) {
-  const [s0, results] = await Promise.all([
-    getOne("config", "festSettings"), getAll("results").catch(() => [])
+  const [s0, results, contactBookDoc] = await Promise.all([
+    getOne("config", "festSettings"), getAll("results").catch(() => []),
+    getOne("config", "contactBook").catch(() => null)
   ]);
   const s = { ...DEFAULTS.festSettings, ...(s0 || {}) };
+  // I9 — free-form, Admin-authored public contacts (Admin, Co-Admin,
+  // anyone else the fest wants reachable). Separate from house contacts,
+  // which are per-house and tick-to-publish per number; this is a plain
+  // list, public by definition since it is typed in for that purpose.
+  const contactRows = [...(contactBookDoc?.entries || [])];
 
   // Grades already stamped on a finalized result cannot be deleted out from
   // under it — only renamed. Absent is its own flag, never a grade id, so
@@ -354,6 +360,53 @@ async function basicTab(panel) {
       "or group conversation across any role; everyone already in one can reply. Nobody sees a " +
       "conversation they were not added to." })
   ]), "Visibility"));
+
+  // I9 — "Where is the option to give and make public the contacts of the
+  // Admin and others?" There wasn't one: rebuildContactSnapshot() already
+  // read config/contactBook and the public Contacts page already rendered
+  // it under "Organisers" (js/pages/contacts.js), but nothing ever wrote
+  // to that document. This is that missing editor.
+  const contactListBox = el("div");
+  const contactName = input({ placeholder: "Name" });
+  const contactRole = input({ placeholder: "Role, e.g. Admin" });
+  const contactPhone = input({ placeholder: "Mobile number", type: "tel" });
+
+  function paintContactRows() {
+    contactListBox.innerHTML = "";
+    if (!contactRows.length) { contactListBox.appendChild(hint("No public contacts added yet.")); return; }
+    for (const [i, c] of contactRows.entries()) {
+      contactListBox.appendChild(el("div.slot-row", {}, [
+        el("div.body", { text: `${c.name}${c.role ? " — " + c.role : ""}${c.phone ? " · " + c.phone : ""}` }),
+        button("Remove", { class: "btn-sm btn-danger", onclick: () => { contactRows.splice(i, 1); paintContactRows(); } })
+      ]));
+    }
+  }
+  paintContactRows();
+
+  panel.appendChild(card(el("div", {}, [
+    el("p.hint", { text:
+      "A plain public list — an Admin, Co-Admin or anyone else the fest wants reachable. Everything here " +
+      "is published as typed; there is no separate public/private tick like a house's numbers have, " +
+      "because this list exists specifically to be shown. Appears on the public Contact page once that " +
+      "is switched on above." }),
+    contactListBox,
+    el("div.grid.grid-3", { style: "margin-top:.6rem" }, [
+      field("Name", contactName), field("Role", contactRole), field("Mobile", contactPhone)
+    ]),
+    el("div.btn-row", {}, [
+      button("Add", { class: "btn-sm", onclick: () => {
+        if (!contactName.value.trim()) { toast("Enter a name.", true); return; }
+        contactRows.push({ name: contactName.value.trim(), role: contactRole.value.trim(), phone: contactPhone.value.trim() });
+        contactName.value = ""; contactRole.value = ""; contactPhone.value = "";
+        paintContactRows();
+      }}),
+      button("Save contacts", { class: "btn-sm btn-accent", onclick: guard(async () => {
+        await put("config", "contactBook", { entries: contactRows });
+        await rebuildContactSnapshot().catch(() => {});
+        toast("Saved.");
+      })})
+    ])
+  ]), "Organiser contacts"));
 
   panel.appendChild(card(el("div", {}, [
     field("How results are decided", resultPolicy,
@@ -660,6 +713,10 @@ async function publicTab(panel) {
   const talentLimit = input({ type: "number", min: 0, value: s.talentBoardLimit ?? 10 });
   let showGrades = !!s.showGradesForUnranked;
   let freeText = !!s.publicTemplatesFreeText;
+  // I9 — the slideshow's own "recent results" slide was hard-coded to the
+  // last 12 events with no setting to change it.
+  const slideshowLimit = input({ type: "number", min: 0, value: s.slideshowRecentLimit ?? 12 });
+  let slideshowByCat = !!s.slideshowTalentByCategory;
 
   const chestFormat = select(CHEST_FORMATS, { value: s.chestFormat || "digits" });
   const chestAlloc  = select(CHEST_ALLOCATIONS, { value: s.chestAllocation || "houseRange" });
@@ -696,6 +753,12 @@ async function publicTab(panel) {
       "Public templates always let a visitor type a name. With this OFF (recommended), rank, grade and " +
       "event fields stay blank, so nobody can print a certificate claiming a placement they did not win. " +
       "Turning it on lets a visitor fill those in themselves." }),
+    el("hr", { style: "border:none;border-top:1px solid var(--line);margin:1rem 0" }),
+    field("Recent results shown on the slideshow", slideshowLimit, "How many of the latest published events get their own slide. 0 shows every published event."),
+    checkbox("Split the Student Talent slide by category", slideshowByCat, v => slideshowByCat = v),
+    el("div.hint", { text:
+      "Off shows one combined Student Talent slide. On gives each category its own slide, matching the " +
+      "Student Talent tab on the public results page." })
   ]), "Results on public screens"));
 
   // I23 — chest number format.
@@ -734,6 +797,8 @@ async function publicTab(panel) {
       talentBoardLimit: Math.max(0, Number(talentLimit.value) || 0),
       showGradesForUnranked: showGrades,
       publicTemplatesFreeText: freeText,
+      slideshowRecentLimit: Math.max(0, Number(slideshowLimit.value) || 0),
+      slideshowTalentByCategory: slideshowByCat,
       chestFormat: chestFormat.value,
       chestAllocation: chestAlloc.value
     });

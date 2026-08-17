@@ -574,6 +574,8 @@ export async function rebuildPublicSnapshots() {
       rankLimit: cfg.rankLimit,
       talentBoardLimit: Number(cfg.settings.talentBoardLimit) || 0,
       showGradesForUnranked: !!cfg.settings.showGradesForUnranked,
+      slideshowRecentLimit: cfg.settings.slideshowRecentLimit ?? 12,
+      slideshowTalentByCategory: !!cfg.settings.slideshowTalentByCategory,
       // The fest's own grade names, so a public page can show them without
       // a second document read — the pattern every other setting here
       // already follows.
