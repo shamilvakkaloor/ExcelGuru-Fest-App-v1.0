@@ -5,7 +5,7 @@
 // likely to eat the daily read allowance.
 import { el } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
-import { classLabel, rankIsPublic } from "../domain/constants.js";
+import { classLabel, rankIsPublic, isGroupClass } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { currentlyRunning } from "./home.js";
@@ -82,8 +82,15 @@ export default async function screenPage(root) {
         kind: "list",
         title: ev.eventName,
         sub: [ev.categoryName, classLabel(ev.eventClass)].filter(Boolean).join(" · "),
+        // I9 (bug) — teamLabel is set to the house name even for an
+        // INDIVIDUAL event (see domain/constants.js teamName()), so
+        // `e.teamLabel || …` picked the house every time and the winner's
+        // own name never showed. isGroupClass decides which one actually
+        // means "team" here, the same check results.js's entryDisplay uses.
         rows: top.map(e => ({
-          rank: e.rank, main: e.teamLabel || (e.names || []).join(", "), sub: e.houseName,
+          rank: e.rank,
+          main: (isGroupClass(ev.eventClass) && e.teamLabel) ? e.teamLabel : (e.names || []).join(", "),
+          sub: e.houseName,
           value: e.grade ? gradeLabel(e.grade, settings) : "",
           nameColor: nameColorStyle(houseStyle, e.houseId)
         }))

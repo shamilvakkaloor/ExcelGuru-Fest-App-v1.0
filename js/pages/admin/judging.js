@@ -1,6 +1,6 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty,
          badge, confirmDialog, filterBar, modal } from "../../lib/ui.js";
-import { getAll, getOne, put, remove, where } from "../../lib/db.js";
+import { getAll, getOne, put, remove, where, batchWrite } from "../../lib/db.js";
 import { finalizeEvent, computeEventResult, unfinalizeEvent } from "../../domain/publish.js";
 import { averageOf, gradeFor, resolvePoints, gradeScaleFrom, gradeLabel } from "../../domain/scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, classLabel, eventLabel, EVENT_CLASSES,
@@ -323,10 +323,13 @@ export default async function judging(root) {
         if (locked) return;
         const val = sel.value ? Number(sel.value) : null;
         const id = event.id + "_" + reg.id;
-        await put("directResults", id, {
-          eventId: event.id, regId: reg.id, placement: val,
-          grade: directBy[reg.id]?.grade ?? null
-        });
+        await batchWrite([
+          { type: "set", path: "directResults", id, data: {
+              eventId: event.id, regId: reg.id, placement: val,
+              grade: directBy[reg.id]?.grade ?? null
+            } },
+          { type: "set", path: "judgingEntries", id: event.id, data: { scoringStarted: true } }
+        ]);
         directBy[reg.id] = { ...(directBy[reg.id] || {}), placement: val };
         toast("Placement saved.");
       }));
@@ -374,13 +377,16 @@ export default async function judging(root) {
         if (raw === "") { await remove("scores", id); toast("Score cleared."); paint(); return; }
         const val = Number(raw);
         if (isNaN(val) || val < 0 || val > scale) { toast(`Score must be between 0 and ${scale}.`, true); box.value = existing?.score ?? ""; return; }
-        await put("scores", id, {
-          eventId: event.id, regId: reg.id, judgeUid: col.uid, judgeName: col.name,
-          score: val, timestamp: Date.now(),
-          enteredByAdminOverride: true,
-          excluded: !!existing?.excluded,
-          ...(existing && existing.score !== val ? { correctedFromScore: existing.score } : {})
-        });
+        await batchWrite([
+          { type: "set", path: "scores", id, data: {
+              eventId: event.id, regId: reg.id, judgeUid: col.uid, judgeName: col.name,
+              score: val, timestamp: Date.now(),
+              enteredByAdminOverride: true,
+              excluded: !!existing?.excluded,
+              ...(existing && existing.score !== val ? { correctedFromScore: existing.score } : {})
+            } },
+          { type: "set", path: "judgingEntries", id: event.id, data: { scoringStarted: true } }
+        ]);
         toast(existing ? "Score corrected." : "Score saved.");
         paint();
       }));

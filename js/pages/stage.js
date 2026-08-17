@@ -98,11 +98,13 @@ export default async function stagePage(root) {
     if (!event) return;
     panel.appendChild(loading("Loading entries…"));
 
-    let regs, arrivals;
+    let regs, arrivals, entriesDoc, result;
     try {
-      [regs, arrivals] = await Promise.all([
+      [regs, arrivals, entriesDoc, result] = await Promise.all([
         getAll("registrations", where("eventId", "==", event.id)),
-        getAll("stageArrivals", where("eventId", "==", event.id)).catch(() => [])
+        getAll("stageArrivals", where("eventId", "==", event.id)).catch(() => []),
+        getOne("judgingEntries", event.id).catch(() => null),
+        getOne("results", event.id).catch(() => null)
       ]);
     } catch (err) {
       panel.innerHTML = "";
@@ -114,6 +116,11 @@ export default async function stagePage(root) {
     const here = new Set(arrivals.filter(a => a.arrived).map(a => a.regId));
     const lettered = regs.filter(r => r.codeLetter);
     const done = lettered.filter(r => here.has(r.id)).length;
+    // I9 (bug) — a code letter is what a judge's mark is attached to.
+    // Reassigning after any mark exists would silently detach real scores
+    // from the entries they belong to, so this locks the moment the first
+    // one lands — well before Finalize, not just after it.
+    const lettersLocked = !!result || !!entriesDoc?.scoringStarted;
 
     panel.appendChild(card(el("div.btn-row", {}, [
       badge(classLabel(event.eventClass)),
@@ -121,11 +128,19 @@ export default async function stagePage(root) {
       lettered.length
         ? badge(`${done} of ${lettered.length} on stage`, done === lettered.length ? "badge-ok" : "badge-warn")
         : badge("No code letters yet", "badge-warn"),
-      button(lettered.length ? "Reassign code letters" : "Assign code letters", {
-        class: lettered.length ? "" : "btn-accent",
-        onclick: guard(() => assignLetters(event, regs, paint))
-      })
+      lettered.length && lettersLocked
+        ? null
+        : button(lettered.length ? "Reassign code letters" : "Assign code letters", {
+            class: lettered.length ? "" : "btn-accent",
+            onclick: guard(() => assignLetters(event, regs, paint))
+          })
     ]), event.name));
+
+    if (lettered.length && lettersLocked) {
+      panel.appendChild(notice("info",
+        "Code letters are locked — a score has already been recorded for this event, so reassigning them " +
+        "would detach it from the wrong entry."));
+    }
 
     if (!regs.length) { panel.appendChild(empty("Nothing registered for this event")); return; }
     if (!lettered.length) {

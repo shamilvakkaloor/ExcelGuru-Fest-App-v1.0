@@ -522,11 +522,35 @@ service cloud.firestore {
       // affected keys is what keeps that true: without hasOnly, "may update"
       // would mean they could move an entry to another house or swap its
       // participants, which is a far larger power than assigning a letter.
-      allow update: if isStaff()
+      //
+      // A code letter is what a judge's mark is actually attached to — once
+      // any mark exists for this event, reassigning letters would quietly
+      // detach real scores from the entries they belong to. So a letter
+      // change is refused once the event is locked (finalized or published)
+      // OR once scoringStarted() says a first mark has already landed,
+      // whichever comes first — staff included, not just Stage. Every OTHER
+      // update to a registration (a substitution's roster swap, and the
+      // like) is untouched by this: the check only fires when codeLetter
+      // itself is part of what changed.
+      allow update: if (isStaff()
+                        && (!codeLetterChanged(resource.data, request.resource.data)
+                            || (!resultLocked(resource.data.eventId) && !scoringStarted(resource.data.eventId))))
                     || (isStage()
-                        && !resultPublished(resource.data.eventId)
+                        && !resultLocked(resource.data.eventId)
+                        && !scoringStarted(resource.data.eventId)
                         && request.resource.data.diff(resource.data).affectedKeys()
                              .hasOnly(["codeLetter", "codeLetterAssignedBy", "codeLetterAssignedAt"]));
+    }
+
+    function codeLetterChanged(before, after) {
+      return before.codeLetter != after.codeLetter;
+    }
+    // Sibling to resultLocked(), but fires earlier: the first mark a judge
+    // or Admin saves, well before Finalize. Set on judgingEntries because
+    // that document already exists by the time anyone can score at all.
+    function scoringStarted(eventId) {
+      return exists(/databases/$(database)/documents/judgingEntries/$(eventId))
+          && get(/databases/$(database)/documents/judgingEntries/$(eventId)).data.scoringStarted == true;
     }
 
     // I9 — the new registrations doc is deliberately given the SAME Firestore
@@ -597,8 +621,18 @@ service cloud.firestore {
       // A Stage Manager writes this only as the second half of lettering —
       // judgingEntries is rebuilt from the registrations, so letters that
       // never reached it would leave judges with nothing to score. Frozen
-      // once the result is published, on the same reasoning as entryFlags.
-      allow write: if isStaff() || (isStage() && !resultPublished(eventId));
+      // the moment scoring starts, same as the registrations.codeLetter
+      // rule this exists alongside — re-lettering after that would rebuild
+      // this doc's entries too and detach real marks from their entry.
+      //
+      // A judge is otherwise never granted write on this collection at
+      // all (see the read rule above) — this ONE field is the sole
+      // exception, letting the first score they save flip
+      // scoringStarted so the codeLetter lock above can see it.
+      allow write: if isStaff() || (isStage() && !resultLocked(eventId) && !scoringStarted(eventId))
+                   || (isJudge() && assignedToEvent(eventId)
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["scoringStarted"])
+                       && request.resource.data.scoringStarted == true);
     }
 
     // Who has actually gone on stage. Deliberately NOT a field on the
@@ -620,7 +654,11 @@ service cloud.firestore {
       // minor exposure, not a fairness hole.
       allow read: if isStaff() || isHouse()
                   || (isJudge() && resource.data.judgeUid == request.auth.uid);
-      allow write: if isStaff();
+      // Adding or removing a judge once a result exists changes who "owns"
+      // marks that have already been computed into a ranking — the same
+      // freeze scores/entryFlags/codeLetter already get. Unfinalize first.
+      allow write: if isStaff()
+                   && !resultLocked(request.method == "delete" ? resource.data.eventId : request.resource.data.eventId);
     }
 
     // Judging is Admin-only among staff: a Co-Admin can see scores but not

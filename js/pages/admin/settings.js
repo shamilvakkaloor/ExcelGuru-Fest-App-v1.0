@@ -437,6 +437,32 @@ async function basicTab(panel) {
     window.__MESSAGING_ENABLED__ = messaging;
     await rebuildContactSnapshot().catch(() => {});
     queueRepublish({ schedule: true });
+
+    /* A policy change must reach events whose code letters are already out.
+     * The mode is baked into judgingEntries when lettering happens, so
+     * without this a judge keeps seeing score boxes on an event finalize
+     * now treats as direct — they enter marks that are never read. */
+    if (resultPolicy.value !== (s.resultPolicy || "both")) {
+      const lettered = await getAll("judgingEntries").catch(() => []);
+      if (lettered.length) {
+        const { writeJudgingEntries } = await import("./registrations.js");
+        const allEvents = await getAll("events");
+        const byId = Object.fromEntries(allEvents.map(e => [e.id, e]));
+        const fresh = { ...DEFAULTS.festSettings, ...(await getOne("config", "festSettings") || {}) };
+        let touched = 0;
+        for (const je of lettered) {
+          const ev = byId[je.eventId];
+          if (!ev) continue;
+          const regs = await getAll("registrations", where("eventId", "==", je.eventId));
+          const withLetters = regs.filter(r => r.codeLetter);
+          if (!withLetters.length) continue;
+          await writeJudgingEntries(ev, withLetters, fresh);
+          touched++;
+        }
+        if (touched) toast(`Updated ${touched} event${touched === 1 ? "" : "s"} already given code letters.`);
+      }
+    }
+
     toast("Settings saved.");
   })})));
 }
@@ -512,32 +538,7 @@ function categoryDialog(existing, panel) {
           // the snapshots have to be rebuilt for the change to reach the
           // public pages.
           queueRepublish({ results: true });
-          /* A policy change must reach events whose code letters are already out.
-     * The mode is baked into judgingEntries when lettering happens, so
-     * without this a judge keeps seeing score boxes on an event finalize
-     * now treats as direct — they enter marks that are never read. */
-    if (resultPolicy.value !== (s.resultPolicy || "both")) {
-      const lettered = await getAll("judgingEntries").catch(() => []);
-      if (lettered.length) {
-        const { writeJudgingEntries } = await import("./registrations.js");
-        const allEvents = await getAll("events");
-        const byId = Object.fromEntries(allEvents.map(e => [e.id, e]));
-        const fresh = { ...DEFAULTS.festSettings, ...(await getOne("config", "festSettings") || {}) };
-        let touched = 0;
-        for (const je of lettered) {
-          const ev = byId[je.eventId];
-          if (!ev) continue;
-          const regs = await getAll("registrations", where("eventId", "==", je.eventId));
-          const withLetters = regs.filter(r => r.codeLetter);
-          if (!withLetters.length) continue;
-          await writeJudgingEntries(ev, withLetters, fresh);
-          touched++;
-        }
-        if (touched) toast(`Updated ${touched} event${touched === 1 ? "" : "s"} already given code letters.`);
-      }
-    }
-
-    toast("Saved."); close(true); categoriesTab(clearPanel(panel));
+          toast("Saved."); close(true); categoriesTab(clearPanel(panel));
         })
       }
     ]

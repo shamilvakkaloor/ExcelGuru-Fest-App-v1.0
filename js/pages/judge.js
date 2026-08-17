@@ -2,11 +2,12 @@
 // blind event contain code letters and nothing else — the names are not
 // hidden in the UI, they are simply not in the data the judge can read.
 import { el, card, field, input, select, button, table, toast, guard, notice, empty, badge, hint } from "../lib/ui.js";
-import { getAll, getOne, put, remove, where } from "../lib/db.js";
+import { getAll, getOne, put, remove, where, batchWrite } from "../lib/db.js";
 import { appShell } from "../lib/shell.js";
 import { session } from "../lib/session.js";
 import { toCSV, downloadText } from "../lib/csv.js";
 import { printDocument, htmlTable } from "../lib/pdf.js";
+import { PUBLISH_STATUS } from "../domain/constants.js";
 
 export default async function judgePage(root) {
   const { content: wrap } = appShell(root, { title: "Score events" });
@@ -161,13 +162,19 @@ export default async function judgePage(root) {
   async function paint() {
     const eventId = picker.value;
     panel.innerHTML = "";
-    const [entries, myScores, flags, noteRow] = await Promise.all([
+    const [entries, myScores, flags, noteRow, result] = await Promise.all([
       getOne("judgingEntries", eventId),
       getAll("scores", where("eventId", "==", eventId), where("judgeUid", "==", session.user.uid)),
       getAll("entryFlags", where("eventId", "==", eventId)),
-      getOne("judgeEventNotes", eventId + "_" + session.user.uid).catch(() => null)
+      getOne("judgeEventNotes", eventId + "_" + session.user.uid).catch(() => null),
+      getOne("results", eventId).catch(() => null)
     ]);
     let myNote = noteRow;
+    // I9 (bug) — nothing here used to reflect that firestore.rules already
+    // refuse a score write once a result exists. A judge saw a live-looking
+    // box, typed a correction, and got a confusing failed save instead of
+    // an explanation. Mirrors admin/judging.js's own "locked" notice.
+    const locked = !!result;
 
     /* v8 — DIRECT events are judged too, they are just judged differently:
      * the judge picks a placement from the ladder instead of typing a mark.
@@ -214,6 +221,12 @@ export default async function judgePage(root) {
                              { label: "Score", value: r => scoreBy[r.regId]?.score ?? "" }], entries.entries) }) })
     ]), entries.eventName));
 
+    if (locked) {
+      panel.appendChild(notice("warn",
+        (result.publishStatus === PUBLISH_STATUS.PUBLISHED ? "This event is published" : "This event is finalized") +
+        ", so scores and absences are read-only — an Admin unfinalizes it first to reopen them for a correction."));
+    }
+
     panel.appendChild(card(table([
       { key: "codeLetter", label: "Code", render: r => el("span.code-letter", { text: r.codeLetter }) },
       { key: "label", label: "Entry", render: r => entries.blind
@@ -235,6 +248,7 @@ export default async function judgePage(root) {
         : { key: "score", label: "Score", num: true, render: r => scoreCell(r) },
       { key: "absent", label: "", render: r => button(absentBy[r.regId] ? "Undo absent" : "Mark absent", {
           class: "btn-sm " + (absentBy[r.regId] ? "" : "btn-danger"),
+          disabled: locked,
           onclick: guard(async () => {
             if (absentBy[r.regId]) await remove("entryFlags", eventId + "_" + r.regId);
             else await put("entryFlags", eventId + "_" + r.regId, {
@@ -307,7 +321,7 @@ export default async function judgePage(root) {
       const sel = select([{ value: "", label: "\u2014 no place \u2014" },
         ...placements.map(p => ({ value: String(p.rank), label: p.label }))],
         { value: String(current) });
-      sel.disabled = absentBy[r.regId];
+      sel.disabled = absentBy[r.regId] || locked;
       const state = el("span.hint", { style: "margin:0;white-space:nowrap",
         text: current ? "saved" : "" });
 
@@ -315,11 +329,14 @@ export default async function judgePage(root) {
         const val = sel.value ? Number(sel.value) : null;
         state.textContent = "saving\u2026";
         const id = `${eventId}_${r.regId}`;
-        await put("directResults", id, {
-          eventId, regId: r.regId, placement: val,
-          grade: directBy[r.regId]?.grade ?? null,
-          judgeUid: session.user.uid, judgeName: session.name, timestamp: Date.now()
-        });
+        await batchWrite([
+          { type: "set", path: "directResults", id, data: {
+              eventId, regId: r.regId, placement: val,
+              grade: directBy[r.regId]?.grade ?? null,
+              judgeUid: session.user.uid, judgeName: session.name, timestamp: Date.now()
+            } },
+          { type: "set", path: "judgingEntries", id: eventId, data: { scoringStarted: true } }
+        ]);
         directBy[r.regId] = { ...(directBy[r.regId] || {}), placement: val };
         state.textContent = val ? "saved" : "";
         toast(val ? "Placement saved." : "Placement cleared.");
@@ -332,7 +349,7 @@ export default async function judgePage(root) {
       const existing = scoreBy[r.regId];
       const box = input({
         type: "number", min: 0, max: scale, step: "0.01", inputmode: "decimal",
-        value: existing?.score ?? "", style: "max-width:110px", disabled: absentBy[r.regId]
+        value: existing?.score ?? "", style: "max-width:110px", disabled: absentBy[r.regId] || locked
       });
       // I20 — a remark against this code letter, saved alongside the score
       // since a scores doc always needs a valid score to write at all (see
@@ -340,7 +357,7 @@ export default async function judgePage(root) {
       // the House or the participant.
       const remarkBox = el("textarea", {
         rows: 1, placeholder: "Remark (optional, seen by organisers only)",
-        style: "max-width:220px;min-width:160px", disabled: absentBy[r.regId]
+        style: "max-width:220px;min-width:160px", disabled: absentBy[r.regId] || locked
       });
       remarkBox.value = existing?.remark || "";
       const state = el("span.hint", { style: "margin:0;white-space:nowrap",
@@ -379,10 +396,17 @@ export default async function judgePage(root) {
           state.textContent = "unsaved"; saveBtn.disabled = false;
           return;
         }
-        await put("scores", id, {
-          eventId, regId: r.regId, judgeUid: session.user.uid, judgeName: session.name,
-          score: val, remark: remark || null, timestamp: Date.now(), enteredByAdminOverride: false
-        });
+        // I9 (bug) — codeLetter reassignment locks the moment ANY mark
+        // exists for this event (see firestore.rules scoringStarted()), so
+        // the very first save has to flip that flag in the same breath the
+        // mark itself lands, not sometime later.
+        await batchWrite([
+          { type: "set", path: "scores", id, data: {
+              eventId, regId: r.regId, judgeUid: session.user.uid, judgeName: session.name,
+              score: val, remark: remark || null, timestamp: Date.now(), enteredByAdminOverride: false
+            } },
+          { type: "set", path: "judgingEntries", id: eventId, data: { scoringStarted: true } }
+        ]);
         scoreBy[r.regId] = { score: val, remark };
         state.textContent = "saved"; state.style.color = "var(--ok)";
         toast("Saved " + val + ".");

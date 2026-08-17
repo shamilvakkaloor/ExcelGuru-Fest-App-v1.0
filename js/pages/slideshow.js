@@ -3,7 +3,7 @@
 import { el } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
-import { rankIsPublic } from "../domain/constants.js";
+import { rankIsPublic, isGroupClass } from "../domain/constants.js";
 
 export default async function slideshowPage(root) {
   const stage = el("div.slideshow");
@@ -51,7 +51,13 @@ export default async function slideshowPage(root) {
         items: top.map(e => {
           const est = houseStyle[e.houseId] || {};
           return {
-            rank: e.rank, main: e.teamLabel || (e.names || []).join(", "), sub: e.houseName,
+            rank: e.rank,
+            // teamLabel is set to the house name even for an INDIVIDUAL
+            // event (domain/constants.js teamName()), so this must check
+            // isGroupClass before trusting it, or an individual winner's
+            // own name never shows.
+            main: (isGroupClass(ev.eventClass) && e.teamLabel) ? e.teamLabel : (e.names || []).join(", "),
+            sub: e.houseName,
             crest: est.logoData || null,
             color: est.useAsNameColor ? est.color : null
           };

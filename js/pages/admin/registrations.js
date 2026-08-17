@@ -72,13 +72,21 @@ export default async function registrations(root) {
     panel.innerHTML = "";
     if (!event) return;
 
-    const [regs, judges, assigned] = await Promise.all([
+    const [regs, judges, assigned, entriesDoc, result] = await Promise.all([
       getAll("registrations", where("eventId", "==", event.id)),
       getAll("judges"),
-      getAll("judgeAssignments", where("eventId", "==", event.id))
+      getAll("judgeAssignments", where("eventId", "==", event.id)),
+      getOne("judgingEntries", event.id).catch(() => null),
+      getOne("results", event.id).catch(() => null)
     ]);
     const state = windowState(event, settings);
     const lettersAssigned = regs.some(r => r.codeLetter);
+    // I9 (bug) — a code letter is what a judge's mark is attached to, and
+    // a judge is who a finalized/published result already trusts, so both
+    // lock on the same condition: any mark recorded, or the event locked
+    // outright. Unfinalize first for either to reopen them.
+    const resultLocked = !!result;
+    const lettersLocked = resultLocked || !!entriesDoc?.scoringStarted;
 
     panel.appendChild(notice("info",
       "Entries are created by House Managers in their own panel. This screen is for code letters, judges and review."));
@@ -91,10 +99,15 @@ export default async function registrations(root) {
         badge(`${regs.length} entries`)
       ]),
       el("div.btn-row", { style: "margin-top:.8rem" }, [
-        button(lettersAssigned ? "Reassign code letters" : "Assign code letters", {
-          onclick: guard(() => assignLetters(event, regs, paint))
+        lettersAssigned && lettersLocked
+          ? null
+          : button(lettersAssigned ? "Reassign code letters" : "Assign code letters", {
+              onclick: guard(() => assignLetters(event, regs, paint))
+            }),
+        button(`Assign judges (${assigned.length})`, {
+          disabled: resultLocked,
+          onclick: () => judgeDialog(event, judges, assigned, catName, paint)
         }),
-        button(`Assign judges (${assigned.length})`, { onclick: () => judgeDialog(event, judges, assigned, catName, paint) }),
         button("Extend registration", { onclick: () => extensionDialog(event, houses, paint) }),
         button("Open substitutions", { onclick: () => substitutionDialog(event, houses, paint) }),
         onBehalfRole
@@ -102,6 +115,15 @@ export default async function registrations(root) {
               houseDialog(event, houses, settings, lim, catName, constraintGroups, eventById, onBehalfRole, paint) })
           : null
       ]),
+      lettersAssigned && lettersLocked
+        ? el("div.hint", { style: "margin-top:.5rem", text:
+            "Code letters are locked — a score has already been recorded, so reassigning them would " +
+            "detach it from the wrong entry. Unfinalize the event first if a correction is genuinely needed." })
+        : null,
+      resultLocked
+        ? el("div.hint", { style: "margin-top:.3rem", text:
+            "Judge assignment is locked while this event has a result — Unfinalize it first to add or remove one." })
+        : null,
       extensionSummary(event, houses),
       substitutionSummary(event, houses)
     ]), event.name));

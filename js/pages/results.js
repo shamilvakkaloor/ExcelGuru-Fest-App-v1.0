@@ -81,14 +81,19 @@ export default async function resultsPage(root) {
   function paintTitles() {
     if (!titles.length) return panel.appendChild(empty("No titles awarded yet"));
     const sorted = [...titles].sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
+    // The title-HOLDER'S name is the point of a title, so it carries the
+    // same visual weight a rank-holder's name gets everywhere else on this
+    // page — the title itself is now the small label, not the headline.
     panel.appendChild(card(el("div", {}, sorted.map(t => el("div", {
       style: "padding:.7rem 0;border-top:1px solid var(--line)"
     }, [
-      el("div", { style: "display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap" }, [
-        el("strong", { text: t.name }),
-        t.participantName ? badge(t.participantName + (t.houseName ? " · " + t.houseName : "")) : null
-      ]),
-      t.description ? el("div.hint", { style: "margin:.2rem 0 0", text: t.description }) : null
+      badge(t.name, "badge-warn"),
+      t.participantName
+        ? el("div", { style: "font-family:var(--display);font-size:1.25rem;font-weight:700;margin-top:.35rem",
+            text: t.participantName })
+        : null,
+      t.houseName ? el("div.hint", { style: "margin:0", text: t.houseName }) : null,
+      t.description ? el("div.hint", { style: "margin:.3rem 0 0", text: t.description }) : null
     ]))), "Titles"));
   }
 
