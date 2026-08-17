@@ -505,7 +505,14 @@ service cloud.firestore {
                     || (isHouse()
                         && request.resource.data.houseId == refId()
                         && request.resource.data.codeLetter == ""
-                        && registrationOpen(request.resource.data.eventId));
+                        // I9 — a House Manager approving a staff-made request
+                        // creates this exact document as their own act. The
+                        // window may already be closed (that is often WHY an
+                        // Admin stepped in), so approving a genuine pending
+                        // request of theirs is the one other door in, besides
+                        // the window being open.
+                        && (registrationOpen(request.resource.data.eventId)
+                            || approvingOwnRequest(regId, request.resource.data)));
 
       // A House Manager may withdraw only before code letters are assigned.
       allow delete: if isStaff()
@@ -520,6 +527,44 @@ service cloud.firestore {
                         && !resultPublished(resource.data.eventId)
                         && request.resource.data.diff(resource.data).affectedKeys()
                              .hasOnly(["codeLetter", "codeLetterAssignedBy", "codeLetterAssignedAt"]));
+    }
+
+    // I9 — the new registrations doc is deliberately given the SAME Firestore
+    // doc id as the registrationRequests doc it fulfils (see
+    // domain/registrationRequests.js), so this rule can look the request up
+    // directly by id — a query is not possible inside a rule, only get().
+    function approvingOwnRequest(regId, data) {
+      return exists(/databases/$(database)/documents/registrationRequests/$(regId))
+          && get(/databases/$(database)/documents/registrationRequests/$(regId)).data.houseId == data.houseId
+          && get(/databases/$(database)/documents/registrationRequests/$(regId)).data.eventId == data.eventId
+          && get(/databases/$(database)/documents/registrationRequests/$(regId)).data.status == "pending";
+    }
+
+    // I9 — Admin/Co-Admin registering on a house's behalf, gated per role by
+    // a Settings toggle. Mirrors /substitutions with requester and decider
+    // swapped: staff REQUESTS (create, pending only), the House DECIDES
+    // (update to approved/rejected). Staff cannot update a pending request's
+    // status at all — that is what makes "if the House rejects, an Admin
+    // cannot force it through" a rule rather than a UI convention.
+    match /registrationRequests/{regId} {
+      allow read: if isStaff() || (isHouse() && resource.data.houseId == refId());
+
+      allow create: if request.resource.data.status == "pending"
+                    // exists() FIRST — a stale eventId or houseId must read
+                    // as a clean refusal, not a rules EVALUATION ERROR.
+                    && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId))
+                    && exists(/databases/$(database)/documents/houses/$(request.resource.data.houseId))
+                    && ((isAdmin() && settings().allowAdminRegisterForHouse == true)
+                        || (isCoAdmin() && settings().allowCoAdminRegisterForHouse == true));
+
+      allow update: if isHouse()
+                    && resource.data.houseId == refId()
+                    && resource.data.status == "pending"
+                    && request.resource.data.status in ["approved", "rejected"]
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(["status", "decidedBy", "decidedAt", "reason"]);
+
+      allow delete: if isStaff();
     }
 
     function registrationOpen(eventId) {

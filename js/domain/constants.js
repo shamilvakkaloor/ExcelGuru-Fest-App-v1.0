@@ -172,6 +172,18 @@ export const DEFAULTS = {
     houseAddParticipants: false,
     houseAddWindow: { start: null, end: null },
 
+    // I9 — Admin/Co-Admin registering participants on a house's behalf.
+    // Switched on independently for each role. `...NeedsApproval` is not
+    // hand-set — it is computed once, the moment a role's toggle flips from
+    // off to on (see admin/settings.js): true if any registration already
+    // existed, or the fest's registration window had already opened, at
+    // that moment. Off (no approval) only for a fest that turned this on
+    // before anyone had registered anything.
+    allowAdminRegisterForHouse: false,
+    adminRegOnBehalfNeedsApproval: false,
+    allowCoAdminRegisterForHouse: false,
+    coAdminRegOnBehalfNeedsApproval: false,
+
     /* v9 — automatic category assignment.
      *
      * "none" (default) keeps the manual dropdown. "class" derives the

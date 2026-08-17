@@ -107,6 +107,7 @@ async function boot() {
   window.__CONTACTS_VISIBLE__ = !!settings?.contactsVisible;
   window.__APPEALS_ENABLED__ = !!settings?.appealsEnabled;
   window.__MESSAGING_ENABLED__ = !!settings?.messagingEnabled;
+  window.__ADMIN_REG_ENABLED__ = !!(settings?.allowAdminRegisterForHouse || settings?.allowCoAdminRegisterForHouse);
   window.__NEEDS_SETUP__ = !settings;
   window.__APP_VERSION__ = APP_VERSION;
 

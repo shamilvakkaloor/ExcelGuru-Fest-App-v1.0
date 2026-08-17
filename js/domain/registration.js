@@ -73,7 +73,7 @@ async function tallySeed(eventId, houseId) {
  * Throws with a message naming the specific cap when one is hit.
  */
 export async function registerEntry({ event, house, participants, settings, limits, registeredBy,
-                                      vocab = {}, constraintGroups = [], eventById = {} }) {
+                                      vocab = {}, constraintGroups = [], eventById = {}, regId: explicitRegId = null }) {
   /* v9 — a WHOLE-TEAM event has no roster at all: the house contests it
    * as a unit (a house march-past, a team chant) and earns the points as a
    * unit. There is nobody to cap, nobody to clash with, and nobody whose
@@ -116,7 +116,12 @@ export async function registerEntry({ event, house, participants, settings, limi
    * the expensive query now runs only the one time it can actually matter. */
   const existingTally = await getOne("entryCounts", tallyId(event.id, house.id)).catch(() => null);
   const seed = existingTally ? null : await tallySeed(event.id, house.id);
-  const regId = `${event.id}_${house.id}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+  // I9 — an explicit id is given when this entry fulfils an approved
+  // registrationRequests document: the two share the same Firestore doc id
+  // on purpose, so firestore.rules can look the request up by get() rather
+  // than needing a query (see approvingOwnRequest()).
+  const regId = explicitRegId ||
+    `${event.id}_${house.id}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
   /* ── v9 — constraint groups and reserved slots ───────────────────
    *

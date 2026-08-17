@@ -8,6 +8,7 @@ import { rebuildContactSnapshot } from "../../domain/publish.js";
 import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timezone.js";
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
 import { wipeEverything, wipeGroup, DELETE_GROUPS } from "../../domain/reset.js";
+import { registrationAlreadyStarted } from "../../domain/registrationRequests.js";
 import { compressImage, compressToBudget } from "../../lib/photo.js";
 import { applyFestName, applyLogoScale, applyHouseTerm } from "../../lib/shell.js";
 import { tr } from "../../lib/i18n.js";
@@ -80,6 +81,12 @@ async function basicTab(panel) {
   const houseAddStart = input({ type: "datetime-local", value: toLocalInput(s.houseAddWindow?.start) });
   const houseAddEnd   = input({ type: "datetime-local", value: toLocalInput(s.houseAddWindow?.end) });
   let houseAdd = !!s.houseAddParticipants;
+  // I9 — Admin/Co-Admin registering on a house's behalf, gated separately
+  // per role. adminOn/coAdminOn drive the save handler below, which decides
+  // once (at the moment either flips from off to on) whether that role's
+  // requests need the House Manager's approval — see registrationRequests.js.
+  let adminOn = !!s.allowAdminRegisterForHouse;
+  let coAdminOn = !!s.allowCoAdminRegisterForHouse;
 
   const autoCat = select([
     { value: "none",  label: "Off — choose the category by hand" },
@@ -320,6 +327,18 @@ async function basicTab(panel) {
   ]), "Registration window"));
 
   panel.appendChild(card(el("div", {}, [
+    checkbox("Admin may register participants on a house's behalf", adminOn, v => adminOn = v),
+    checkbox("Co-Admin may register participants on a house's behalf", coAdminOn, v => coAdminOn = v),
+    el("div.hint", { text:
+      "Lets that role add entries for a house's own participants, same as the House Manager can. The " +
+      "House Manager's panel shows this is switched on. If it is switched on AFTER registration has " +
+      "already started for the fest — a registration already exists, or the window above has already " +
+      "opened — every entry that role registers becomes a request the House Manager must approve first; " +
+      "if the House Manager rejects one, it cannot be forced through. Turned on before anything has " +
+      "started, entries register directly, exactly like a House Manager's own." })
+  ]), "Registration on a house's behalf"));
+
+  panel.appendChild(card(el("div", {}, [
     checkbox("Blind judging on by default (judges see code letters only)", blind, v => blind = v),
     checkbox("Schedule visible to the public", schedVisible, v => schedVisible = v),
     hint("While the schedule is hidden you can build and edit it privately."),
@@ -361,6 +380,26 @@ async function basicTab(panel) {
       toast("Every grade needs a threshold between 0 and 100.", true); return;
     }
     for (const g of gradeScale) if (!g.label.trim()) { toast("Every grade needs a name.", true); return; }
+
+    // I9 — "needs approval" is computed ONCE, at the moment a role's toggle
+    // flips from off to on, against the registration window being saved
+    // right now — never re-evaluated afterwards, so the answer cannot
+    // silently change mid-fest. Switching a role off resets its flag, so a
+    // later re-enable computes fresh rather than reusing a stale answer.
+    let adminNeedsApproval = !!s.adminRegOnBehalfNeedsApproval;
+    let coAdminNeedsApproval = !!s.coAdminRegOnBehalfNeedsApproval;
+    const adminJustEnabled = adminOn && !s.allowAdminRegisterForHouse;
+    const coAdminJustEnabled = coAdminOn && !s.allowCoAdminRegisterForHouse;
+    if (adminJustEnabled || coAdminJustEnabled) {
+      const started = await registrationAlreadyStarted({
+        registrationWindow: { start: fromLocalInput(regStart.value), end: fromLocalInput(regEnd.value) }
+      });
+      if (adminJustEnabled) adminNeedsApproval = started;
+      if (coAdminJustEnabled) coAdminNeedsApproval = started;
+    }
+    if (!adminOn) adminNeedsApproval = false;
+    if (!coAdminOn) coAdminNeedsApproval = false;
+
     await put("config", "festSettings", {
       festName: festName.value.trim() || "Our Fest",
       subtitle: subtitle.value.trim(),
@@ -375,6 +414,10 @@ async function basicTab(panel) {
       registrationWindow: { start: fromLocalInput(regStart.value), end: fromLocalInput(regEnd.value) },
       houseAddParticipants: houseAdd,
       houseAddWindow: { start: fromLocalInput(houseAddStart.value), end: fromLocalInput(houseAddEnd.value) },
+      allowAdminRegisterForHouse: adminOn,
+      adminRegOnBehalfNeedsApproval: adminNeedsApproval,
+      allowCoAdminRegisterForHouse: coAdminOn,
+      coAdminRegOnBehalfNeedsApproval: coAdminNeedsApproval,
       autoCategory: autoCat.value,
       autoCategoryWinner: autoCatWinner.value,
       blindJudgingDefault: blind,

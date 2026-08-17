@@ -8,6 +8,7 @@ import { session } from "../lib/session.js";
 import { registerEntry, registerMany, withdrawEntry, windowState, canWithdraw, countByEvent }
   from "../domain/registration.js";
 import { substitutionWindow, requestSubstitution, SUB_STATUS } from "../domain/substitution.js";
+import { REQUEST_STATUS, approveRegistrationRequest, rejectRegistrationRequest } from "../domain/registrationRequests.js";
 import { DEFAULTS, GENDERS, classLabel, isGroupClass, isGeneralClass, eventLabel,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, entryCompletion,
          typeTierFilters, eventFilterKeys, entryLabel,
@@ -44,6 +45,10 @@ export default async function housePage(root) {
    // Off the tab strip entirely unless an Admin has turned it on — a tab
    // that always errors "not enabled" is worse than a tab that isn't there.
    ...(window.__APPEALS_ENABLED__ ? [["appeals", "Appeals"]] : []),
+   // I9 — only appears once an Admin or Co-Admin has been given permission
+   // to register on this house's behalf; empty for every fest that never
+   // turns the feature on.
+   ...(window.__ADMIN_REG_ENABLED__ ? [["adminRequests", "Admin requests"]] : []),
    ["schedule", "Schedule"]];
   TAB_LIST.forEach(([id, label]) => tabs.appendChild(button(label, {
       class: id === tab ? "active" : "", onclick: () => { tab = id; paint(); }
@@ -57,7 +62,7 @@ export default async function housePage(root) {
     panel.appendChild(loading("Loading…"));
     const render = { register: registerTab, entries: entriesTab, subs: subsTab,
                      people: peopleTab, results: houseResultsTab, titles: houseTitlesTab,
-                     appeals: appealsTab,
+                     appeals: appealsTab, adminRequests: adminRequestsTab,
                      schedule: scheduleTab }[tab];
     panel.innerHTML = "";
     await render(panel, house, paint);
@@ -139,6 +144,20 @@ async function registerTab(panel, house, refresh) {
 
   panel.appendChild(notice("info",
     "Maximum event limits are checked as you register. If a participant is at their limit you will see which cap was hit."));
+
+  // I9 — the House Manager should never be surprised that an Admin can also
+  // register on their behalf, or that some of "our entries" might not have
+  // come from here.
+  if (cfg.allowAdminRegisterForHouse || cfg.allowCoAdminRegisterForHouse) {
+    panel.appendChild(notice("info",
+      "An organiser (" +
+      [cfg.allowAdminRegisterForHouse ? "Admin" : null, cfg.allowCoAdminRegisterForHouse ? "Co-Admin" : null]
+        .filter(Boolean).join(" or ") +
+      ") can also register participants for your house. " +
+      ((cfg.adminRegOnBehalfNeedsApproval || cfg.coAdminRegOnBehalfNeedsApproval)
+        ? "Since registration had already started when that was switched on, any entry they make needs your approval first — see the Admin requests tab."
+        : "Any entry they make appears directly in Our entries, the same as one you register yourself.")));
+  }
 
   panel.append(bar.node, listBox);
   paintList();
@@ -899,6 +918,104 @@ async function scheduleTab(panel, house) {
         title: house.name + " — schedule", subtitle: window.__FEST_NAME__ || "", bodyHTML: htmlTable(columns, shown) }) })
     ]));
   }
+}
+
+/* ── Admin requests — House Manager side ─────────────────────────────
+ * I9 — the inverse of Substitutions: here STAFF asks and the HOUSE decides.
+ * Only ever shown once an Admin/Co-Admin toggle has actually granted this
+ * (see the TAB_LIST gate in housePage()), and only reachable in code when
+ * that same toggle also marked itself as needing approval — a directly-
+ * registered admin entry never creates a request at all, it just appears
+ * in Our entries like any other.
+ */
+async function adminRequestsTab(panel, house, refresh) {
+  const [rows, events] = await Promise.all([
+    getAll("registrationRequests", where("houseId", "==", house.id)).catch(() => []),
+    getAll("events")
+  ]);
+  const eventById = Object.fromEntries(events.map(e => [e.id, e]));
+
+  panel.appendChild(notice("info",
+    "Entries an Admin or Co-Admin registered for your house, made after registration had already started. " +
+    "Approving one creates the entry exactly as if you had registered it yourself — the same participant " +
+    "limits and category rules apply, and approval is refused outright if one would be broken. Rejecting " +
+    "one is final; it cannot be forced through."));
+
+  const pending = rows.filter(r => r.status === REQUEST_STATUS.PENDING);
+  const decided = rows.filter(r => r.status !== REQUEST_STATUS.PENDING)
+    .sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0));
+
+  panel.appendChild(card(pending.length ? table([
+    { key: "eventName", label: "Event", render: r =>
+        eventById[r.eventId] ? eventLabel(eventById[r.eventId], {}) : r.eventName },
+    { key: "who", label: "Participants", render: r => r.wholeTeam
+        ? el("span.hint", { text: "Whole team" })
+        : (r.participantNames || []).join(", ") },
+    { key: "requestedBy", label: "Requested by", render: r => r.requestedBy || "—" },
+    { key: "act", label: "", render: r => el("div.btn-row", {}, [
+        button("Approve", { class: "btn-sm btn-accent", onclick: guard(async () => {
+          const event = eventById[r.eventId];
+          if (!event) { toast("That event no longer exists.", true); return; }
+          const [settings, limits, participantRows, constraintGroups] = await Promise.all([
+            getOne("config", "festSettings"), getOne("config", "participantLimits"),
+            Promise.all((r.participantIds || []).map(id => getOne("participants", id).catch(() => null))),
+            getAll("constraintGroups").catch(() => [])
+          ]);
+          if (participantRows.some(p => !p)) {
+            toast("A participant in this request no longer exists.", true); return;
+          }
+          try {
+            await approveRegistrationRequest({
+              request: r, event, house, participants: participantRows,
+              settings: { ...DEFAULTS.festSettings, ...(settings || {}) },
+              limits: { ...DEFAULTS.participantLimits, ...(limits || {}) },
+              constraintGroups, eventById, decidedBy: session.name || house.name
+            });
+          } catch (err) {
+            // A cap breach is refused outright — approval must never become
+            // the quiet route around the fest's own limits.
+            toast(err.message, true);
+            return;
+          }
+          toast("Approved."); refresh();
+        })}),
+        button("Reject", { class: "btn-sm btn-danger", onclick: guard(async () => {
+          const why = await promptAdminRequestReason();
+          if (why === null) return;
+          await rejectRegistrationRequest({ request: r, decidedBy: session.name || house.name, reason: why });
+          toast("Rejected."); refresh();
+        })})
+      ])}
+  ], pending) : empty("Nothing awaiting your approval"),
+    `Awaiting your approval${pending.length ? " (" + pending.length + ")" : ""}`));
+
+  if (decided.length) {
+    panel.appendChild(card(table([
+      { key: "eventName", label: "Event", render: r =>
+          eventById[r.eventId] ? eventLabel(eventById[r.eventId], {}) : r.eventName },
+      { key: "who", label: "Participants", render: r => r.wholeTeam
+          ? el("span.hint", { text: "Whole team" }) : (r.participantNames || []).join(", ") },
+      { key: "status", label: "Outcome", render: r => r.status === REQUEST_STATUS.APPROVED
+          ? badge("Approved", "badge-ok") : badge("Rejected", "badge-danger") },
+      { key: "reason", label: "Reason", render: r => r.reason
+          ? el("span.hint", { text: r.reason }) : el("span.hint", { text: "—" }) }
+    ], decided), "Decided"));
+  }
+}
+
+/** Rejections carry a reason, so the requesting Admin/Co-Admin learns why. */
+function promptAdminRequestReason() {
+  return new Promise(resolve => {
+    const why = input({ placeholder: "Optional — shown to whoever requested it" });
+    modal({
+      title: "Reject this request",
+      body: el("div", {}, [field("Reason", why)]),
+      actions: [
+        { label: "Cancel", onClick: () => resolve(null) },
+        { label: "Reject", kind: "danger", onClick: () => resolve(why.value.trim() || "") }
+      ]
+    });
+  });
 }
 
 /* ── Substitutions — House Manager side ─────────────────────────────

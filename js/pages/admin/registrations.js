@@ -1,20 +1,31 @@
 import { el, card, field, input, select, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, fmtDateTime, fromLocalInput, filterBar, hint } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, batchWrite, where } from "../../lib/db.js";
 import { codeLetterAt, classLabel, isGroupClass, eventLabel, entryLabel,
-         eventFilterKeys, typeTierFilters, EVENT_CLASSES } from "../../domain/constants.js";
-import { registerEntry, withdrawEntry, windowState } from "../../domain/registration.js";
+         eventFilterKeys, typeTierFilters, EVENT_CLASSES,
+         eventCategoryIds, eventAcceptsCategory, maxEntriesFor } from "../../domain/constants.js";
+import { registerEntry, registerMany, withdrawEntry, windowState } from "../../domain/registration.js";
 import { DEFAULTS, effectiveResultMode } from "../../domain/constants.js";
 import { ladderKey } from "../../domain/scoring.js";
-import { session } from "../../lib/session.js";
+import { session, is } from "../../lib/session.js";
+import { compareChest } from "../../domain/chest.js";
+import { avatar } from "../../lib/photo.js";
+import { onBehalfAllowed, onBehalfNeedsApproval,
+         requestRegistrationOnBehalf, requestManyOnBehalf } from "../../domain/registrationRequests.js";
 
 export default async function registrations(root) {
   root.appendChild(el("h1", { text: "Registrations" }));
 
-  const [events, houses, settings, limits, categories, types, tiers] = await Promise.all([
+  const [events, houses, settings, limits, categories, types, tiers, constraintGroups] = await Promise.all([
     getAll("events"), getAll("houses"), getOne("config", "festSettings"), getOne("config", "participantLimits"),
-    getAll("categories"), getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => [])
+    getAll("categories"), getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => []),
+    getAll("constraintGroups").catch(() => [])
   ]);
   const lim = { ...DEFAULTS.participantLimits, ...(limits || {}) };
+  const eventById = Object.fromEntries(events.map(e => [e.id, e]));
+  // I9 — which role, if either, this account may register a house's
+  // participants under. Neither toggle on: the feature stays invisible.
+  const onBehalfRole = is.admin() && onBehalfAllowed("admin", settings) ? "admin"
+    : is.coAdmin() && onBehalfAllowed("coAdmin", settings) ? "coAdmin" : null;
 
   if (!events.length) { root.appendChild(empty("No events yet", "Create events first.")); return; }
 
@@ -85,7 +96,11 @@ export default async function registrations(root) {
         }),
         button(`Assign judges (${assigned.length})`, { onclick: () => judgeDialog(event, judges, assigned, catName, paint) }),
         button("Extend registration", { onclick: () => extensionDialog(event, houses, paint) }),
-        button("Open substitutions", { onclick: () => substitutionDialog(event, houses, paint) })
+        button("Open substitutions", { onclick: () => substitutionDialog(event, houses, paint) }),
+        onBehalfRole
+          ? button("Register on behalf of a house", { onclick: () =>
+              houseDialog(event, houses, settings, lim, catName, constraintGroups, eventById, onBehalfRole, paint) })
+          : null
       ]),
       extensionSummary(event, houses),
       substitutionSummary(event, houses)
@@ -409,6 +424,228 @@ function judgeDialog(event, judges, assigned, catName, refresh) {
           }
           if (ops.length) await batchWrite(ops);
           toast("Judges updated."); close(true); refresh();
+        })
+      }
+    ]
+  });
+}
+
+/**
+ * I9 — Admin/Co-Admin registering on a house's behalf. Step one: which
+ * house. Step two (onBehalfEntryDialog) mirrors house.js's own
+ * entryDialog closely, since the picking rules — caps, categories,
+ * already-registered ticks — belong to the house, not to staff.
+ */
+function houseDialog(event, houses, settings, limits, catName, constraintGroups, eventById, role, refresh) {
+  if (!houses.length) { toast("No houses exist yet.", true); return; }
+  const who = select(houses.map(h => ({ value: h.id, label: h.name })));
+
+  modal({
+    title: "Register on behalf of — " + event.name,
+    body: el("div", {}, [
+      el("p.hint", { text: "Pick the house this entry is for. The same participant limits and category rules apply as when the House Manager registers directly." }),
+      field("House", who)
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Continue", kind: "accent", closes: false, busyLabel: "Loading…", onClick: guard(async close => {
+          const house = houses.find(h => h.id === who.value);
+          if (!house) { toast("Choose a house.", true); return false; }
+          const [people, ourRegs] = await Promise.all([
+            getAll("participants", where("houseId", "==", house.id)),
+            getAll("registrations", where("houseId", "==", house.id))
+          ]);
+          close(true);
+          onBehalfEntryDialog(event, house, people, settings, limits, catName, ourRegs,
+            constraintGroups, eventById, role, refresh);
+        })
+      }
+    ]
+  });
+}
+
+function onBehalfEntryDialog(event, house, people, settings, limits, catName, ourRegs,
+                             constraintGroups, eventById, role, refresh) {
+  const needsApproval = onBehalfNeedsApproval(role, settings);
+  const eligible = eventCategoryIds(event).length
+    ? people.filter(p => eventAcceptsCategory(event, p.categoryId))
+    : people;
+  const chosen = new Set();
+  const group = isGroupClass(event.eventClass);
+  const alreadyIn = new Set(
+    ourRegs.filter(r => r.eventId === event.id).flatMap(r => r.participantIds || []));
+  const used = ourRegs.filter(r => r.eventId === event.id).length;
+
+  const submitLabel = needsApproval ? "Send for approval" : "Register";
+  const approvalNotice = needsApproval
+    ? notice("warn", `${house.name}'s House Manager must approve this before it becomes a real entry — ` +
+        `registration has already started for this fest, so it cannot be added directly.`)
+    : notice("info", `This registers directly, exactly as if ${house.name}'s House Manager had done it themselves.`);
+
+  if (event.wholeTeam && group) {
+    modal({
+      title: event.name,
+      body: el("div", {}, [
+        approvalNotice,
+        notice("info",
+          `${house.name} enters this as a whole team — there is no participant list. The points go to the ` +
+          `${(window.__HOUSE_TERM__ || "house").toLowerCase()}, and nothing counts against anyone's event limits.`)
+      ]),
+      actions: [
+        { label: "Cancel" },
+        { label: submitLabel, kind: "accent", closes: false, busyLabel: "Working…",
+          onClick: guard(async close => {
+            try {
+              if (needsApproval) {
+                await requestRegistrationOnBehalf({
+                  event, house, participants: [], role, requestedBy: session.name
+                });
+                toast("Sent for approval.");
+              } else {
+                await registerEntry({
+                  event, house, participants: [], settings, limits, registeredBy: session.name
+                });
+                toast("Entered.");
+              }
+            } catch (err) { toast(err.message, true); return false; }
+            close(true); refresh();
+          })
+        }
+      ]
+    });
+    return;
+  }
+
+  const perEntryMax = group ? (event.maxParticipantsPerEntry || 1) : 1;
+  const cap = maxEntriesFor(event);
+  const roomLeft = cap === null ? eligible.length : Math.max(0, cap - used);
+  const selectMax = group ? perEntryMax : Math.max(1, Math.min(eligible.length, roomLeft));
+
+  const search = input({ placeholder: "Search name or chest number", autocomplete: "off" });
+  const counter = el("div.pick-count");
+  const list = el("div.pick-grid");
+  const sorted = [...eligible].sort((a, b) => compareChest(a.chestNumber, b.chestNumber));
+
+  function updateCounter() {
+    counter.textContent = group
+      ? `${chosen.size} of ${perEntryMax} selected`
+      : (chosen.size
+          ? `${chosen.size} selected — ${chosen.size} separate ${chosen.size === 1 ? "entry" : "entries"}`
+          : "Select one or more participants");
+    counter.className = "pick-count" + (chosen.size ? " has" : "");
+  }
+
+  function paintList() {
+    const term = search.value.trim().toLowerCase();
+    list.innerHTML = "";
+    const shown = sorted.filter(p => !term
+      || p.name.toLowerCase().includes(term) || String(p.chestNumber).toLowerCase().includes(term));
+
+    if (!shown.length) {
+      list.appendChild(el("div.hint", { style: "padding:1rem", text: eligible.length
+        ? "Nobody matches that search." : "No participant in this house is eligible for this event." }));
+      return;
+    }
+
+    for (const p of shown) {
+      const selected = chosen.has(p.id);
+      const inThis = alreadyIn.has(p.id);
+      const blocked = inThis && !group;
+      const cardEl = el("button.pick-card" + (selected ? ".selected" : "") + (blocked ? " pick-card-disabled" : ""),
+        { type: "button", disabled: blocked }, [
+        avatar(p, 46),
+        el("div.pick-body", {}, [
+          el("div.pick-name", { text: p.name }),
+          el("div.pick-meta", {}, [
+            el("span.mono", { text: "#" + (p.chestNumber ?? "") }),
+            p.className ? el("span", { text: " · " + p.className }) : null,
+            inThis ? el("span", { style: "color:var(--ok);font-weight:600", text: " · Already registered" }) : null
+          ])
+        ]),
+        el("span.pick-tick", { text: selected ? "✓" : (inThis ? "✓" : "") })
+      ]);
+      if (!blocked) cardEl.addEventListener("click", () => {
+        if (chosen.has(p.id)) chosen.delete(p.id);
+        else {
+          if (group && chosen.size >= perEntryMax) { toast(`At most ${perEntryMax} per entry.`, true); return; }
+          if (!group && chosen.size >= selectMax) {
+            toast(`Only ${selectMax} more ${selectMax === 1 ? "entry is" : "entries are"} allowed for this event.`, true);
+            return;
+          }
+          chosen.add(p.id);
+        }
+        updateCounter();
+        paintList();
+      });
+      list.appendChild(cardEl);
+    }
+  }
+
+  search.addEventListener("input", paintList);
+  paintList();
+  updateCounter();
+
+  modal({
+    title: "Register " + house.name + " for " + eventLabel(event, catName),
+    body: el("div", {}, [
+      approvalNotice,
+      el("p.hint", { text: group
+        ? `Tap to select up to ${perEntryMax} participants for this entry.`
+        : "Tap to select as many participants as you like — each becomes its own entry." }),
+      search, counter, list
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: submitLabel, kind: "accent", closes: false, busyLabel: "Working…", onClick: guard(async close => {
+          const picked = eligible.filter(p => chosen.has(p.id));
+          if (!picked.length) { toast("Select at least one participant.", true); return false; }
+
+          if (group) {
+            try {
+              if (needsApproval) {
+                await requestRegistrationOnBehalf({
+                  event, house, participants: picked, role, requestedBy: session.name
+                });
+                toast("Sent for approval.");
+              } else {
+                await registerEntry({ event, house, participants: picked, settings, limits,
+                  registeredBy: session.name, constraintGroups, eventById });
+                toast("Registered.");
+              }
+            } catch (err) { toast(err.message, true); return false; }
+            close(true); refresh();
+            return;
+          }
+
+          // Partial success, same contract as registerMany(): one capped
+          // participant must not block the rest.
+          const { done, failed } = needsApproval
+            ? await requestManyOnBehalf({ event, house, participants: picked, role, requestedBy: session.name })
+            : await registerMany({ event, house, participants: picked, settings, limits,
+                registeredBy: session.name, constraintGroups, eventById });
+
+          if (!failed.length) {
+            toast(needsApproval
+              ? `Sent ${done.length} for approval.`
+              : `Registered ${done.length} ${done.length === 1 ? "entry" : "entries"}.`);
+            close(true); refresh();
+            return;
+          }
+
+          close(true);
+          refresh();
+          modal({
+            title: needsApproval ? "Approval report" : "Registration report",
+            body: el("div", {}, [
+              notice(done.length ? "warn" : "danger",
+                `${done.length} ${needsApproval ? "sent" : "registered"}, ${failed.length} could not be.`),
+              ...failed.map(f => el("div", { style: "padding:.4rem 0;border-top:1px solid var(--line)" }, [
+                el("strong", { text: f.participant.name }),
+                el("div.hint", { style: "margin:0", text: f.reason })
+              ]))
+            ]),
+            actions: [{ label: "Close" }]
+          });
         })
       }
     ]
