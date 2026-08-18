@@ -755,10 +755,10 @@ async function publicTab(panel) {
       "Turning it on lets a visitor fill those in themselves." }),
     el("hr", { style: "border:none;border-top:1px solid var(--line);margin:1rem 0" }),
     field("Recent results shown on the slideshow", slideshowLimit, "How many of the latest published events get their own slide. 0 shows every published event."),
-    checkbox("Split the Student Talent slide by category", slideshowByCat, v => slideshowByCat = v),
+    checkbox("Also show Student Talent by category", slideshowByCat, v => slideshowByCat = v),
     el("div.hint", { text:
-      "Off shows one combined Student Talent slide. On gives each category its own slide, matching the " +
-      "Student Talent tab on the public results page." })
+      "The combined Student Talent slide always shows. Switching this on adds one further slide per " +
+      "category, matching the Student Talent tab on the public results page." })
   ]), "Results on public screens"));
 
   // I23 — chest number format.

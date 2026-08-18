@@ -513,21 +513,30 @@ tr.row-ours { background: #FFFAEC; }
 .screen-foot { color: #7B8DA0; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
 
 /* I9 — houses as rows, categories as columns, big-screen "points by
-   category" slide. */
+   category" slide. The generic `th { background: var(--surface); position:
+   sticky; … }` rule near the top of this file is written for the light,
+   staff-facing admin tables — it was winning here because these rules
+   never actually redeclared background/position, so every th quietly
+   turned into a solid light-theme block sitting on a dark screen. Every
+   property that rule sets is now reset explicitly, not just the ones
+   this slide happens to care about. */
 .screen-table { width: 100%; border-collapse: collapse; color: #fff; }
 .screen-table th, .screen-table td {
-  padding: 1vh 1vw; text-align: center; border-bottom: 1px solid rgba(255,255,255,.12);
+  padding: 1.2vh 1.2vw; text-align: center; border-bottom: 1px solid rgba(255,255,255,.14);
   font-size: clamp(.9rem, 1.7vw, 1.5rem);
+  background: transparent; position: static; white-space: normal;
 }
 .screen-table thead th {
   color: #A9BBD0; font-size: clamp(.75rem, 1.2vw, 1.1rem);
   text-transform: uppercase; letter-spacing: .04em; font-weight: 600;
+  border-bottom: 2px solid rgba(255,255,255,.28);
 }
 .screen-table tbody th {
-  text-align: left; font-family: var(--display); font-weight: 700;
-  font-size: clamp(1rem, 1.9vw, 1.7rem);
+  text-align: left; font-family: var(--display); font-weight: 700; color: #fff;
+  font-size: clamp(1.05rem, 2vw, 1.8rem);
 }
-.screen-table td { font-family: var(--mono); }
+.screen-table tbody tr:last-child th, .screen-table tbody tr:last-child td { border-bottom: none; }
+.screen-table td { font-family: var(--mono); color: #fff; }
 .screen-table td.leader { color: var(--marigold); font-weight: 700; }
 .screen-table td.total { color: #fff; font-weight: 700; }
 

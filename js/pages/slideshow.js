@@ -39,10 +39,17 @@ export default async function slideshowPage(root) {
       });
     }
     if (board?.students?.length) {
-      // I9 — one slide per category, instead of always one combined slide,
-      // when the Admin has switched it on. Dense re-ranking within each
-      // category mirrors /results' own reRank(), so a slide never shows a
-      // rank that skips a place.
+      // The combined board always shows — the per-category breakdown is
+      // additional, not a replacement for it.
+      slides.push({
+        title: "Student Talent",
+        items: board.students.slice(0, talentLimit || 10).map(s => ({
+          rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts"
+        }))
+      });
+      // I9 — one slide per category as well, when the Admin has switched
+      // it on. Dense re-ranking within each category mirrors /results'
+      // own reRank(), so a slide never shows a rank that skips a place.
       if (board.slideshowTalentByCategory) {
         const byCat = new Map();
         for (const s of board.students) {
@@ -57,13 +64,6 @@ export default async function slideshowPage(root) {
             items: ranked.map(s => ({ rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts" }))
           });
         }
-      } else {
-        slides.push({
-          title: "Student Talent",
-          items: board.students.slice(0, talentLimit || 10).map(s => ({
-            rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts"
-          }))
-        });
       }
     }
     const recent = recentLimit ? events.slice(-recentLimit) : events;
