@@ -379,14 +379,44 @@ export function debounce(fn, ms = 300) {
  * row passes when every axis is either unfiltered or contains that row's
  * value.
  */
-export function filterBar({ filters, onChange, compact = false }) {
+/* Filter selections, remembered per screen for as long as you stay on it.
+ *
+ * Saving anything on an admin screen repaints the whole list, which rebuilt
+ * the filter bar from scratch and dropped whatever was selected — so a run of
+ * edits inside one filtered view meant re-picking the filter after every
+ * single save. Screens that pass `remember` now read their last selection
+ * back on rebuild. The router clears this on an actual route change, so the
+ * filter lives exactly as long as the screen does and never leaks into the
+ * next one. */
+const FILTER_MEMORY = new Map();
+export function forgetFilters() { FILTER_MEMORY.clear(); }
+
+// Cleared here rather than from the router, which is deliberately a leaf
+// module with no imports. Only the PATH is compared, so a screen that
+// deep-links its own tabs through the query string (?tab=…) keeps its
+// filters; leaving the screen entirely drops them.
+let lastFilterPath = location.hash.split("?")[0];
+window.addEventListener("hashchange", () => {
+  const p = location.hash.split("?")[0];
+  if (p !== lastFilterPath) { lastFilterPath = p; FILTER_MEMORY.clear(); }
+});
+
+export function filterBar({ filters, onChange, compact = false, remember = null }) {
   const values = {};
+  const saved = remember ? FILTER_MEMORY.get(remember) : null;
+  const save = () => { if (remember) FILTER_MEMORY.set(remember, JSON.parse(JSON.stringify(values))); };
   const node = el("div.filter-bar" + (compact ? ".compact" : ""));
   const groups = [];
 
   for (const f of filters || []) {
     if (!f || !f.options?.length) continue;
-    values[f.key] = Array.isArray(f.value) ? [...f.value] : (f.value ? [f.value] : []);
+    // A remembered selection wins over the caller's initial value: it is the
+    // more recent intent, and only options that still exist are restored, so
+    // a filter on something since deleted cannot hide every row.
+    const valid = new Set(f.options.map(o => String(o.value)));
+    values[f.key] = Array.isArray(saved?.[f.key])
+      ? saved[f.key].filter(v => valid.has(String(v)))
+      : Array.isArray(f.value) ? [...f.value] : (f.value ? [f.value] : []);
 
     const summary = el("span.filter-summary");
     const caret = el("span.filter-caret", { text: "\u25BE" });
@@ -411,7 +441,7 @@ export function filterBar({ filters, onChange, compact = false }) {
     const allRow = el("label.filter-opt.filter-all", {}, [
       el("input", { type: "checkbox", checked: true, onchange: () => {
         values[f.key] = [];
-        paintOptions(); paintSummary(); onChange?.(values);
+        paintOptions(); paintSummary(); save(); onChange?.(values);
       }}),
       el("span", { text: f.allLabel || ("All " + f.label.toLowerCase()) })
     ]);
@@ -421,7 +451,7 @@ export function filterBar({ filters, onChange, compact = false }) {
         const set = new Set(values[f.key].map(String));
         box.checked ? set.add(String(o.value)) : set.delete(String(o.value));
         values[f.key] = [...set];
-        paintOptions(); paintSummary(); onChange?.(values);
+        paintOptions(); paintSummary(); save(); onChange?.(values);
       }});
       return { o, box, row: el("label.filter-opt", {}, [box, el("span", { text: o.label })]) };
     });
@@ -472,6 +502,7 @@ export function filterBar({ filters, onChange, compact = false }) {
   function reset() {
     for (const k of Object.keys(values)) values[k] = [];
     groups.forEach(g => { g.paintOptions(); g.paintSummary(); });
+    save();
     onChange?.(values);
   }
 

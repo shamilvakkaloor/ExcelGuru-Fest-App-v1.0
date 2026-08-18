@@ -68,6 +68,7 @@ export default async function stagePage(root) {
   const panel = el("div");
 
   const bar = filterBar({
+    remember: "stage",
     filters: [
       { key: "filterCategory", label: "Category",
         options: [...categories.map(c => ({ value: c.id, label: c.name })),

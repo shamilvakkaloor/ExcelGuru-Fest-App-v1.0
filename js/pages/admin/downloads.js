@@ -269,6 +269,7 @@ async function resultReportsCard() {
   // ── shared filters ────────────────────────────────────────────────
   const sel = { categoryIds: [], houseIds: [], classIds: [], stages: [], typeIds: [], tierIds: [] };
   const bar = filterBar({
+    remember: "admin-downloads",
     filters: [
       { key: "categoryIds", label: "Category", options: categories.map(c => ({ value: c.id, label: c.name })) },
       { key: "houseIds", label: "House", options: houses.map(h => ({ value: h.id, label: h.name })) },

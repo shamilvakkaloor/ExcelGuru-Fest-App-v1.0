@@ -255,6 +255,7 @@ export default async function resultsPage(root) {
 
     const listBox = el("div");
     const bar = filterBar({
+      remember: "results-public",
       filters: [
         { key: "filterCategory", label: "Category", options: cats },
         { key: "filterClass", label: "Event class",

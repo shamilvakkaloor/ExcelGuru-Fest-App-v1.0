@@ -8,7 +8,8 @@ import { rebuildContactSnapshot } from "../../domain/publish.js";
 import { detectZone, zoneList, describeZone, isValidZone } from "../../lib/timezone.js";
 import { changeOwnPassword, validatePassword, deleteOwnAccount, session } from "../../lib/session.js";
 import { wipeEverything, wipeGroup, DELETE_GROUPS } from "../../domain/reset.js";
-import { registrationAlreadyStarted } from "../../domain/registrationRequests.js";
+import { registrationAlreadyStarted, requestOnBehalfConsent,
+         clearOnBehalfConsent } from "../../domain/registrationRequests.js";
 import { logAudit } from "../../domain/auditLog.js";
 import { compressImage, compressToBudget } from "../../lib/photo.js";
 import { applyFestName, applyLogoScale, applyHouseTerm } from "../../lib/shell.js";
@@ -56,9 +57,10 @@ export default async function settings(root, query = {}) {
 
 /* ── Fest details ──────────────────────────────────────────────────── */
 async function basicTab(panel) {
-  const [s0, results, contactBookDoc] = await Promise.all([
+  const [s0, results, contactBookDoc, consentRows] = await Promise.all([
     getOne("config", "festSettings"), getAll("results").catch(() => []),
-    getOne("config", "contactBook").catch(() => null)
+    getOne("config", "contactBook").catch(() => null),
+    getAll("onBehalfConsents").catch(() => [])
   ]);
   const s = { ...DEFAULTS.festSettings, ...(s0 || {}) };
   // I9 — free-form, Admin-authored public contacts (Admin, Co-Admin,
@@ -333,16 +335,39 @@ async function basicTab(panel) {
     ])
   ]), "Registration window"));
 
+  // Who has answered the one-off consent question, so an Admin can see why
+  // a house is still refusing entries without hunting for it.
+  const consentBox = el("div");
+  {
+    const pending = consentRows.filter(c => c.status === "pending");
+    const rejected = consentRows.filter(c => c.status === "rejected");
+    const approved = consentRows.filter(c => c.status === "approved");
+    if (consentRows.length) {
+      consentBox.appendChild(el("div.hint", { style: "margin-top:.6rem", text:
+        `Consent: ${approved.length} agreed, ${pending.length} still to answer` +
+        (rejected.length ? `, ${rejected.length} declined` : "") + "." }));
+      for (const c of [...pending, ...rejected]) {
+        consentBox.appendChild(el("div.slot-row", {}, [
+          el("div.body", { text: `${c.houseName || c.houseId} — ${c.role === "coAdmin" ? "Co-Admin" : "Admin"}` }),
+          badge(c.status === "pending" ? "Waiting" : "Declined",
+                c.status === "pending" ? "badge-warn" : "badge-danger")
+        ]));
+      }
+    }
+  }
+
   panel.appendChild(card(el("div", {}, [
     checkbox("Admin may register participants on a house's behalf", adminOn, v => adminOn = v),
     checkbox("Co-Admin may register participants on a house's behalf", coAdminOn, v => coAdminOn = v),
     el("div.hint", { text:
       "Lets that role add entries for a house's own participants, same as the House Manager can. The " +
-      "House Manager's panel shows this is switched on. If it is switched on AFTER registration has " +
-      "already started for the fest — a registration already exists, or the window above has already " +
-      "opened — every entry that role registers becomes a request the House Manager must approve first; " +
-      "if the House Manager rejects one, it cannot be forced through. Turned on before anything has " +
-      "started, entries register directly, exactly like a House Manager's own." })
+      "House Manager's panel shows this is switched on. Turned on BEFORE registration has started — no " +
+      "entry exists yet and the window above has not opened — it simply works, and entries register " +
+      "directly like a House Manager's own. Turned on AFTER registration has started, each House " +
+      "Manager is asked once whether staff may register for them: one decision about the permission, " +
+      "not one per event. A house that agrees is then registered for directly; a house that has not " +
+      "answered blocks only itself, and one that declines cannot be overridden." }),
+    consentBox
   ]), "Registration on a house's behalf"));
 
   panel.appendChild(card(el("div", {}, [
@@ -453,6 +478,19 @@ async function basicTab(panel) {
     }
     if (!adminOn) adminNeedsApproval = false;
     if (!coAdminOn) coAdminNeedsApproval = false;
+
+    // Approval is asked ONCE per house, for the permission itself — not per
+    // entry. A house that agrees is then registered for directly; a house
+    // that has not answered blocks only itself.
+    const allHouses = await getAll("houses").catch(() => []);
+    if (adminJustEnabled && adminNeedsApproval) {
+      await requestOnBehalfConsent({ role: "admin", houses: allHouses, requestedBy: session.name || "Admin" });
+    }
+    if (coAdminJustEnabled && coAdminNeedsApproval) {
+      await requestOnBehalfConsent({ role: "coAdmin", houses: allHouses, requestedBy: session.name || "Co-Admin" });
+    }
+    if (!adminOn && s.allowAdminRegisterForHouse) await clearOnBehalfConsent("admin");
+    if (!coAdminOn && s.allowCoAdminRegisterForHouse) await clearOnBehalfConsent("coAdmin");
 
     await put("config", "festSettings", {
       festName: festName.value.trim() || "Our Fest",

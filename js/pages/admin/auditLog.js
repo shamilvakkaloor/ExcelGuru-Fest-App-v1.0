@@ -48,6 +48,7 @@ export default async function auditLogPage(root) {
     if (!rows.length) { panel.appendChild(empty("Nothing logged yet")); return; }
 
     const bar = filterBar({
+      remember: "admin-auditlog",
       filters: [
         { key: "role", label: "Role",
           options: [...new Map(rows.map(r => [r.role, { value: r.role, label: r.role || "—" }])).values()] },

@@ -53,6 +53,7 @@ export default async function schedulePage(root) {
 
   // I6 — the same shared filter bar every other screen uses.
   const bar = filterBar({
+    remember: "schedule",
     filters: [
       { key: "filterDay", label: "Day", options: dayOptions },
       { key: "filterVenue", label: "Venue", options: venueOptions },

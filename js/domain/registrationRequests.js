@@ -11,7 +11,7 @@
 // applies — an approval can still fail if the fest's own limits would be
 // breached, matching how approveSubstitution() already refuses a cap
 // breach outright rather than waving it through "with a warning".
-import { getAll, add, patch } from "../lib/db.js";
+import { getAll, add, patch, put, remove } from "../lib/db.js";
 import { registerEntry } from "./registration.js";
 
 export const REQUEST_STATUS = {
@@ -27,14 +27,92 @@ export function onBehalfAllowed(role, settings) {
        : false;
 }
 
-/** Does a request from this role need the House Manager's approval, or can
- *  it become a real registration immediately? Decided once, when the
- *  toggle was switched on (see admin/settings.js) — never re-evaluated
- *  per request, so the answer cannot change mid-fest by coincidence. */
+/** Does this role's permission need the House Manager's consent before it
+ *  can be used at all? Decided once, when the toggle was switched on (see
+ *  admin/settings.js) — never re-evaluated afterwards, so the answer cannot
+ *  change mid-fest by coincidence.
+ *
+ *  NOTE the change in what this gates. It used to make EVERY entry a
+ *  separate request the House Manager had to approve one event at a time,
+ *  which for a fest with 150 events meant 150 approvals for what is really
+ *  a single decision. It now gates the PERMISSION: the House Manager agrees
+ *  once, and after that staff register for them directly, exactly as if the
+ *  toggle had been on from the start. The stored field keeps its name
+ *  because its meaning — "approval is required" — is unchanged, so no fest
+ *  needs migrating. */
 export function onBehalfNeedsApproval(role, settings) {
   return role === "admin" ? !!settings?.adminRegOnBehalfNeedsApproval
        : role === "coAdmin" ? !!settings?.coAdminRegOnBehalfNeedsApproval
        : true;
+}
+
+/* ── Consent for the permission itself ─────────────────────────────────
+ *
+ * One document per (role, house), with a deterministic id so asking twice
+ * updates the same row instead of piling up duplicates. A house that has
+ * not answered yet blocks that role from registering for THAT house only —
+ * one house dragging its feet never blocks the others.
+ */
+export const consentId = (role, houseId) => `${role}__${houseId}`;
+
+/** Ask every house for consent. Houses that already said yes are left
+ *  alone, so re-saving Settings does not silently revoke a decision the
+ *  House Manager already made. */
+export async function requestOnBehalfConsent({ role, houses, requestedBy }) {
+  const existing = await getAll("onBehalfConsents").catch(() => []);
+  const byId = Object.fromEntries(existing.map(c => [c.id, c]));
+  let asked = 0;
+  for (const h of houses) {
+    const id = consentId(role, h.id);
+    if (byId[id]?.status === REQUEST_STATUS.APPROVED) continue;
+    await put("onBehalfConsents", id, {
+      role, houseId: h.id, houseName: h.name,
+      status: REQUEST_STATUS.PENDING,
+      requestedBy: requestedBy || "", requestedAt: Date.now(),
+      decidedBy: null, decidedAt: null
+    });
+    asked++;
+  }
+  return asked;
+}
+
+/** Switching the permission off drops its consents, so a later re-enable
+ *  asks fresh rather than reusing an answer given about a different moment
+ *  in the fest. */
+export async function clearOnBehalfConsent(role) {
+  const existing = await getAll("onBehalfConsents").catch(() => []);
+  for (const c of existing.filter(x => x.role === role)) {
+    await remove("onBehalfConsents", c.id).catch(() => {});
+  }
+}
+
+/** The House Manager's one decision. */
+export async function decideOnBehalfConsent({ role, houseId, approved, decidedBy }) {
+  return patch("onBehalfConsents", consentId(role, houseId), {
+    status: approved ? REQUEST_STATUS.APPROVED : REQUEST_STATUS.REJECTED,
+    decidedBy: decidedBy || "", decidedAt: Date.now()
+  });
+}
+
+/**
+ * May `role` register for this house right now?
+ *
+ * Returns { ok, reason } rather than a bare boolean so the caller can say
+ * WHY it is blocked — "still waiting", "declined" and "never switched on"
+ * need different words in front of an Admin.
+ */
+export function onBehalfReady(role, settings, houseId, consents = []) {
+  if (!onBehalfAllowed(role, settings)) {
+    return { ok: false, reason: "This role is not allowed to register on a house's behalf." };
+  }
+  if (!onBehalfNeedsApproval(role, settings)) return { ok: true, reason: "" };
+
+  const c = consents.find(x => x.id === consentId(role, houseId));
+  if (c?.status === REQUEST_STATUS.APPROVED) return { ok: true, reason: "" };
+  if (c?.status === REQUEST_STATUS.REJECTED) {
+    return { ok: false, reason: "This house's House Manager declined. They can change that from their own panel." };
+  }
+  return { ok: false, reason: "Waiting for this house's House Manager to approve. It was turned on after registration had already started, so they decide whether staff may register for them." };
 }
 
 /** Staff creates a pending request for ONE entry's worth of participants

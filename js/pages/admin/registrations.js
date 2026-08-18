@@ -10,7 +10,7 @@ import { session, is } from "../../lib/session.js";
 import { compareChest } from "../../domain/chest.js";
 import { avatar } from "../../lib/photo.js";
 import { onBehalfAllowed, onBehalfNeedsApproval,
-         requestRegistrationOnBehalf, requestManyOnBehalf } from "../../domain/registrationRequests.js";
+         onBehalfReady } from "../../domain/registrationRequests.js";
 
 export default async function registrations(root) {
   root.appendChild(el("h1", { text: "Registrations" }));
@@ -38,6 +38,7 @@ export default async function registrations(root) {
   // event picker in the app already carries (stage.js, house.js,
   // participants.js).
   const bar = filterBar({
+    remember: "admin-registrations",
     filters: [
       { key: "filterCategory", label: "Category",
         options: [...categories.map(c => ({ value: c.id, label: c.name })),
@@ -462,17 +463,37 @@ function houseDialog(event, houses, settings, limits, catName, constraintGroups,
   if (!houses.length) { toast("No houses exist yet.", true); return; }
   const who = select(houses.map(h => ({ value: h.id, label: h.name })));
 
+  // Consent is per house, so the answer changes as the picker changes.
+  const consentLine = el("div");
+  let consents = [];
+  const paintConsent = () => {
+    consentLine.innerHTML = "";
+    if (!onBehalfNeedsApproval(role, settings)) return;
+    const { ok, reason } = onBehalfReady(role, settings, who.value, consents);
+    consentLine.appendChild(ok
+      ? notice("info", "This House Manager has agreed to staff registering for them.")
+      : notice("warn", reason));
+  };
+  who.addEventListener("change", paintConsent);
+  getAll("onBehalfConsents").catch(() => []).then(rows => { consents = rows; paintConsent(); });
+
   modal({
     title: "Register on behalf of — " + event.name,
     body: el("div", {}, [
       el("p.hint", { text: "Pick the house this entry is for. The same participant limits and category rules apply as when the House Manager registers directly." }),
-      field("House", who)
+      field("House", who),
+      consentLine
     ]),
     actions: [
       { label: "Cancel" },
       { label: "Continue", kind: "accent", closes: false, busyLabel: "Loading…", onClick: guard(async close => {
           const house = houses.find(h => h.id === who.value);
           if (!house) { toast("Choose a house.", true); return false; }
+          // Re-read rather than trust the copy fetched when the dialog
+          // opened — the House Manager may have answered in the meantime.
+          consents = await getAll("onBehalfConsents").catch(() => []);
+          const gate = onBehalfReady(role, settings, house.id, consents);
+          if (!gate.ok) { paintConsent(); toast(gate.reason, true); return false; }
           const [people, ourRegs] = await Promise.all([
             getAll("participants", where("houseId", "==", house.id)),
             getAll("registrations", where("houseId", "==", house.id))
@@ -488,7 +509,10 @@ function houseDialog(event, houses, settings, limits, catName, constraintGroups,
 
 function onBehalfEntryDialog(event, house, people, settings, limits, catName, ourRegs,
                              constraintGroups, eventById, role, refresh) {
-  const needsApproval = onBehalfNeedsApproval(role, settings);
+  // No per-entry approval any more. Permission was settled once, before
+  // this dialog opened (houseDialog gates on it), so by the time anyone is
+  // picking participants the answer is already yes and every entry is a
+  // real registration.
   const eligible = eventCategoryIds(event).length
     ? people.filter(p => eventAcceptsCategory(event, p.categoryId))
     : people;
@@ -498,11 +522,9 @@ function onBehalfEntryDialog(event, house, people, settings, limits, catName, ou
     ourRegs.filter(r => r.eventId === event.id).flatMap(r => r.participantIds || []));
   const used = ourRegs.filter(r => r.eventId === event.id).length;
 
-  const submitLabel = needsApproval ? "Send for approval" : "Register";
-  const approvalNotice = needsApproval
-    ? notice("warn", `${house.name}'s House Manager must approve this before it becomes a real entry — ` +
-        `registration has already started for this fest, so it cannot be added directly.`)
-    : notice("info", `This registers directly, exactly as if ${house.name}'s House Manager had done it themselves.`);
+  const submitLabel = "Register";
+  const approvalNotice =
+    notice("info", `This registers directly, exactly as if ${house.name}'s House Manager had done it themselves.`);
 
   if (event.wholeTeam && group) {
     modal({
@@ -518,17 +540,10 @@ function onBehalfEntryDialog(event, house, people, settings, limits, catName, ou
         { label: submitLabel, kind: "accent", closes: false, busyLabel: "Working…",
           onClick: guard(async close => {
             try {
-              if (needsApproval) {
-                await requestRegistrationOnBehalf({
-                  event, house, participants: [], role, requestedBy: session.name
-                });
-                toast("Sent for approval.");
-              } else {
-                await registerEntry({
-                  event, house, participants: [], settings, limits, registeredBy: session.name
-                });
-                toast("Entered.");
-              }
+              await registerEntry({
+                event, house, participants: [], settings, limits, registeredBy: session.name
+              });
+              toast("Entered.");
             } catch (err) { toast(err.message, true); return false; }
             close(true); refresh();
           })
@@ -624,16 +639,9 @@ function onBehalfEntryDialog(event, house, people, settings, limits, catName, ou
 
           if (group) {
             try {
-              if (needsApproval) {
-                await requestRegistrationOnBehalf({
-                  event, house, participants: picked, role, requestedBy: session.name
-                });
-                toast("Sent for approval.");
-              } else {
-                await registerEntry({ event, house, participants: picked, settings, limits,
-                  registeredBy: session.name, constraintGroups, eventById });
-                toast("Registered.");
-              }
+              await registerEntry({ event, house, participants: picked, settings, limits,
+                registeredBy: session.name, constraintGroups, eventById });
+              toast("Registered.");
             } catch (err) { toast(err.message, true); return false; }
             close(true); refresh();
             return;
@@ -641,15 +649,12 @@ function onBehalfEntryDialog(event, house, people, settings, limits, catName, ou
 
           // Partial success, same contract as registerMany(): one capped
           // participant must not block the rest.
-          const { done, failed } = needsApproval
-            ? await requestManyOnBehalf({ event, house, participants: picked, role, requestedBy: session.name })
-            : await registerMany({ event, house, participants: picked, settings, limits,
-                registeredBy: session.name, constraintGroups, eventById });
+          const { done, failed } = await registerMany({
+            event, house, participants: picked, settings, limits,
+            registeredBy: session.name, constraintGroups, eventById });
 
           if (!failed.length) {
-            toast(needsApproval
-              ? `Sent ${done.length} for approval.`
-              : `Registered ${done.length} ${done.length === 1 ? "entry" : "entries"}.`);
+            toast(`Registered ${done.length} ${done.length === 1 ? "entry" : "entries"}.`);
             close(true); refresh();
             return;
           }
@@ -657,10 +662,10 @@ function onBehalfEntryDialog(event, house, people, settings, limits, catName, ou
           close(true);
           refresh();
           modal({
-            title: needsApproval ? "Approval report" : "Registration report",
+            title: "Registration report",
             body: el("div", {}, [
               notice(done.length ? "warn" : "danger",
-                `${done.length} ${needsApproval ? "sent" : "registered"}, ${failed.length} could not be.`),
+                `${done.length} registered, ${failed.length} could not be.`),
               ...failed.map(f => el("div", { style: "padding:.4rem 0;border-top:1px solid var(--line)" }, [
                 el("strong", { text: f.participant.name }),
                 el("div.hint", { style: "margin:0", text: f.reason })

@@ -630,6 +630,33 @@ service cloud.firestore {
       allow delete: if isStaff();
     }
 
+    // Consent for the PERMISSION to register on a house's behalf, as opposed
+    // to consent for one entry (above). Staff asks, the House Manager
+    // answers once, and staff may then register for that house directly.
+    // Staff can ask and can clear the question, but must never be able to
+    // answer it: the status transition is a House-only write, the same
+    // boundary registrationRequests draws, so "an Admin cannot approve on
+    // the house's behalf" is enforced here rather than in the UI.
+    match /onBehalfConsents/{consentId} {
+      allow read: if isStaff() || (isHouse() && resource.data.houseId == refId());
+
+      allow create: if isStaff()
+                    && request.resource.data.status == "pending"
+                    && exists(/databases/$(database)/documents/houses/$(request.resource.data.houseId));
+
+      // Staff re-asking resets a decided row back to pending; it can never
+      // set approved/rejected itself.
+      allow update: if (isStaff()
+                        && request.resource.data.status == "pending")
+                    || (isHouse()
+                        && resource.data.houseId == refId()
+                        && request.resource.data.status in ["approved", "rejected"]
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(["status", "decidedBy", "decidedAt"]));
+
+      allow delete: if isStaff();
+    }
+
     function registrationOpen(eventId) {
       return eventWindowOpen(eventDoc(eventId));
     }

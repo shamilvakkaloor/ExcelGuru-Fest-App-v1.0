@@ -26,6 +26,7 @@ export default async function judging(root) {
   // I3 — filter the picker, so a fest with 120 events does not present one
   // flat dropdown of 120 items.
   const bar = filterBar({
+    remember: "admin-judging",
     filters: [
       { key: "filterCategory", label: "Category",
         options: [...categories.map(c => ({ value: c.id, label: c.name })),

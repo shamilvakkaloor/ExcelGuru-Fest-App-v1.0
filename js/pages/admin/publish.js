@@ -1,7 +1,7 @@
-import { el, card, button, table, toast, guard, notice, empty, badge, modal, confirmDialog } from "../../lib/ui.js";
-import { getAll, put } from "../../lib/db.js";
+import { el, card, button, table, toast, guard, notice, empty, badge, modal, confirmDialog, filterBar } from "../../lib/ui.js";
+import { getAll, getOne, put } from "../../lib/db.js";
 import { previewImpact, publishEvents, unpublishEvent, rebuildPublicSnapshots } from "../../domain/publish.js";
-import { PUBLISH_STATUS, classLabel } from "../../domain/constants.js";
+import { PUBLISH_STATUS, classLabel, DEFAULTS, typeTierFilters, eventFilterKeys } from "../../domain/constants.js";
 import { is } from "../../lib/session.js";
 
 export default async function publishPage(root) {
@@ -12,9 +12,12 @@ export default async function publishPage(root) {
 
   async function paint() {
     panel.innerHTML = "";
-    const [events, results, categories] = await Promise.all([
-      getAll("events"), getAll("results"), getAll("categories")
+    const [events, results, categories, settings, types, tiers] = await Promise.all([
+      getAll("events"), getAll("results"), getAll("categories"),
+      getOne("config", "festSettings").catch(() => null),
+      getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => [])
     ]);
+    const cfg = { ...DEFAULTS.festSettings, ...(settings || {}) };
     const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
     const byId = Object.fromEntries(results.map(r => [r.id, r]));
 
@@ -70,7 +73,44 @@ export default async function publishPage(root) {
 
     if (!rows.length) { panel.appendChild(empty("No events yet")); return; }
 
-    panel.appendChild(card(table([
+    // 151 events on one page with no way to narrow it. Status is the axis
+    // that matters here — "show me everything still not finalized" — so it
+    // leads, with the same Category/Class/Type/Tier axes the other screens
+    // already offer. `remember` keeps the choice across the repaint that
+    // every check, publish and unpublish triggers.
+    const listBox = el("div");
+    const bar = filterBar({
+      remember: "admin-publish",
+      filters: [
+        { key: "filterStatus", label: "Status", allLabel: "All statuses",
+          options: [
+            { value: PUBLISH_STATUS.NOT_FINALIZED, label: "Not finalized" },
+            { value: PUBLISH_STATUS.FINALIZED, label: "Finalized" },
+            { value: PUBLISH_STATUS.PUBLISHED, label: "Published" }
+          ] },
+        { key: "filterStaged", label: "Checked", allLabel: "Checked or not",
+          options: [{ value: "yes", label: "Checked to publish" }, { value: "no", label: "Not checked" }] },
+        { key: "filterCategory", label: "Category",
+          options: [...categories.map(c => ({ value: c.id, label: c.name })),
+                    { value: "__general", label: "General" }] },
+        { key: "filterClass", label: "Event class",
+          options: [...new Map(rows.map(r =>
+            [r.eventClass, { value: r.eventClass, label: classLabel(r.eventClass) }])).values()] },
+        ...typeTierFilters({ types, tiers, enabled: !!cfg.useTypeTier })
+      ],
+      onChange: paintList
+    });
+    panel.append(bar.node, listBox);
+    paintList();
+
+    function paintList() {
+      const list = rows
+        .map(r => ({ ...r, ...eventFilterKeys(r),
+                     filterStatus: r.status, filterStaged: r.staged ? "yes" : "no" }))
+        .filter(bar.matches);
+      listBox.innerHTML = "";
+      if (!list.length) { listBox.appendChild(empty("No events match those filters")); return; }
+      listBox.appendChild(card(table([
       { key: "check", label: "Publish?", render: r => {
           if (r.status !== PUBLISH_STATUS.FINALIZED) return el("span.hint", { text: "—" });
           const cb = el("input", { type: "checkbox", checked: r.staged, onchange: guard(async e => {
@@ -105,7 +145,8 @@ export default async function publishPage(root) {
                 toast("Unpublished."); paint();
               })})
             : "" }
-    ], rows)));
+      ], list)));
+    }
   }
 
   async function showPreview(ids) {

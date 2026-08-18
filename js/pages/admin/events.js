@@ -87,6 +87,7 @@ export default async function events(root) {
     // I3 — the same shared filter bar every other screen uses.
     const listBox = el("div");
     const bar = filterBar({
+      remember: "admin-events",
       filters: [
         { key: "filterCategory", label: "Category",
           options: [...categories.map(c => ({ value: c.id, label: c.name })),

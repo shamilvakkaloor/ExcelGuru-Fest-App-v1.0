@@ -29,8 +29,14 @@ const RESULTS_COLLECTIONS = [
   "publicResults", "publicLeaderboard", "appeals", "stageArrivals"
 ];
 
+// registrationRequests and onBehalfConsents belong here rather than with the
+// accounts: both are about entries, and both point at registrations that this
+// group removes. registrationRequests was missing entirely, so a registration
+// wipe used to leave stale pending requests behind, pointing at events and
+// participants that no longer existed.
 const REGISTRATION_COLLECTIONS = [
-  "registrations", "entryCounts", "substitutions", "eventMaterials"
+  "registrations", "entryCounts", "substitutions", "eventMaterials",
+  "registrationRequests", "onBehalfConsents"
 ];
 
 const PARTICIPANT_COLLECTIONS = ["participants", "participantPublic", "titles"];

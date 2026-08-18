@@ -8,7 +8,8 @@ import { session } from "../lib/session.js";
 import { registerEntry, registerMany, withdrawEntry, windowState, canWithdraw, countByEvent }
   from "../domain/registration.js";
 import { substitutionWindow, requestSubstitution, SUB_STATUS } from "../domain/substitution.js";
-import { REQUEST_STATUS, approveRegistrationRequest, rejectRegistrationRequest } from "../domain/registrationRequests.js";
+import { REQUEST_STATUS, approveRegistrationRequest, rejectRegistrationRequest,
+         decideOnBehalfConsent } from "../domain/registrationRequests.js";
 import { DEFAULTS, GENDERS, classLabel, isGroupClass, isGeneralClass, eventLabel,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, entryCompletion,
          typeTierFilters, eventFilterKeys, entryLabel,
@@ -119,6 +120,7 @@ async function registerTab(panel, house, refresh) {
   const listBox = el("div");
 
   const bar = filterBar({
+    remember: "house-1",
     filters: [
       { key: "filterState", label: "Status", allLabel: "All events",
         options: [{ value: "todo", label: "Not complete" }, { value: "done", label: "Complete" }] },
@@ -484,6 +486,7 @@ async function entriesTab(panel, house, refresh) {
 
   const listBox = el("div");
   const bar = filterBar({
+    remember: "house-2",
     filters: [
       { key: "filterCategory", label: "Category",
         options: [...categories.map(c => ({ value: c.id, label: c.name })),
@@ -999,6 +1002,7 @@ async function scheduleTab(panel, house) {
 
   const listBox = el("div");
   const bar = filterBar({
+    remember: "house-3",
     filters: [
       { key: "filterOurs", label: "Show", allLabel: "Everything",
         options: [{ value: "ours", label: "Only our items" }] },
@@ -1108,19 +1112,68 @@ async function datesTab(panel, house) {
  * in Our entries like any other.
  */
 async function adminRequestsTab(panel, house, refresh) {
-  const [rows, events] = await Promise.all([
+  const [rows, events, consents] = await Promise.all([
     getAll("registrationRequests", where("houseId", "==", house.id)).catch(() => []),
-    getAll("events")
+    getAll("events"),
+    getAll("onBehalfConsents", where("houseId", "==", house.id)).catch(() => [])
   ]);
   const eventById = Object.fromEntries(events.map(e => [e.id, e]));
 
-  panel.appendChild(notice("info",
-    "Entries an Admin or Co-Admin registered for your house, made after registration had already started. " +
-    "Approving one creates the entry exactly as if you had registered it yourself — the same participant " +
-    "limits and category rules apply, and approval is refused outright if one would be broken. Rejecting " +
-    "one is final; it cannot be forced through."));
+  /* The one decision that matters now: may staff register for this house at
+   * all? Asked once, when an Admin switched the permission on after
+   * registration had already started. Answering yes here is what lets them
+   * enter events for this house directly — there is no second approval per
+   * event, which for a 150-event fest was 150 decisions about what is really
+   * one question. */
+  for (const c of consents) {
+    const who = c.role === "coAdmin" ? "A Co-Admin" : "An Admin";
+    if (c.status === REQUEST_STATUS.PENDING) {
+      panel.appendChild(card(el("div", {}, [
+        notice("warn",
+          `${who} is asking to register participants for ${house.name} on your behalf. This was switched ` +
+          `on after registration had already started, so it is your decision. Agreeing lets them enter ` +
+          `events for your house directly, exactly as you would; they can still only use your own ` +
+          `participants, and every cap and category rule still applies. Declining cannot be overridden.`),
+        el("div.btn-row", {}, [
+          button("Allow", { class: "btn-accent", onclick: guard(async () => {
+            await decideOnBehalfConsent({ role: c.role, houseId: house.id, approved: true,
+                                          decidedBy: session.name || house.name });
+            toast("Allowed."); refresh();
+          })}),
+          button("Decline", { class: "btn-danger", onclick: guard(async () => {
+            if (!await confirmDialog("Decline",
+              `Stop ${who.toLowerCase()} registering for ${house.name}? They cannot override this.`, "Decline")) return;
+            await decideOnBehalfConsent({ role: c.role, houseId: house.id, approved: false,
+                                          decidedBy: session.name || house.name });
+            toast("Declined."); refresh();
+          })})
+        ])
+      ]), "Permission requested"));
+    } else {
+      panel.appendChild(card(el("div.btn-row", {}, [
+        el("div.body", { text:
+          `${who} ${c.status === REQUEST_STATUS.APPROVED ? "may" : "may not"} register for ${house.name}.` }),
+        badge(c.status === REQUEST_STATUS.APPROVED ? "Allowed" : "Declined",
+              c.status === REQUEST_STATUS.APPROVED ? "badge-ok" : "badge-warn"),
+        button(c.status === REQUEST_STATUS.APPROVED ? "Withdraw" : "Allow after all", { class: "btn-sm",
+          onclick: guard(async () => {
+            await decideOnBehalfConsent({ role: c.role, houseId: house.id,
+              approved: c.status !== REQUEST_STATUS.APPROVED, decidedBy: session.name || house.name });
+            toast("Updated."); refresh();
+          })})
+      ]), "Permission"));
+    }
+  }
 
   const pending = rows.filter(r => r.status === REQUEST_STATUS.PENDING);
+  if (!pending.length && !rows.length) return;
+
+  panel.appendChild(notice("info",
+    "Entries an Admin or Co-Admin registered for your house one at a time, under the older per-event " +
+    "approval. Approving one creates the entry exactly as if you had registered it yourself — the same " +
+    "participant limits and category rules apply, and approval is refused outright if one would be " +
+    "broken. Rejecting one is final; it cannot be forced through."));
+
   const decided = rows.filter(r => r.status !== REQUEST_STATUS.PENDING)
     .sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0));
 
