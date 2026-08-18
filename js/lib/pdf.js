@@ -57,43 +57,31 @@ function waitForImages(win, maxMs) {
   });
 }
 
-export function printDocument({ title, subtitle, bodyHTML, landscape = false, bare = false }) {
-  const win = window.open("", "_blank", "width=900,height=700");
-  if (!win) {
-    alert("Your browser blocked the print window. Allow pop-ups for this site and try again.");
-    return;
-  }
-  // Bare mode drops the report chrome entirely — certificates and posters
-  // set their own page size and bleed to the edges.
-  // Browsers omit background colours and background images from a print
-  // job by default — the checkbox is called "Background graphics" and
-  // almost nobody enables it. Every design here is built from filled
-  // boxes and coloured text, so without forcing it explicitly a
-  // certificate, poster or ID card prints as text on a blank white page:
-  // the header band, the accent rule, the fill colours all silently
-  // vanish, which is what "the font color and everything is missing on
-  // generate" actually was — the editor renders fine because it is a
-  // normal DOM view, not a print job, so this only ever showed up on the
-  // printed/PDF output.
-  const forceColor = `*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}`;
+// Browsers omit background colours and background images from a print job
+// by default — the checkbox is called "Background graphics" and almost
+// nobody enables it. Every design here is built from filled boxes and
+// coloured text, so without forcing it explicitly a certificate, poster or
+// ID card prints as text on a blank white page: the header band, the
+// accent rule, the fill colours all silently vanish, which is what "the
+// font color and everything is missing on generate" actually was — the
+// editor renders fine because it is a normal DOM view, not a print job, so
+// this only ever showed up on the printed/PDF output.
+const FORCE_COLOR = `*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}`;
 
-  if (bare) {
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+function buildBareHTML(title, bodyHTML) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${escapeHTML(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<style>html,body{margin:0;padding:0;} .design-page{page-break-after:always;} .design-page:last-child{page-break-after:auto;} ${forceColor}</style>
-</head><body>${bodyHTML}</body></html>`);
-    win.document.close();
-    win.focus();
-    Promise.all([waitForFonts(win, 2500), waitForImages(win, 4000)]).then(() => win.print());
-    return;
-  }
+<style>html,body{margin:0;padding:0;} .design-page{page-break-after:always;} .design-page:last-child{page-break-after:auto;} ${FORCE_COLOR}</style>
+</head><body>${bodyHTML}</body></html>`;
+}
 
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+function buildReportHTML(title, subtitle, bodyHTML, landscape) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${escapeHTML(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  ${forceColor}
+  ${FORCE_COLOR}
   @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: 14mm; }
   body { font-family: "Inter", system-ui, sans-serif; color: #10231C; font-size: 11pt; margin: 0; }
   h1 { font-family: "Space Grotesk", sans-serif; font-size: 20pt; margin: 0 0 2mm; }
@@ -150,10 +138,69 @@ ${subtitle ? `<div class="sub">${escapeHTML(subtitle)}</div>` : ""}
 <div class="rule"></div>
 ${bodyHTML}
 <div class="foot">Generated ${new Date().toLocaleString()}</div>
-</body></html>`);
-  win.document.close();
-  win.focus();
-  waitForFonts(win, 2000).then(() => win.print());
+</body></html>`;
+}
+
+/**
+ * B11 — "Generate" reported as doing nothing, with no visible error. The
+ * previous version's only failure path was `if (!win) alert(...)`, which
+ * only catches the browser's HARD block (window.open returning null). A
+ * SOFT block — some mobile browsers and in-app webviews hand back a
+ * window-shaped object that never actually opens or accepts
+ * document.write() — left this failing completely silently: no alert, no
+ * toast, no popup, nothing. Any failure now falls back to a Blob URL
+ * offered as a plain, on-page link — a direct click on a real `<a>` tag is
+ * a genuine user gesture, so it is not subject to popup blocking at all,
+ * regardless of why window.open() didn't work.
+ */
+export function printDocument({ title, subtitle, bodyHTML, landscape = false, bare = false }) {
+  const html = bare ? buildBareHTML(title, bodyHTML) : buildReportHTML(title, subtitle, bodyHTML, landscape);
+
+  let win = null;
+  try {
+    win = window.open("", "_blank", "width=900,height=700");
+    if (!win || win.closed) throw new Error("popup blocked");
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    if (bare) Promise.all([waitForFonts(win, 2500), waitForImages(win, 4000)]).then(() => win.print());
+    else waitForFonts(win, 2000).then(() => win.print());
+  } catch (err) {
+    console.error("printDocument: window.open/write failed, falling back to a link", err);
+    try { win?.close(); } catch { /* already gone */ }
+    offerDownloadLink(html, title);
+  }
+}
+
+/** Last-resort path when a popup could not be opened or written to. */
+function offerDownloadLink(html, title) {
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  const box = document.createElement("div");
+  box.setAttribute("style",
+    "position:fixed;right:1rem;bottom:1rem;z-index:99999;max-width:320px;" +
+    "background:#fff;color:#10231C;border:1px solid #D9E0D7;border-radius:10px;" +
+    "box-shadow:0 8px 28px rgba(0,0,0,.22);padding:1rem;font-family:system-ui,sans-serif;");
+  box.innerHTML =
+    `<div style="font-weight:700;margin-bottom:.3rem">Pop-up blocked</div>` +
+    `<div style="font-size:.85rem;color:#5A6F66;margin-bottom:.7rem">` +
+    `Your browser would not open the print window automatically. Click below to open it yourself — ` +
+    `that click is never blocked.</div>`;
+  const a = document.createElement("a");
+  a.href = url; a.target = "_blank"; a.rel = "noopener";
+  a.textContent = "Open " + title;
+  a.setAttribute("style",
+    "display:inline-block;padding:.5rem .9rem;background:#1E9E63;color:#fff;" +
+    "border-radius:6px;text-decoration:none;font-weight:600;font-size:.9rem;");
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.textContent = "✕";
+  closeBtn.setAttribute("style",
+    "position:absolute;top:.4rem;right:.5rem;background:none;border:none;" +
+    "cursor:pointer;font-size:1rem;color:#5A6F66;line-height:1;");
+  closeBtn.onclick = () => box.remove();
+  box.style.position = "fixed";
+  box.append(a, closeBtn);
+  document.body.appendChild(box);
 }
 
 /** Build a print-ready table from the same column shape the UI uses. */

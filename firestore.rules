@@ -179,6 +179,17 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // I9 — where and when a Stage Manager works, moved out of a single
+    // venueId/startTime/endTime on the stageManagers record itself (which
+    // could only ever hold one) and into its own per-assignment doc, the
+    // same shape judgeAssignments already uses for "who, where, when".
+    // Admin manages these from the Schedule screen; a Stage Manager may
+    // only ever read their own.
+    match /stageAssignments/{id} {
+      allow read: if isStaff() || (isStage() && resource.data.stageRefId == refId());
+      allow write: if isAdmin();
+    }
     match /categories/{id} {
       allow read: if true;
       allow write: if isAdmin();

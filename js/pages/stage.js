@@ -23,11 +23,11 @@ export default async function stagePage(root) {
   const { content: wrap } = appShell(root, { title: "Stage" });
   wrap.appendChild(el("h1", { text: "Stage" }));
 
-  let events, categories, own;
+  let events, categories, myAssignments;
   try {
-    [events, categories, own] = await Promise.all([
+    [events, categories, myAssignments] = await Promise.all([
       getAll("events"), getAll("categories"),
-      session.refId ? getOne("stageManagers", session.refId).catch(() => null) : null
+      session.refId ? getAll("stageAssignments", where("stageRefId", "==", session.refId)).catch(() => []) : []
     ]);
   } catch (err) {
     wrap.appendChild(notice("danger", friendlyError(err)));
@@ -35,27 +35,31 @@ export default async function stagePage(root) {
   }
   if (!events.length) { wrap.appendChild(empty("No events yet")); return; }
 
-  // I15 — a Stage Manager scoped to one venue and time window only sees
-  // events actually scheduled there, cross-referenced against the same
+  // I9 — a Stage Manager can now hold several assignments (different
+  // venues, different days), set from the Schedule screen. Sees every
+  // event scheduled inside ANY of them, cross-referenced against the same
   // pre-built schedule snapshot the public schedule page reads (cheap: one
-  // read, already up to date whenever the schedule is saved).
-  if (own?.venueId) {
+  // read, already up to date whenever the schedule is saved). No
+  // assignments at all still means "sees every event", the original
+  // behaviour.
+  if (myAssignments.length) {
     const schedule = await getOne("publicSchedule", "main").catch(() => null);
     const inWindow = new Set();
-    for (const d of schedule?.days || []) {
-      const v = (d.venues || []).find(v => v.id === own.venueId);
+    for (const a of myAssignments) {
+      const d = (schedule?.days || []).find(x => x.id === a.dayId);
+      const v = d && (d.venues || []).find(x => x.id === a.venueId);
       if (!v) continue;
       for (const s of v.slots || []) {
-        if (s.type === "event" && s.eventId && s.startTime >= own.startTime && s.startTime < own.endTime) {
+        if (s.type === "event" && s.eventId && s.startTime >= a.startTime && s.startTime < a.endTime) {
           inWindow.add(s.eventId);
         }
       }
     }
     events = events.filter(e => inWindow.has(e.id));
     wrap.appendChild(notice("info",
-      `Scoped to this venue's ${own.startTime}–${own.endTime} window. ` +
+      `Scoped to ${myAssignments.length} assignment${myAssignments.length === 1 ? "" : "s"} on the schedule. ` +
       (events.length ? `${events.length} event${events.length === 1 ? "" : "s"} shown.`
-        : "No events fall in this window yet — check the schedule.")));
+        : "No events fall in your assigned time yet — check the schedule.")));
     if (!events.length) return;
   }
 

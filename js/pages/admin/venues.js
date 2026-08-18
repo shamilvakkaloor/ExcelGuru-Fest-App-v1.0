@@ -25,9 +25,10 @@ export default async function venues(root) {
 
   async function paint() {
     panel.innerHTML = "";
-    const [venueRows, events, categories, settings, regs, assignments] = await Promise.all([
+    const [venueRows, events, categories, settings, regs, assignments, stageManagers, stageAssignments] = await Promise.all([
       getAll("venues"), getAll("events"), getAll("categories"), getOne("config", "festSettings"),
-      getAll("registrations"), getAll("judgeAssignments").catch(() => [])
+      getAll("registrations"), getAll("judgeAssignments").catch(() => []),
+      getAll("stageManagers").catch(() => []), getAll("stageAssignments").catch(() => [])
     ]);
 
     /* Who is needed at each event — participants from registrations, judges
@@ -185,6 +186,34 @@ export default async function venues(root) {
       ]),
       el("p.hint", { text: "Each slot follows the previous one. Change a duration and everything after it shifts." })
     ]), venue.name + " · " + day.label));
+
+    /* ── Stage Manager assignments ────────────────────────────────────
+     * I9 — moved here from Accounts: a Stage Manager's venue and time
+     * belongs next to the schedule that defines it, not on their account
+     * record. One person can hold several assignments (several venues in
+     * one day, or the same venue across several days) as long as no two
+     * overlap in time — one person cannot run two stages at once. */
+    const here = stageAssignments.filter(a => a.dayId === dayId && a.venueId === venue.id);
+    panel.appendChild(card(el("div", {}, [
+      here.length
+        ? el("div", {}, here.map(a => {
+            const mgr = stageManagers.find(m => m.id === a.stageRefId);
+            return el("div.slot-row", {}, [
+              el("div.body", { text: (mgr?.name || "(removed)") + " · " + a.startTime + "–" + a.endTime }),
+              button("Remove", { class: "btn-sm btn-danger", onclick: guard(async () => {
+                await remove("stageAssignments", a.id);
+                toast("Removed."); paint();
+              })})
+            ]);
+          }))
+        : hint("Nobody assigned to this venue on this day yet."),
+      el("div.btn-row", { style: "margin-top:.5rem" }, [
+        stageManagers.length
+          ? button("Assign a Stage Manager", { class: "btn-sm",
+              onclick: () => stageAssignDialog(day, venue, stageManagers, stageAssignments, paint) })
+          : el("span.hint", { text: "Create a Stage Manager account under Accounts first." })
+      ])
+    ]), "Stage Manager"));
 
     if (!timed.length) {
       panel.appendChild(empty("Nothing scheduled here yet", "Add an event slot or a break."));
@@ -443,6 +472,54 @@ function breakDialog(venue, dayId, existing, order, refresh) {
           else await add(`venues/${venue.id}/slots`, { ...data, order });
           queueRepublish({ schedule: true });
           toast("Saved."); close(true); refresh();
+        })
+      }
+    ]
+  });
+}
+
+/**
+ * I9 — assign a Stage Manager to the venue and day already open, with a
+ * start and end time. A person can hold several assignments (this is not
+ * exclusive), but never two overlapping ones on the SAME day — checked
+ * against every OTHER assignment they hold that day, in every venue, since
+ * one person cannot run two stages at once regardless of which stages
+ * they are.
+ */
+function stageAssignDialog(day, venue, stageManagers, stageAssignments, refresh) {
+  const mgrSel = select(stageManagers.map(m => ({ value: m.id, label: m.name })));
+  const startInput = el("input", { type: "time", value: "09:00" });
+  const endInput = el("input", { type: "time", value: "13:00" });
+
+  modal({
+    title: "Assign Stage Manager — " + venue.name + " · " + day.label,
+    body: el("div", {}, [
+      field("Stage Manager", mgrSel),
+      el("div.grid.grid-2", {}, [field("From", startInput), field("Until", endInput)]),
+      el("p.hint", { text: "Checked against this person's other assignments on the same day, in any venue — they cannot be in two places at once." })
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Assign", kind: "accent", closes: false, busyLabel: "Saving…", onClick: guard(async close => {
+          if (!startInput.value || !endInput.value) { toast("Give both a start and an end time.", true); return false; }
+          if (startInput.value >= endInput.value) { toast("The end time must be after the start time.", true); return false; }
+
+          const theirsToday = stageAssignments.filter(a =>
+            a.stageRefId === mgrSel.value && a.dayId === day.id);
+          const overlap = theirsToday.find(a =>
+            startInput.value < a.endTime && a.startTime < endInput.value);
+          if (overlap) {
+            toast(`Already assigned ${overlap.startTime}–${overlap.endTime} that day — times must not overlap.`, true);
+            return false;
+          }
+
+          const mgr = stageManagers.find(m => m.id === mgrSel.value);
+          await add("stageAssignments", {
+            stageRefId: mgrSel.value, stageName: mgr?.name || "",
+            dayId: day.id, dayLabel: day.label, venueId: venue.id, venueName: venue.name,
+            startTime: startInput.value, endTime: endInput.value
+          });
+          toast("Assigned."); close(true); refresh();
         })
       }
     ]

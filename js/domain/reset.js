@@ -37,7 +37,10 @@ const PARTICIPANT_COLLECTIONS = ["participants", "participantPublic", "titles"];
 
 const EVENT_COLLECTIONS = ["events"];
 
-const SCHEDULE_COLLECTIONS = ["publicSchedule"];
+// stageAssignments points at a festDay + venue, both of which
+// wipeVenuesAndSlots() removes whenever this group runs — leaving it behind
+// would strand assignments pointing at ids that no longer resolve.
+const SCHEDULE_COLLECTIONS = ["publicSchedule", "stageAssignments"];
 
 // Accounts and fest-wide configuration. Only a full wipe touches these.
 const ACCOUNT_COLLECTIONS = [

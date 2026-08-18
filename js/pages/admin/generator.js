@@ -119,10 +119,20 @@ export default async function generator(root) {
 
     wrapper.innerHTML = "";
 
+    // B12 — the leave-editor warning fired unconditionally, even seconds
+    // after a successful Save, because nothing ever checked whether there
+    // WAS an unsaved change. A structural snapshot compares cheaply and
+    // needs no per-mutation bookkeeping across the dozen places this
+    // editor changes `design` (drag, resize, add/remove element, every
+    // property field).
+    let savedSnapshot = JSON.stringify(design);
+    const isDirty = () => JSON.stringify(design) !== savedSnapshot
+      || (nameInput.value.trim() || "Untitled") !== (design.name || "Untitled");
+
     const nameInput = input({ value: design.name || "Untitled", style: "max-width:220px;min-height:36px" });
     const header = el("div.card-head", {}, [
       button("← Back", { class: "btn-sm", onclick: guard(async () => {
-        if (await confirmDialog("Leave editor", "Unsaved changes will be lost. Save first?", "Leave without saving")) paintList();
+        if (!isDirty() || await confirmDialog("Leave editor", "Unsaved changes will be lost. Save first?", "Leave without saving")) paintList();
       })}),
       nameInput,
       el("div.spacer"),
@@ -367,6 +377,7 @@ export default async function generator(root) {
         elements: design.elements, updatedAt: Date.now()
       }, false);
       designId = id;
+      savedSnapshot = JSON.stringify(design);
       toast("Design saved.");
     }
 

@@ -210,11 +210,16 @@ async function registerTab(panel, house, refresh) {
           ? badge("Complete", "badge-ok")
           : badge(useMin && minEntriesFor(e) ? `Needs ${status(e).need}` : "Not entered", "badge-warn") },
       { key: "act", label: "", render: e => {
+          // I9 (bug) — this used to disable the button entirely once the
+          // house's cap was reached, with the only way out being to find
+          // the entry on the Our Entries tab and withdraw it there first.
+          // entryDialog now handles "at cap" itself — offering the
+          // existing entry to withdraw right there — so the button always
+          // opens something.
           const max = maxEntriesFor(e);
           const full = max !== null && (countBy[e.id] || 0) >= max;
-          return button(full ? "Full" : "Register", {
+          return button(full ? "Manage" : "Register", {
             class: "btn-sm " + (full ? "" : "btn-accent"),
-            disabled: full,
             onclick: () => entryDialog(e, house, people, cfg, lim, catName, countBy[e.id] || 0, refresh,
                                        constraintGroups, eventById, ourRegs)
           });
@@ -270,12 +275,47 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
     return;
   }
 
+  // I9 (bug) — the house's own cap for THIS event, reached already. The
+  // old flow disabled Register outright and left withdrawing to a
+  // different tab ("Our entries") as the only way back in. Offering the
+  // withdraw right here, in the same dialog the House Manager already
+  // opened to register someone, means there is never a reason to leave it.
+  const cap = maxEntriesFor(event);
+  const myEntries = ourRegs.filter(r => r.eventId === event.id);
+  if (cap !== null && myEntries.length >= cap) {
+    const dlg = modal({
+      title: eventLabel(event, catName),
+      body: el("div", {}, [
+        notice("warn",
+          `${house.name} has already reached the maximum of ${cap} ${cap === 1 ? "entry" : "entries"} for this ` +
+          `event. Withdraw one below to register someone else instead.`),
+        el("div", {}, myEntries.map(r => el("div.slot-row", {}, [
+          el("div.body", { text: entryLabel(r, event) +
+            (!r.wholeTeam ? " — " + (r.participantNames || []).join(", ") : "") }),
+          button("Withdraw", { class: "btn-sm btn-danger", onclick: guard(async () => {
+            if (!await confirmDialog("Withdraw entry", `Withdraw ${entryLabel(r, event)} from ${event.name}?`, "Withdraw")) return;
+            await withdrawEntry({ registration: r, event, limits });
+            toast("Withdrawn.");
+            dlg.close(true);
+            refresh();
+            // Reopen fresh — the withdrawn entry no longer counts against
+            // the cap, so this reruns straight into the normal picker.
+            entryDialog(event, house, people, settings, limits, catName,
+              used - 1, refresh, constraintGroups, eventById,
+              ourRegs.filter(x => x.id !== r.id));
+          })})
+        ])))
+      ]),
+      actions: [{ label: "Close" }]
+    });
+    return;
+  }
+
   // I20 — for an INDIVIDUAL event, selecting five people creates five
   // separate entries in one pass. v6 allowed exactly one per attempt, so a
   // House Manager reopened this dialog once per participant.
   const perEntryMax = group ? (event.maxParticipantsPerEntry || 1) : 1;
   // How many more entries this house may still add to this event.
-  const cap = maxEntriesFor(event);
   const roomLeft = cap === null ? eligible.length : Math.max(0, cap - (used || 0));
   const selectMax = group ? perEntryMax : Math.max(1, Math.min(eligible.length, roomLeft));
 
