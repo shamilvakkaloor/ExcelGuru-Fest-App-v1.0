@@ -81,6 +81,7 @@ until an Admin enables it. An existing fest upgrades with nothing altered.
 | Renaming "House" to Team, Zone, … | Settings → Fest details |
 | Public contact directory | Settings → Fest details |
 | House Managers adding their own participants | Settings → Fest details |
+| Admin/Co-Admin registering on a house's behalf | Settings → Fest details |
 
 ---
 
@@ -91,7 +92,7 @@ until an Admin enables it. An existing fest upgrades with nothing altered.
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — the full data model and scoring rules
 - [`DEPLOY-CHECKLIST.md`](./DEPLOY-CHECKLIST.md) — read before upgrading a fest
   that is already running
-- [`tests.html`](./tests.html) — open in a browser; 213 checks on the scoring
+- [`tests.html`](./tests.html) — open in a browser; 236 checks on the scoring
   logic, no Firebase connection needed
 
 Stack: vanilla ES modules, Firebase SDK 11 from CDN, Firestore, Firebase Auth.

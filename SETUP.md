@@ -177,7 +177,7 @@ Work through these in order — later screens depend on earlier ones.
 | 7 | Accounts | Create Houses, Judges, Co-Admins and Stage Managers. Each gets a password you hand over directly. Houses can own a chest number range (Blue 100–199) so a chest number reads as a house |
 | 8 | Events | Add competition items, or import a CSV |
 | 9 | Participants | Add students, or import a CSV |
-| 10 | Schedule | Venues and timings. Leave "visible to public" off until you are ready |
+| 10 | Schedule | Venues and timings, and where you assign a Stage Manager to a venue on a given day and time — a single account can hold several such assignments, and the screen refuses two that overlap. Leave "visible to public" off until you are ready |
 | 11 | — | Give House Managers their passwords; registration is open |
 
 Leave the optional features off for a first fest. Every one of them is
@@ -291,21 +291,28 @@ because a browser is not allowed to change another user's password — that
 needs a server. The side effect is a leftover entry in Firebase console →
 Authentication, which is inert and can be ignored or tidied up later.
 
-**How do I make certificates?**
+**How do I make certificates, posters or ID cards?**
 Certificates → pick a template → arrange it on the canvas → Save → Generate.
 The editor has layers, drag-and-drop, a properties panel and placeholder
 tokens like `{name}` and `{results}` that fill in per participant. Photos
 appear wherever a participant has one, and fall back to a neutral silhouette
 where they do not.
 
-Generate asks **who to produce for**, and only two of the three options need
-a publish:
+The Participant ID Card design works exactly the same way — it is a design
+like any other, not a separate mode. **Generate always asks two separate
+questions: which design (decided by which one you opened), and who to
+produce it for.** Looking for "ID card" inside the who-for list finds
+nothing, because that list only ever names a population:
 
-| Option | Needs a publish first? |
+| Who to produce for | Needs a publish first? |
 |---|---|
-| Every registered participant (participation certificates) | No — print these any time after registration |
+| Every registered participant | No — print these any time after registration |
 | Participants in published events | Yes |
-| Winners only | Yes |
+| Winners only — people who placed | Yes |
+| One event — every rank on one page | Yes, for that event |
+
+"Every registered participant" against the ID Card design is what makes a
+full set of ID cards.
 
 Rank selection is multi-select and comes from your rank ladder, so a fest
 awarding a fourth place is not cut off at 3rd.
@@ -336,6 +343,41 @@ Be clear-eyed about what it is not: there are no push notifications, because
 those need a server. A message appears live while the recipient has the
 Messages tab open, and not otherwise. It is useful for a control room, not
 for reaching somebody who is not looking.
+
+**Where do I publish contact numbers for organisers or houses?**
+Settings → Fest details → "Organiser contacts" for a free-form public list —
+Admin, Co-Admin, anyone else the fest wants reachable — added by name, role
+and number. House numbers are separate: Accounts → edit a house → tick
+"Show publicly" against whichever number should appear (every number is
+private by default, since most belong to students). Either way, nothing
+appears anywhere until Settings → Fest details → "Contact page visible to
+the public" is switched on, which adds a Contact tab to the public site.
+
+**Can Admin or Co-Admin register participants for a House Manager?**
+Only if you enable it — Settings → Fest details → "Admin/Co-Admin may
+register participants on a house's behalf". What happens next depends on
+*when* you switch it on:
+
+- **Before registration has started** (no registration exists yet, and the
+  registration window above has not opened) — it just works. Staff pick a
+  house and register directly, exactly like that House Manager could.
+- **After registration has already started** — each House Manager is asked
+  once, on their own panel, whether staff may register on their behalf at
+  all. That is a single yes/no about the *permission*, not an approval per
+  entry: once a House Manager agrees, every future entry staff make for that
+  house registers immediately, with no further approvals. A house that has
+  not answered yet, or has declined, blocks staff from registering **for
+  that house only** — it never holds up any other house.
+
+A House Manager can change their answer later from the same place they gave
+it.
+
+**Where do I see or hand out the participant ID cards?**
+Participants → **Chest number cards**. This prints a small card per
+participant with their chest number, photo, house and the events they are
+entered in — separate from the Certificates screen's Participant ID Card
+*design*, which is one of several full-page layouts you can also generate
+for the same purpose. Use whichever fits how you plan to print and cut them.
 
 **Two houses both entered a group event — how do I tell the entries apart?**
 By team name. A group entry is shown as "Red", or "Red A" and "Red B" where
