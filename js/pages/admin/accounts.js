@@ -130,7 +130,7 @@ async function renderTab(panel, spec, refresh) {
       ? (r.uid ? badge("Active", "badge-ok") : badge("Needs repair", "badge-warn"))
       : badge("No login", "badge-warn") });
   columns.push({ key: "act", label: "", render: r => el("div.btn-row", {}, [
-    button("Edit", { class: "btn-sm", onclick: () => editDialog(spec, r, allHouses, cfg, refresh) }),
+    button("Edit", { class: "btn-sm", onclick: guard(() => editDialog(spec, r, allHouses, cfg, refresh)) }),
     button("Password", { class: "btn-sm", onclick: () => passwordDialog(spec, r, dirBySlug, refresh) }),
     button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
       if (!await confirmDialog("Delete " + r.name,

@@ -669,7 +669,7 @@ function typeTierList(panel, collection, heading, placeholder, hint) {
       { key: "name", label: heading.slice(0, -1) },
       { key: "sortOrder", label: "Order", num: true },
       { key: "act", label: "", render: r => el("div.btn-row", {}, [
-          button("Edit", { class: "btn-sm", onclick: () => editDialog(r) }),
+          button("Edit", { class: "btn-sm", onclick: guard(() => editDialog(r)) }),
           button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
             if (!await confirmDialog("Delete " + r.name,
               `Events using it keep the reference and will show as blank. Any ladder configured for it in Points & grades stops applying — those events fall back to their class ladder.`, "Delete")) return;

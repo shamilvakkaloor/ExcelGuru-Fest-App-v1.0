@@ -220,8 +220,11 @@ async function registerTab(panel, house, refresh) {
           const full = max !== null && (countBy[e.id] || 0) >= max;
           return button(full ? "Manage" : "Register", {
             class: "btn-sm " + (full ? "" : "btn-accent"),
-            onclick: () => entryDialog(e, house, people, cfg, lim, catName, countBy[e.id] || 0, refresh,
-                                       constraintGroups, eventById, ourRegs)
+            // guard()ed so a throw inside the dialog surfaces as a toast.
+            // Unguarded, the button simply did nothing at all — which is
+            // exactly how the bug above went unreported for so long.
+            onclick: guard(() => entryDialog(e, house, people, cfg, lim, catName, countBy[e.id] || 0, refresh,
+                                             constraintGroups, eventById, ourRegs))
           });
         }}
     ], rows), "Open events"));
@@ -354,7 +357,7 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
       // pickable; the badge below still shows it either way.
       const inThis = alreadyIn.has(p.id);
       const blocked = inThis && !group;
-      const cardEl = el("button.pick-card" + (selected ? ".selected" : "") + (blocked ? " pick-card-disabled" : ""),
+      const cardEl = el("button.pick-card" + (selected ? ".selected" : "") + (blocked ? ".pick-card-disabled" : ""),
         { type: "button", disabled: blocked }, [
         avatar(p, 46),
         el("div.pick-body", {}, [

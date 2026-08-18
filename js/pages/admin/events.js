@@ -36,7 +36,7 @@ export default async function events(root) {
       results.filter(r => r.publishStatus === "Published").map(r => r.id));
 
     panel.appendChild(card(el("div.btn-row", {}, [
-      button("Add event", { class: "btn-accent", onclick: () => eventDialog(null, categories, cfg, classification, paint) }),
+      button("Add event", { class: "btn-accent", onclick: guard(() => eventDialog(null, categories, cfg, classification, paint)) }),
       button("Import CSV", { onclick: () => importDialog(categories, cfg, classification, paint) }),
       button("Download template", { onclick: () => downloadText("events-template.csv", toCSV([
         { label: "code", key: "code" }, { label: "name", key: "name" }, { label: "eventClass", key: "eventClass" },
@@ -149,7 +149,7 @@ export default async function events(root) {
       { key: "act", label: "", render: r => publishedIds.has(r.id)
         ? el("span.hint", { text: "Unpublish first" })
         : el("div.btn-row", {}, [
-          button("Edit", { class: "btn-sm", onclick: () => eventDialog(r, categories, cfg, classification, paint) }),
+          button("Edit", { class: "btn-sm", onclick: guard(() => eventDialog(r, categories, cfg, classification, paint)) }),
           button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
             if (!await confirmDialog("Delete event", `Delete "${r.name}"? Registrations and scores for it are not removed automatically.`, "Delete")) return;
             await remove("events", r.id); toast("Deleted."); paint();

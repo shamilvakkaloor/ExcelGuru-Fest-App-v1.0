@@ -573,7 +573,7 @@ function onBehalfEntryDialog(event, house, people, settings, limits, catName, ou
       const selected = chosen.has(p.id);
       const inThis = alreadyIn.has(p.id);
       const blocked = inThis && !group;
-      const cardEl = el("button.pick-card" + (selected ? ".selected" : "") + (blocked ? " pick-card-disabled" : ""),
+      const cardEl = el("button.pick-card" + (selected ? ".selected" : "") + (blocked ? ".pick-card-disabled" : ""),
         { type: "button", disabled: blocked }, [
         avatar(p, 46),
         el("div.pick-body", {}, [

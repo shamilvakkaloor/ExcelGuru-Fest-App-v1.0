@@ -10,7 +10,11 @@ export function el(tag, attrs = {}, children = []) {
   const [name, ...rest] = tag.split(/(?=[.#])/);
   const node = document.createElement(name || "div");
   for (const token of rest) {
-    if (token[0] === ".") node.classList.add(token.slice(1));
+    // classList.add() throws InvalidCharacterError on a token containing a
+    // space, so "div.a b" — a dot missed when concatenating a conditional
+    // class — used to take down the whole call synchronously. Splitting
+    // here treats it as the two classes it was obviously meant to be.
+    if (token[0] === ".") for (const c of token.slice(1).split(/\s+/)) { if (c) node.classList.add(c); }
     else if (token[0] === "#") node.id = token.slice(1);
   }
   for (const [k, v] of Object.entries(attrs || {})) {

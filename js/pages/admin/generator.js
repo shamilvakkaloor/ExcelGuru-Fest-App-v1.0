@@ -91,7 +91,10 @@ export default async function generator(root) {
             button("Print one", { class: "btn-sm",
               onclick: () => singleDialog(normalise(d), published, typeName, tierName, catName) }),
             button("Edit", { class: "btn-sm", onclick: () => openEditor(normalise(d), d.id) }),
-            button("Generate", { class: "btn-sm btn-accent", onclick: () => generateDialog(normalise(d)) }),
+            // guard()ed because generateDialog is async and loads six
+            // collections before it can show anything. Unguarded, a failed
+            // read rejected into nowhere and the button just did nothing.
+            button("Generate", { class: "btn-sm btn-accent", onclick: guard(() => generateDialog(normalise(d))) }),
             button("Delete", { class: "btn-sm btn-danger", onclick: guard(async () => {
               if (!await confirmDialog("Delete design", `Delete "${d.name}"?`, "Delete")) return;
               await remove("designs", d.id); toast("Deleted."); paintList();
@@ -140,7 +143,7 @@ export default async function generator(root) {
       el("span.hint", { style: "margin:0;min-width:44px;text-align:center", text: Math.round(zoom * 100) + "%" }),
       button("+", { class: "btn-sm", onclick: () => { zoom = Math.min(1.1, zoom + 0.06); paintStage(); } }),
       button("Save design", { class: "btn-sm btn-primary", onclick: guard(saveDesign) }),
-      button("Generate", { class: "btn-sm btn-accent", onclick: () => generateDialog(design) })
+      button("Generate", { class: "btn-sm btn-accent", onclick: guard(() => generateDialog(design)) })
     ]);
 
     const left = el("div.studio-pane.left");
