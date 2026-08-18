@@ -420,10 +420,16 @@ export default async function generator(root) {
      *
      * Generation now covers three populations, chosen at run time.
      */
+    // These choose WHO is produced for, never WHAT is produced — the design
+    // you opened decides that. The labels used to end in "(participation
+    // certificates)" and "(posters)", which read as design types, so
+    // generating ID cards looked as though it had no option at all: the
+    // right answer was "Every registered participant" all along, wearing a
+    // certificate's name.
     const mode = select([
-      { value: "registered",  label: "Every registered participant (participation certificates)" },
+      { value: "registered",   label: "Every registered participant" },
       { value: "participants", label: "Participants in published events" },
-      { value: "winners",      label: "Winners only (posters)" },
+      { value: "winners",      label: "Winners only — people who placed" },
       { value: "eventranks",   label: "One event — every rank on one page" }
     ]);
     const houseSel = select([{ value: "", label: "All houses" },
@@ -469,6 +475,9 @@ export default async function generator(root) {
     modal({
       title: "Generate — " + (d.name || "design"),
       body: el("div", {}, [
+        el("p.hint", { text:
+          `Producing “${d.name || "this design"}” — one per person for whoever you choose below. ` +
+          `The design decides what is printed; this decides who gets one.` }),
         field("Who to produce for", mode),
         houseField,
         catField,
