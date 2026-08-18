@@ -18,6 +18,13 @@ export default async function generator(root) {
   root.appendChild(wrapper);
   let view = "list";
   let design = null, designId = null;
+  // How many places this fest awards. Lives out here, not inside
+  // paintList(), because generateDialog() is a SIBLING of paintList and was
+  // reading it across a scope it could not see — a ReferenceError that threw
+  // on every single Generate click. paintList() is awaited before any
+  // Generate button exists, so this is always populated by the time one
+  // can be pressed.
+  let maxRank = 0;
 
   await paintList();
 
@@ -47,7 +54,7 @@ export default async function generator(root) {
     // Every ladder, not just the four class ones — a Type or Tier ladder
     // may award more places than any class does.
     const ladders = await getAll("pointsConfig").catch(() => []);
-    const maxRank = highestRankAwarded(ladders);
+    maxRank = highestRankAwarded(ladders);
     if (!published.length) {
       wrapper.appendChild(notice("warn",
         "No results are published yet. You can design freely now, but generating uses published results only."));
