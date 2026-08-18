@@ -10,6 +10,7 @@
 //
 // An Admin may override any rank with an uploaded PNG (settings.rankArt),
 // for a fest that has its own medal graphics.
+import { escapeHTML } from "./pdf.js";
 
 const MEDALS = {
   1: { ring: "#B8860B", face: "#F5C542", edge: "#8A6A1F", label: "1" },
@@ -76,7 +77,11 @@ export function rankNode(rank, { size = 56, rankArt = null } = {}) {
 export function rankHTML(rank, { size = 56, rankArt = null } = {}) {
   const override = rankArt?.[String(rank)];
   if (override) {
-    return `<img src="${override}" alt="Rank ${rank}" style="width:${size}px;height:${size}px;object-fit:contain">`;
+    // Escaped: this is an Admin-uploaded value going into a double-quoted
+    // attribute. Unescaped, a quote in it would close the attribute early and
+    // silently drop everything after — the same fault that cost the
+    // certificate print its entire text styling.
+    return `<img src="${escapeHTML(override)}" alt="Rank ${rank}" style="width:${size}px;height:${size}px;object-fit:contain">`;
   }
   return medalSVG(rank, size) || `<span class="rank-plain">${rank}</span>`;
 }

@@ -11,11 +11,18 @@ import { PLACEHOLDER_AVATAR } from "./photo.js";
 /** Pixels per millimetre at 96dpi — the browser's own CSS unit ratio. */
 export const MM_PER_PX_AT_96DPI = 3.7795275591;
 
+// SINGLE quotes inside these values, deliberately. renderPageHTML() puts the
+// whole style string into a double-quoted HTML attribute; a double quote here
+// closed that attribute at the first font name, so everything declared after
+// font-family — size, weight, colour, alignment — was dropped on the floor and
+// the print came out as unstyled left-aligned text. The editor was never
+// affected because it assigns the same string via setAttribute, which does no
+// HTML parsing. Single quotes are equally valid CSS in both paths.
 export const FONTS = {
-  serif: '"Georgia", "Times New Roman", serif',
-  sans: '"Inter", system-ui, sans-serif',
-  display: '"Space Grotesk", sans-serif',
-  mono: '"JetBrains Mono", monospace'
+  serif: "'Georgia', 'Times New Roman', serif",
+  sans: "'Inter', system-ui, sans-serif",
+  display: "'Space Grotesk', sans-serif",
+  mono: "'JetBrains Mono', monospace"
 };
 
 /** Common CSS for one element, in whichever unit the target needs. */
@@ -71,7 +78,10 @@ function elementStyle(e, unit, scale = 1) {
 /** Print-ready HTML for one filled page. */
 export function renderPageHTML(design, data) {
   const inner = design.elements.map(e => {
-    const style = elementStyle(e, "mm");
+    // Escaped for attribute context: a colour or font the user typed into the
+    // editor must never be able to terminate the attribute the way the quoted
+    // font stack above silently did.
+    const style = escapeHTML(elementStyle(e, "mm"));
     if (e.type === "box") return `<div style="position:absolute;${style}"></div>`;
     if (e.type === "image") {
       const src = e.src === "{photo}" ? (data.photo || PLACEHOLDER_AVATAR) : (e.src || PLACEHOLDER_AVATAR);
