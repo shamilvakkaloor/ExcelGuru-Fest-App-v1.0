@@ -496,7 +496,7 @@ function chestCardDialog(allParticipants, houses, cfg) {
     title: "Print chest number cards",
     body: el("div", {}, [
       el("p.hint", { text: "Cards are printed with cut guides. Code letters are deliberately left off — they are the blind-judging secret." }),
-      notice("info", "Only uploaded photos print. Participants whose photo is a Google Drive link get a silhouette, because an external image cannot be relied on to load in a print window."),
+      notice("info", "Uploaded photos and Google Drive links both print — the print window waits for them to load. Anyone with no photo at all gets a silhouette."),
       field("Cards per sheet", perSheet),
       el("div.grid.grid-2", {}, [field("House", houseSel), field("Category", catSel)]),
       checkbox("Include photos", true, v => withPhotos = v),
@@ -526,10 +526,14 @@ function chestCardDialog(allParticipants, houses, cfg) {
               houseColor: h.color || null,
               categoryName: p.categoryName || "",
               className: p.className || "",
-              // Base64 only. An external Drive URL often renders blank in a
-              // print window and cannot be awaited, so a silhouette is
-              // honest where a broken icon is not.
-              photo: withPhotos ? (p.photoData || null) : null,
+              // Base64 first, then the external link. The old rule was
+              // base64 ONLY, on the grounds that an external image could not
+              // be awaited before print — no longer true: printDocument()
+              // waits on every image for a bare document, which is what
+              // these are. photoSrc()'s order is mirrored here rather than
+              // reused, because the card wants a null (its own silhouette
+              // panel) where photoSrc returns the placeholder data URI.
+              photo: withPhotos ? (p.photoData || p.photoURL || null) : null,
               events: [...new Set(eventsByParticipant[p.id] || [])].sort()
             };
           });

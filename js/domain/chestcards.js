@@ -58,7 +58,10 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null 
       }
       .cc-top { display: flex; align-items: center; justify-content: space-between; gap: 3mm; }
       .cc-fest { font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; color: #6B7A87; }
-      .cc-fest img { max-height: 7mm; max-width: 32mm; object-fit: contain; display: block; }
+      /* The logo is a SIBLING of .cc-fest inside .cc-top, not a child of it —
+         a ".cc-fest img" rule here matched nothing, so the logo printed at
+         its natural pixel size and swallowed the card. Scoped to .cc-top. */
+      .cc-top img { max-height: 7mm; max-width: 32mm; object-fit: contain; display: block; flex: none; }
       .cc-body { display: flex; gap: 3.5mm; align-items: flex-start; }
       .cc-photo {
         width: 20mm; height: 24mm; object-fit: cover; flex: none;
