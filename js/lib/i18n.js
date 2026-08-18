@@ -356,4 +356,78 @@ export const ML = {
     "ഡേഞ്ചർ സോൺ ഫെസ്റ്റ് മായ്ക്കുന്നതിന് മുമ്പ് ആവശ്യമായ ഒരു പ്രത്യേക പാസ്‌വേഡ്. ഇത് എന്ത് ചെയ്യുന്നു, എന്ത് ചെയ്യുന്നില്ല എന്നറിയേണ്ടതുണ്ട്: ഇത് ശ്രദ്ധിക്കാതെ വിട്ട ഒരു മെഷീനെയും ഒരു തെറ്റായ ക്ലിക്കിനെയും തടയും. ബ്രൗസറിൽ ഇത് മറികടക്കാൻ തീരുമാനിച്ച, ഇതിനകം അഡ്മിനായി സൈൻ ഇൻ ചെയ്ത ഒരാളെ ഇത് തടയില്ല — അത് നടപ്പാക്കാൻ ഇവിടെ ഒരു സെർവറില്ല. ഇതൊരു പൂട്ടായിട്ടല്ല, ഒരു സുരക്ഷാ കൊളുത്തായി ഉപയോഗിക്കുക.",
   "Ticking an entry on stage is a running-order aid only. It is not an absence — if somebody does not turn up, a judge or an Admin marks them Absent, which is what actually affects their result.":
     "സ്റ്റേജിൽ ഒരു എൻട്രി ടിക് ചെയ്യുന്നത് റണ്ണിംഗ് ഓർഡറിനുള്ള ഒരു സഹായം മാത്രമാണ്. അതൊരു ആബ്സൻസ് അല്ല — ആരെങ്കിലും വന്നില്ലെങ്കിൽ, ഒരു ജഡ്ജിയോ അഡ്മിനോ അവരെ ആബ്സന്റ് ആയി അടയാളപ്പെടുത്തും, അതാണ് അവരുടെ ഫലത്തെ യഥാർത്ഥത്തിൽ ബാധിക്കുന്നത്.",
+
+  /* ── Added in the sweep that made el() translate every .hint ─────────
+   * Until then only hint() reached tr(), so most explanation text was
+   * built as el("div.hint", {text}) and never looked up at all. These are
+   * the strings that had no entry yet.
+   */
+  "This event's own rank ladder, worth more or less than its class/stage/type/tier default.":
+    "ഈ ഇവന്റിന്റെ സ്വന്തം റാങ്ക് ലാഡർ, അതിന്റെ ക്ലാസ്/സ്റ്റേജ്/ടൈപ്പ്/ടയർ ഡിഫോൾട്ടിനെക്കാൾ കൂടുതലോ കുറവോ വിലയുള്ളത്.",
+  "Leave off to use the shared grade table.":
+    "പൊതു ഗ്രേഡ് ടേബിൾ ഉപയോഗിക്കാൻ ഇത് ഒഴിവാക്കുക.",
+  "Every event — set on the Schedule screen":
+    "എല്ലാ ഇവന്റും — ഷെഡ്യൂൾ സ്ക്രീനിൽ സജ്ജമാക്കുന്നു",
+  "Find an event and print its results board on its own. Uses its real published results.":
+    "ഒരു ഇവന്റ് കണ്ടെത്തി അതിന്റെ റിസൾട്ട് ബോർഡ് വെവ്വേറെ പ്രിന്റ് ചെയ്യുക. അതിന്റെ യഥാർഥ പ്രസിദ്ധീകരിച്ച ഫലങ്ങളാണ് ഉപയോഗിക്കുന്നത്.",
+  "Code letters are locked — a score has already been recorded, so reassigning them would detach it from the wrong entry. Unfinalize the event first if a correction is genuinely needed.":
+    "കോഡ് ലെറ്ററുകൾ ലോക്ക് ചെയ്തിരിക്കുന്നു — ഒരു സ്കോർ ഇതിനകം രേഖപ്പെടുത്തിക്കഴിഞ്ഞു, അതിനാൽ അവ വീണ്ടും നൽകിയാൽ ആ സ്കോർ തെറ്റായ എൻട്രിയുമായി വേർപെടും. ശരിക്കും ഒരു തിരുത്തൽ വേണമെങ്കിൽ ആദ്യം ഇവന്റ് അൺഫൈനലൈസ് ചെയ്യുക.",
+  "Judge assignment is locked while this event has a result — Unfinalize it first to add or remove one.":
+    "ഈ ഇവന്റിന് ഒരു ഫലം ഉള്ളിടത്തോളം ജഡ്ജ് നിയമനം ലോക്ക് ചെയ്തിരിക്കുന്നു — ഒരാളെ ചേർക്കാനോ ഒഴിവാക്കാനോ ആദ്യം അത് അൺഫൈനലൈസ് ചെയ്യുക.",
+  "Pick the house this entry is for. The same participant limits and category rules apply as when the House Manager registers directly.":
+    "ഈ എൻട്രി ഏത് ഹൗസിന് വേണ്ടിയാണെന്ന് തിരഞ്ഞെടുക്കുക. ഹൗസ് മാനേജർ നേരിട്ട് രജിസ്റ്റർ ചെയ്യുമ്പോഴുള്ള അതേ പങ്കാളി പരിധികളും വിഭാഗ നിയമങ്ങളും ഇവിടെയും ബാധകമാണ്.",
+  "Lets that role add entries for a house's own participants, same as the House Manager can. The House Manager's panel shows this is switched on. Turned on BEFORE registration has started — no entry exists yet and the window above has not opened — it simply works, and entries register directly like a House Manager's own. Turned on AFTER registration has started, each House Manager is asked once whether staff may register for them: one decision about the permission, not one per event. A house that agrees is then registered for directly; a house that has not answered blocks only itself, and one that declines cannot be overridden.":
+    "ഹൗസ് മാനേജർക്ക് കഴിയുന്നതുപോലെ, ഒരു ഹൗസിന്റെ സ്വന്തം പങ്കാളികൾക്കായി എൻട്രികൾ ചേർക്കാൻ ആ റോളിനെ അനുവദിക്കുന്നു. ഇത് ഓണാണെന്ന് ഹൗസ് മാനേജറുടെ പാനലിൽ കാണിക്കും. രജിസ്ട്രേഷൻ തുടങ്ങുന്നതിന് മുമ്പ് ഓൺ ചെയ്താൽ — ഒരു എൻട്രിയും ഇല്ല, മുകളിലെ വിൻഡോ തുറന്നിട്ടുമില്ല — ഇത് നേരിട്ട് പ്രവർത്തിക്കും, ഹൗസ് മാനേജറുടേത് പോലെ എൻട്രികൾ നേരിട്ട് രജിസ്റ്റർ ആകും. രജിസ്ട്രേഷൻ തുടങ്ങിയ ശേഷം ഓൺ ചെയ്താൽ, സ്റ്റാഫിന് തങ്ങൾക്ക് വേണ്ടി രജിസ്റ്റർ ചെയ്യാമോ എന്ന് ഓരോ ഹൗസ് മാനേജറോടും ഒരിക്കൽ ചോദിക്കും: ഓരോ ഇവന്റിനും അല്ല, അനുമതിയെക്കുറിച്ച് ഒരൊറ്റ തീരുമാനം. സമ്മതിക്കുന്ന ഹൗസിന് വേണ്ടി പിന്നീട് നേരിട്ട് രജിസ്റ്റർ ചെയ്യാം; മറുപടി നൽകാത്ത ഹൗസ് അതിനെ മാത്രമേ തടയൂ, നിരസിക്കുന്ന ഒന്നിനെ മറികടക്കാനുമാവില്ല.",
+  "A plain public list — an Admin, Co-Admin or anyone else the fest wants reachable. Everything here is published as typed; there is no separate public/private tick like a house's numbers have, because this list exists specifically to be shown. Appears on the public Contact page once that is switched on above.":
+    "ഒരു ലളിതമായ പൊതു പട്ടിക — അഡ്മിൻ, കോ-അഡ്മിൻ, അല്ലെങ്കിൽ ഫെസ്റ്റിന് ബന്ധപ്പെടാൻ വേണ്ട മറ്റാരെങ്കിലും. ഇവിടെ ടൈപ്പ് ചെയ്യുന്നതെല്ലാം അതേപടി പ്രസിദ്ധീകരിക്കും; ഹൗസിന്റെ നമ്പറുകൾക്കുള്ളതുപോലെ പൊതു/സ്വകാര്യ ടിക് ഇവിടെയില്ല, കാരണം ഈ പട്ടിക കാണിക്കാൻ വേണ്ടി തന്നെയുള്ളതാണ്. മുകളിൽ അത് ഓൺ ചെയ്താൽ പൊതു കോൺടാക്റ്റ് പേജിൽ ഇത് കാണാം.",
+  "No public contacts added yet.":
+    "പൊതു കോൺടാക്റ്റുകളൊന്നും ഇതുവരെ ചേർത്തിട്ടില്ല.",
+  "The combined Student Talent slide always shows. Switching this on adds one further slide per category, matching the Student Talent tab on the public results page.":
+    "സംയോജിത സ്റ്റുഡന്റ് ടാലന്റ് സ്ലൈഡ് എപ്പോഴും കാണിക്കും. ഇത് ഓൺ ചെയ്താൽ ഓരോ വിഭാഗത്തിനും ഒരു സ്ലൈഡ് കൂടി ചേരും, പൊതു ഫല പേജിലെ സ്റ്റുഡന്റ് ടാലന്റ് ടാബിന് അനുസൃതമായി.",
+  "On by default. Turn off for a fest that charges no appeal fee — the House Manager can then file an appeal without attaching anything.":
+    "സ്ഥിരസ്ഥിതിയായി ഓണാണ്. അപ്പീൽ ഫീസ് ഈടാക്കാത്ത ഫെസ്റ്റിന് ഇത് ഓഫ് ചെയ്യുക — അപ്പോൾ ഒന്നും ഘടിപ്പിക്കാതെ ഹൗസ് മാനേജർക്ക് അപ്പീൽ നൽകാം.",
+  "Guarded by the delete-everything password too — the same one Danger Zone asks for. Anyone who could change the Admin password could otherwise lock the real Admin out.":
+    "എല്ലാം മായ്ക്കാനുള്ള പാസ്‌വേഡും ഇതിന് സംരക്ഷണമാണ് — ഡേഞ്ചർ സോൺ ചോദിക്കുന്ന അതേ പാസ്‌വേഡ്. അല്ലാത്തപക്ഷം അഡ്മിൻ പാസ്‌വേഡ് മാറ്റാൻ കഴിയുന്ന ആർക്കും യഥാർഥ അഡ്മിനെ പുറത്താക്കാൻ കഴിയുമായിരുന്നു.",
+  "Nobody assigned to this venue on this day yet.":
+    "ഈ ദിവസം ഈ വേദിയിലേക്ക് ഇതുവരെ ആരെയും നിയമിച്ചിട്ടില്ല.",
+  "Create a Stage Manager account under Accounts first.":
+    "ആദ്യം അക്കൗണ്ട്സിൽ ഒരു സ്റ്റേജ് മാനേജർ അക്കൗണ്ട് ഉണ്ടാക്കുക.",
+  "Checked against this person's other assignments on the same day, in any venue — they cannot be in two places at once.":
+    "അതേ ദിവസം ഏത് വേദിയിലും ഈ വ്യക്തിക്കുള്ള മറ്റ് നിയമനങ്ങളുമായി ഒത്തുനോക്കുന്നു — ഒരേ സമയം രണ്ടിടത്ത് അവർക്ക് ഉണ്ടാകാനാവില്ല.",
+  "No event uses a different window from the fest-wide ones above.":
+    "മുകളിലുള്ള ഫെസ്റ്റ് വ്യാപക വിൻഡോയിൽ നിന്ന് വ്യത്യസ്തമായ വിൻഡോ ഒരു ഇവന്റും ഉപയോഗിക്കുന്നില്ല.",
+  "The default for every event — an individual event below may override it.":
+    "എല്ലാ ഇവന്റിനുമുള്ള സ്ഥിരസ്ഥിതി — താഴെയുള്ള ഒരു പ്രത്യേക ഇവന്റിന് ഇത് മറികടക്കാം.",
+  "Opens your browser's print window. Choose \"Save as PDF\" as the destination.":
+    "നിങ്ങളുടെ ബ്രൗസറിന്റെ പ്രിന്റ് വിൻഡോ തുറക്കുന്നു. ലക്ഷ്യസ്ഥാനമായി \"Save as PDF\" തിരഞ്ഞെടുക്കുക.",
+
+  /* Short status words and loading lines. Small, but they sit beside the
+   * sentences above and reading half a line in each language is worse than
+   * reading either one. */
+  "No match.": "പൊരുത്തമൊന്നുമില്ല.",
+  "Preview unavailable.": "പ്രിവ്യൂ ലഭ്യമല്ല.",
+  "Loading…": "ലോഡ് ചെയ്യുന്നു…",
+  "Loading events…": "ഇവന്റുകൾ ലോഡ് ചെയ്യുന്നു…",
+  "Searching…": "തിരയുന്നു…",
+  "Starting…": "ആരംഭിക്കുന്നു…",
+  "Whole team": "മുഴുവൻ ടീം",
+  "Participated": "പങ്കെടുത്തു",
+  "Unpublish first": "ആദ്യം അൺപബ്ലിഷ് ചെയ്യുക",
+  "hidden while blind": "ബ്ലൈൻഡ് ജഡ്ജിംഗിൽ മറച്ചിരിക്കുന്നു",
+  "unscheduled": "ഷെഡ്യൂൾ ചെയ്തിട്ടില്ല",
+  "not published": "പ്രസിദ്ധീകരിച്ചിട്ടില്ല",
+  "not set yet": "ഇതുവരെ സജ്ജമാക്കിയിട്ടില്ല",
+  "not yet": "ഇതുവരെ ഇല്ല",
+  "overridden": "മറികടന്നു",
+  "remark": "അഭിപ്രായം",
+  "shared": "പൊതുവായത്",
+  "total points": "ആകെ പോയിന്റ്",
+  "talent board": "ടാലന്റ് ബോർഡ്",
+  "This account keeps its name and all its data. Only the password changes. Tell them the new one directly — nothing is emailed.":
+    "ഈ അക്കൗണ്ടിന്റെ പേരും എല്ലാ ഡാറ്റയും അതേപടി നിലനിൽക്കും. പാസ്‌വേഡ് മാത്രമേ മാറുന്നുള്ളൂ. പുതിയത് അവരോട് നേരിട്ട് പറയുക — ഒന്നും ഇമെയിൽ ചെയ്യുന്നില്ല.",
+  "An organiser has to approve this before it takes effect.":
+    "ഇത് പ്രാബല്യത്തിൽ വരുന്നതിന് മുമ്പ് ഒരു സംഘാടകൻ അംഗീകരിക്കണം.",
+  "On the top bar": "മുകളിലെ ബാറിൽ",
+  "On a light page": "ഇളം നിറമുള്ള പേജിൽ",
+  "On the home page": "ഹോം പേജിൽ"
 };

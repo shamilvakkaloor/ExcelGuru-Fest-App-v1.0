@@ -383,7 +383,10 @@ function passwordDialog(spec, record, dirBySlug, refresh) {
     title: "New password — " + record.name,
     body: el("div", {}, [
       entry
-        ? el("p.hint", { text: `${record.name} keeps their name and all their data. Only the password changes. Tell them the new one directly — nothing is emailed.` })
+        // The name is already in the dialog title, and interpolating it here
+        // made the whole sentence a template literal, which the hint
+        // dictionary cannot key — so it could never be translated.
+        ? el("p.hint", { text: "This account keeps its name and all its data. Only the password changes. Tell them the new one directly — nothing is emailed." })
         : notice("warn", "This person has no login yet. Setting a password here creates one."),
       field("New password", pw, "Between 3 and 8 characters."),
       field("Confirm password", pw2)

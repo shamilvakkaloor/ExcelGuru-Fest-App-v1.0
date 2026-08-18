@@ -1353,7 +1353,10 @@ function subDialog(registration, event, house, settings, refresh) {
   modal({
     title: "Request a substitution",
     body: el("div", {}, [
-      el("p.hint", { text: `${event.name}. An organiser has to approve this before it takes effect.` }),
+      // Event name kept as its own node so the sentence beside it stays a
+      // fixed string the translation dictionary can key.
+      el("p", { style: "margin:0 0 .2rem", text: event.name }),
+      el("p.hint", { text: "An organiser has to approve this before it takes effect." }),
       field("Replace", outSel),
       field("With", inSel),
       field("Reason", reasonInput, "Why this substitution is needed — shown to the Admin reviewing it."),

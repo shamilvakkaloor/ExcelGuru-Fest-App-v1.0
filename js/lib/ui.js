@@ -21,7 +21,13 @@ export function el(tag, attrs = {}, children = []) {
     if (v === null || v === undefined || v === false) continue;
     if (k === "class") node.className += " " + v;
     else if (k === "html") node.innerHTML = v;
-    else if (k === "text") node.textContent = v;
+    // Explanation text is translated wherever it is built, not only when it
+    // goes through hint(). Most of it is written as el("div.hint", {text})
+    // directly — 216 places against 56 hint() calls — and every one of those
+    // skipped tr() entirely, which is why a settings page showed one line in
+    // Malayalam and the next two in English. Keyed on the .hint class, so
+    // this covers div/p/span alike and any hint added later.
+    else if (k === "text") node.textContent = node.classList.contains("hint") ? tr(v) : v;
     else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
     else if (k === "value") node.value = v;
     else if (k === "checked" || k === "disabled" || k === "selected") node[k] = !!v;
@@ -51,7 +57,9 @@ export function field(labelText, input, hintText) {
  * En/Malayalam toggle translates. Labels and headings stay English; only
  * this, the sentence explaining what an option does, is looked up. */
 export function hint(text, attrs = {}) {
-  return el("div.hint", { ...attrs, text: tr(text) });
+  // el() translates any .hint text, so this no longer calls tr() itself —
+  // one place does it, for hint() and hand-built hints alike.
+  return el("div.hint", { ...attrs, text });
 }
 
 export function input(attrs = {}) { return el("input", { type: "text", ...attrs }); }
