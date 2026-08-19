@@ -359,6 +359,16 @@ This is different from **Registrations by event** in the Reports card
 above, which is a flat one-row-per-entry CSV for sorting and filtering.
 Use that one for spreadsheet work, this one for printing and handing out.
 
+**Can I make the big banner on the public home page light instead of dark?**
+Settings → Public display → **Public home hero** → Dark or Light, with a live
+preview beside it. It defaults to Dark, which is what every fest already has.
+
+This one setting deliberately does **not** follow the visitor's light/dark
+mode. The hero carries your logo and sets the tone of the public site, so it
+is artwork rather than page furniture: you pick it once and every visitor
+sees the same thing, whichever mode their phone happens to be in. The rest
+of the page still follows their preference as normal.
+
 **Where do I publish contact numbers for organisers or houses?**
 Settings → Fest details → "Organiser contacts" for a free-form public list —
 Admin, Co-Admin, anyone else the fest wants reachable — added by name, role

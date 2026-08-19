@@ -9,39 +9,60 @@
    routed warning badges through the brand accent instead of a fixed
    amber, so a "Pending" badge picked up whatever colour the brand
    happened to be. */
+/* Palette taken from the v1.0 design file. The neutrals are WARM — they
+   carry a red undertone rather than the old forest green, so a grey next to
+   the accent reads as the same family instead of drifting cold. */
 :root {
-  --ink:        #16241C;   /* near-black forest ink — text, headers */
-  --ink-2:      #4B5D53;   /* secondary text                        */
-  --ink-3:      #82988C;   /* muted / placeholder                   */
-  --paper:      #F2F7F4;   /* page background                       */
+  --ink:        #1A1818;   /* near-black warm ink — text, headers   */
+  --ink-2:      #6E6865;   /* secondary text                        */
+  /* The design file's muted tone is #A39E9B, which measures 2.65:1 on white
+     — under the 3:1 floor and well under the 4.5:1 small text needs. In a
+     mockup it labels a few large captions; here it colours .hint, .empty
+     and every table sub-label, which are 0.78rem prose carrying real
+     instructions, translated help included. Darkened to clear 4.5:1 on both
+     white and paper. #A39E9B survives as --ink-faint for decoration only. */
+  --ink-3:      #736D69;   /* muted prose — hints, empty states     */
+  --ink-faint:  #A39E9B;   /* decorative only — never carries text  */
+  --paper:      #F6F5F2;   /* page background                       */
   --surface:    #FFFFFF;   /* cards, panels                         */
-  --line:       #D3E3D9;   /* hairlines                             */
+  --line:       #ECEAE6;   /* hairlines                             */
 
-  --marigold:   #1E9E63;   /* primary accent — green                */
-  --marigold-d: #126540;
-  --teal:       #2A93DE;   /* secondary accent, links — blue        */
-  --violet:     #5C6BC0;   /* tertiary — headers, highlights        */
-  --violet-d:   #3F4DA0;
-  --rose:       #E5484D;
-  --sky:        #4FB0E8;
+  /* The accent keeps the name --marigold throughout: it is referenced in
+     ~90 places and renaming it would be a large diff that changes nothing
+     anyone can see. What it points at is now the design's vermilion. */
+  --marigold:   #EC3013;   /* primary accent — vermilion            */
+  --marigold-d: #C42509;
+  --teal:       #2563EB;   /* secondary accent, links               */
+  --violet:     #2E2A2A;   /* tertiary — headers, highlights        */
+  --violet-d:   #1A1818;
+  --rose:       #EC3013;
+  --sky:        #2563EB;
 
-  --danger:     #C4342B;
-  --danger-bg:  #FBE7E5;
-  --ok:         #126540;
-  --ok-bg:      #E7F7EF;
-  --warn:       #7A5405;
-  --warn-bg:    #FFF3D6;
+  /* Status colours, matching the badge swatches in the design file. */
+  --danger:     #991B1B;
+  --danger-bg:  #FEE2E2;
+  --ok:         #15803D;
+  --ok-bg:      #DCFCE7;
+  /* Amber-600 on amber-100 is 2.86:1 — a badge nobody can read. Same hue,
+     darker step, 6.37:1. */
+  --warn:       #92400E;
+  --warn-bg:    #FEF3C7;
 
-  /* Signature gradients — used on the hero, top bar and stat accents */
-  --grad-hero:  linear-gradient(135deg, #0A140F 0%, #0F241C 45%, #124A5F 100%);
-  --grad-warm:  linear-gradient(135deg, #1E9E63 0%, #157048 100%);
-  --grad-cool:  linear-gradient(135deg, #2A93DE 0%, #1D6FA8 100%);
-  --grad-mint:  linear-gradient(135deg, #1E9E63 0%, #2A93DE 100%);
+  /* Signature gradients — used on the hero, top bar and stat accents.
+     The hero is a vertical vermilion glow over near-black, fading out at
+     80%, exactly as the design file defines it. */
+  --hero-ink:   #111010;
+  --grad-hero:  linear-gradient(180deg, rgba(236,48,19,.12) 0%, rgba(17,16,16,0) 80%), #111010;
+  --grad-warm:  linear-gradient(135deg, #EC3013 0%, #C42509 100%);
+  --grad-cool:  linear-gradient(135deg, #2E2A2A 0%, #1A1818 100%);
+  --grad-mint:  linear-gradient(135deg, #EC3013 0%, #6E6865 100%);
 
-  --r:    0;
-  --r-sm: 0;
-  --shadow: 0 1px 2px rgba(22,36,28,.05), 0 6px 20px rgba(22,36,28,.06);
-  --shadow-lift: 0 2px 4px rgba(22,36,28,.06), 0 12px 32px rgba(22,36,28,.10);
+  /* The design rounds its corners: 12px on cards and panels, ~7px on the
+     controls inside them. These were both 0 in v9. */
+  --r:    12px;
+  --r-sm: 7px;
+  --shadow: 0 1px 2px rgba(26,24,24,.04), 0 6px 20px rgba(26,24,24,.05);
+  --shadow-lift: 0 2px 4px rgba(26,24,24,.05), 0 12px 32px rgba(26,24,24,.09);
 
   --display: "Archivo", ui-sans-serif, system-ui, sans-serif;
   --body:    "Archivo", ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -75,7 +96,7 @@ a  { color: var(--teal); }
 .wrap-narrow { max-width: 620px; }
 
 .topbar {
-  background: var(--grad-hero); color: #EEF2F8;
+  background: var(--grad-hero); color: #F6F5F2;
   display: flex; align-items: center; gap: .75rem;
   padding: .7rem 1.25rem;
   position: sticky; top: 0; z-index: 40;
@@ -87,7 +108,7 @@ a  { color: var(--teal); }
   max-width: 340px;
   object-fit: contain;
 }
-.btn-ghost { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.22); color: #EEF2F8; }
+.btn-ghost { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.22); color: #F6F5F2; }
 .topbar .brand {
   font-family: var(--display); font-weight: 700; font-size: 1rem;
   letter-spacing: -.01em; display: flex; align-items: center; gap: .55rem;
@@ -181,7 +202,7 @@ button:active, .btn:active { transform: translateY(1px); }
 button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 .btn-primary { background: var(--rail-bg); border-color: var(--rail-bg); color: #fff; }
 .btn-accent { background: var(--grad-warm); border-color: transparent; color: #fff;
-              box-shadow: 0 2px 8px rgba(30,158,99,.3); font-weight: 700; }
+              box-shadow: 0 2px 8px rgba(236,48,19,.30); font-weight: 700; }
 .btn-danger { background: var(--danger-bg); border-color: #EEC9C6; color: var(--danger); }
 .btn-sm { min-height: 34px; padding: .25rem .6rem; font-size: .8rem; }
 .btn-row { display: flex; gap: .5rem; flex-wrap: wrap; }
@@ -299,21 +320,43 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
 
 /* ═══ Home / public ═══════════════════════════════════════════ */
 .hero {
-  background: var(--grad-hero); color: #EEF2F8; padding: 3rem 1.25rem;
+  background: var(--grad-hero); color: #F6F5F2; padding: 3rem 1.25rem;
   position: relative; overflow: hidden;
 }
 .hero::after {
   content: ""; position: absolute; right: -80px; top: -80px;
   width: 320px; height: 320px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(30,158,99,.28), transparent 68%);
+  background: radial-gradient(circle, rgba(236,48,19,.28), transparent 68%);
   pointer-events: none;
 }
 .hero .wrap { position: relative; z-index: 1; }
 .hero .logo-img { max-height: calc(92px * var(--logo-scale, 1)); margin-bottom: .5rem; }
 .hero .wrap { padding: 0; }
 .hero h1 { font-size: clamp(2rem, 6vw, 3.2rem); color: #fff; }
-.hero .sub { color: #B7C6D8; font-size: 1.05rem; }
+.hero .sub { color: #A39E9B; font-size: 1.05rem; }
 .hero .rule { height: 4px; width: 72px; background: var(--grad-warm); margin: 1.1rem 0; border-radius: 0; }
+
+/* Light hero — Settings → Public display.
+ *
+ * The hero is the one band that stayed dark in BOTH themes, because it is
+ * artwork rather than page furniture: it carries the fest's logo and sets
+ * the tone of the public site. Some fests want it light, so it is a choice
+ * rather than something that follows the viewer's dark-mode preference —
+ * which is also why this is a class from the saved setting and not a
+ * prefers-color-scheme rule. A visitor's phone being in dark mode should
+ * not restyle the organisers' front page.
+ *
+ * Kept at the same specificity as the rules above by repeating .hero, so
+ * ordering alone decides the winner and no !important is needed.
+ */
+.hero.hero-light {
+  background: linear-gradient(180deg, rgba(236,48,19,.10) 0%, rgba(246,245,242,0) 78%), #FFFFFF;
+  color: #6E6865;
+  border-bottom: 1px solid #ECEAE6;
+}
+.hero.hero-light::after { background: radial-gradient(circle, rgba(236,48,19,.14), transparent 68%); }
+.hero.hero-light h1 { color: #1A1818; }
+.hero.hero-light .sub { color: #6E6865; }
 
 .tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem; overflow-x: auto; }
 .tabs button {
@@ -678,8 +721,8 @@ tr.row-ours { background: color-mix(in srgb, var(--accent, #4C7A5A) 8%, transpar
 :root {
   --rail-w: 76px;
   --panel-w: 238px;
-  --rail-bg: #0F241C;
-  --rail-ink: #8FB3A2;
+  --rail-bg: #1A1818;
+  --rail-ink: #A39E9B;
   --rail-ink-on: #FFFFFF;
   --panel-bg: #FFFFFF;
 }
@@ -721,7 +764,7 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
   transition: background .15s ease, color .15s ease;
 }
 .rail-item span { line-height: 1.1; }
-.rail-item.on { background: rgba(30,158,99,.16); color: var(--rail-ink-on); }
+.rail-item.on { background: rgba(236,48,19,.18); color: var(--rail-ink-on); }
 .rail-item.on .icon { color: var(--marigold); }
 
 /* ── Nav panel ────────────────────────────────────────────────────── */
@@ -1149,31 +1192,33 @@ button.chip.on {
  * certificate is always ink on white paper.
  */
 :root[data-theme="dark"] {
-  --ink:        #E7F2EC;
-  --ink-2:      #A9C2B4;
-  --ink-3:      #6E8A7B;
-  --paper:      #0D1712;
-  --surface:    #142620;
-  --line:       #23372E;
+  --ink:        #F6F5F2;
+  --ink-2:      #A39E9B;
+  --ink-3:      #8A8480;   /* lifted for the same reason as light: 4.79:1 */
+  --ink-faint:  #6E6865;
+  --paper:      #111010;
+  --surface:    #1A1818;
+  --line:       #2E2A2A;
 
-  /* Accents lift slightly: the same green/blue that reads crisp on
-     white reads muddy on a dark ground, so it goes lighter here. */
-  --marigold:   #3BCB88;
-  --marigold-d: #2AA36C;
-  --teal:       #57B6EF;
-  --violet:     #7C8CE0;
-  --rose:       #FF6F63;
-  --sky:        #57B6EF;
+  /* Accents lift slightly: the vermilion that reads crisp on white goes
+     muddy on a dark ground, so it warms up rather than staying literal. */
+  --marigold:   #FF5233;
+  --marigold-d: #EC3013;
+  --teal:       #60A5FA;
+  --violet:     #ECEAE6;
+  --violet-d:   #A39E9B;
+  --rose:       #FF5233;
+  --sky:        #60A5FA;
 
-  --danger:     #FF6F63;
-  --danger-bg:  #3A1712;
-  --ok:         #3BCB88;
-  --ok-bg:      #123322;
-  --warn:       #E3B03D;
-  --warn-bg:    #332711;
+  --danger:     #FCA5A5;
+  --danger-bg:  #3B1517;
+  --ok:         #6EE7A0;
+  --ok-bg:      #10301E;
+  --warn:       #FBBF24;
+  --warn-bg:    #3A2A0C;
 
-  --panel-bg:   #142620;
-  --rail-bg:    #0A140F;
+  --panel-bg:   #1A1818;
+  --rail-bg:    #111010;
 }
 
 :root[data-theme="dark"] .card,
@@ -1194,8 +1239,8 @@ button.chip.on {
 /* PRINT IS ALWAYS LIGHT — see lib/theme.js. */
 @media print {
   :root[data-theme="dark"] {
-    --ink: #14232E; --ink-2: #405265; --ink-3: #7B8DA0;
-    --paper: #FFFFFF; --surface: #FFFFFF; --line: #DDE4EE;
+    --ink: #1A1818; --ink-2: #6E6865; --ink-3: #A39E9B;
+    --paper: #FFFFFF; --surface: #FFFFFF; --line: #ECEAE6;
   }
 }
 
@@ -1215,7 +1260,7 @@ button.chip.on {
   padding: .32rem 0; border: 1px solid transparent; border-radius: 0;
   background: transparent; color: var(--rail-ink); cursor: pointer;
 }
-.lang-btn.on { border-color: var(--marigold); background: rgba(30,158,99,.16); color: var(--rail-ink-on); }
+.lang-btn.on { border-color: var(--marigold); background: rgba(236,48,19,.18); color: var(--rail-ink-on); }
 
 /* A waiting-count on a nav item — small, but it is the difference between
    a substitution queue being seen and being ignored. */
@@ -1252,7 +1297,7 @@ button.chip.on {
   .pick-card:hover { border-color: var(--sky); background: #F7FAFF; }
   .pick-card-disabled:hover { border-color: var(--line); background: var(--paper); }
   tr.row-ours:hover { background: #FFF4D8; }
-  .layer-row:hover { background: #EEF2F8; }
+  .layer-row:hover { background: #F6F5F2; }
   .chip:hover { border-color: var(--sky); background: #F0F7FF; }
   button.filter-trigger:hover { border-color: var(--accent, #4C7A5A); }
   .filter-opt:hover { background: var(--line); }

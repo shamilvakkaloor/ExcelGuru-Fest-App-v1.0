@@ -122,6 +122,11 @@ export const DEFAULTS = {
     blindJudgingDefault: true,
     scheduleVisible: false,
     resultsVisible: true,
+    // The public hero band. Deliberately NOT tied to the viewer's dark-mode
+    // preference: it is the organisers' artwork, so they choose it once and
+    // every visitor sees the same thing. "dark" is what every fest already
+    // has, so an upgrade changes nothing until someone picks otherwise.
+    heroTheme: "dark",       // "dark" | "light"
     logoData: null,          // uploaded typography lockup, base64
     useLogo: false,          // show the lockup instead of the fest name
     logoScale: 100,          // percent — scales the lockup everywhere it appears

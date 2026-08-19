@@ -756,6 +756,32 @@ async function publicTab(panel) {
   const slideshowLimit = input({ type: "number", min: 0, value: s.slideshowRecentLimit ?? 12 });
   let slideshowByCat = !!s.slideshowTalentByCategory;
 
+  // A live swatch rather than words: "dark or light" is a look, and the one
+  // thing an Admin actually wants to know is what it will look like.
+  const heroSel = select(
+    [{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }],
+    { value: s.heroTheme === "light" ? "light" : "dark" });
+  const heroPreview = el("div", {
+    style: "margin-top:.6rem;border:1px solid var(--line);border-radius:var(--r,12px);overflow:hidden"
+  });
+  function paintHero() {
+    heroPreview.innerHTML = "";
+    const light = heroSel.value === "light";
+    heroPreview.appendChild(el("div", {
+      style: "padding:1.5rem 1.25rem;" + (light
+        ? "background:linear-gradient(180deg,rgba(236,48,19,.10) 0%,rgba(246,245,242,0) 78%),#fff;"
+        : "background:linear-gradient(180deg,rgba(236,48,19,.12) 0%,rgba(17,16,16,0) 80%),#111010;")
+    }, [
+      el("div", { style: "font-family:var(--display);font-weight:800;font-size:1.4rem;" +
+        (light ? "color:#1A1818" : "color:#fff"), text: s.festName || "Your fest" }),
+      el("div", { style: "height:4px;width:56px;margin:.6rem 0;background:linear-gradient(135deg,#EC3013,#C42509)" }),
+      el("div", { style: "font-size:.85rem;" + (light ? "color:#6E6865" : "color:#A39E9B"),
+        text: s.subtitle || s.schoolName || "Live results, schedule and participant lookup." })
+    ]));
+  }
+  heroSel.addEventListener("change", paintHero);
+  paintHero();
+
   const chestFormat = select(CHEST_FORMATS, { value: s.chestFormat || "digits" });
   const chestAlloc  = select(CHEST_ALLOCATIONS, { value: s.chestAllocation || "houseRange" });
   const allocBox = field("How digit numbers are handed out", chestAlloc);
@@ -799,6 +825,16 @@ async function publicTab(panel) {
       "category, matching the Student Talent tab on the public results page." })
   ]), "Results on public screens"));
 
+  panel.appendChild(card(el("div", {}, [
+    field("Hero band", heroSel),
+    el("div.hint", { text:
+      "The banner at the top of the public home page, behind the fest name or logo. It is the one band " +
+      "that does not follow the visitor's light/dark setting — it carries your logo and sets the tone of " +
+      "the site, so you choose it once and every visitor sees the same thing, whichever mode their " +
+      "phone is in." }),
+    heroPreview
+  ]), "Public home hero"));
+
   // I23 — chest number format.
   const tzSel = el("select", { class: "input" });
   for (const z of zoneList()) tzSel.appendChild(el("option", { value: z, text: z }));
@@ -838,7 +874,8 @@ async function publicTab(panel) {
       slideshowRecentLimit: Math.max(0, Number(slideshowLimit.value) || 0),
       slideshowTalentByCategory: slideshowByCat,
       chestFormat: chestFormat.value,
-      chestAllocation: chestAlloc.value
+      chestAllocation: chestAlloc.value,
+      heroTheme: heroSel.value === "light" ? "light" : "dark"
     });
     // These feed the snapshots, so they only reach the public on a rebuild.
     queueRepublish({ results: true });

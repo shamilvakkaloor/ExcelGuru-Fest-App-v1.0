@@ -43,7 +43,10 @@ export default async function homePage(root) {
   heroInner.push(el("div.sub", {
     text: settings?.subtitle || settings?.schoolName || "Live results, schedule and participant lookup."
   }));
-  root.appendChild(el("div.hero", {}, el("div.wrap", {}, heroInner)));
+  // Settings → Public display decides this; "dark" is the default and what
+  // every existing fest already shows.
+  root.appendChild(el("div.hero" + (settings?.heroTheme === "light" ? ".hero-light" : ""),
+    {}, el("div.wrap", {}, heroInner)));
 
   const wrap = el("div.wrap");
   root.appendChild(wrap);
