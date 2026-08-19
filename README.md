@@ -57,7 +57,8 @@ else. This is enforced by what is stored, not by what the interface hides.
 substitution mid-fest does not make the same entry look like a different one.
 
 **Also included** — participant event-count caps across nine tiers with a
-compliance report, CSV import and export throughout, a drag-to-reorder
+compliance report, CSV import and export throughout, an event-by-event
+registration sheet as a real `.xlsx`, a drag-to-reorder
 schedule builder with clash detection, certificate and poster generation with
 a canvas editor, participant ID cards, print-to-PDF for every report, and a
 projector slideshow.

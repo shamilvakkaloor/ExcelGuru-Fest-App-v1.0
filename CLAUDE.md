@@ -35,7 +35,7 @@ There are none. Edit a file, reload the browser.
 ```
 config.js              Firebase config — the only file a deployer edits
 firestore.rules        The permission system. Not a formality.
-js/lib/                Infrastructure: db, session, router, ui, csv, pdf, photo
+js/lib/                Infrastructure: db, session, router, ui, csv, xlsx, pdf, photo
 js/domain/             Pure logic: scoring, limits, registration, publish, constants
 js/pages/              One module per screen; admin screens under pages/admin/
 ```

@@ -2,9 +2,10 @@ import { el, card, button, table, toast, guard, notice, empty, badge, modal,
          filterBar, field, select, checkbox, input } from "../../lib/ui.js";
 import { getAll, getOne, where } from "../../lib/db.js";
 import { toCSV, downloadText } from "../../lib/csv.js";
+import { downloadXLSX, S } from "../../lib/xlsx.js";
 import { printDocument, htmlTable, escapeHTML } from "../../lib/pdf.js";
 import { shortfalls, limitsForCategory } from "../../domain/limits.js";
-import { DEFAULTS, classLabel, PUBLISH_STATUS } from "../../domain/constants.js";
+import { DEFAULTS, classLabel, eventCategoryLabel, PUBLISH_STATUS } from "../../domain/constants.js";
 import { is } from "../../lib/session.js";
 import { compareChest } from "../../domain/chest.js";
 import { flattenResults, winnersList, gradeList, rankGradeList, nonRankHolders,
@@ -26,6 +27,22 @@ export default async function downloads(root) {
       pack("Registrations by event", registrationsData)
     ])
   ]), "Reports"));
+
+  root.appendChild(card(el("div", {}, [
+    el("p.hint", { text:
+      "One sheet, every event in code order: the event as a heading, then every participant entered " +
+      "for it from every house, then a gap before the next one. Events nobody has entered are listed " +
+      "too, marked empty, so the sheet doubles as a check on what is still missing." }),
+    el("div.btn-row", {}, [
+      button("Download Excel (.xlsx)", { class: "btn-accent", onclick: guard(async () => {
+        const { rows, colWidths, events, entries } = await registrationSheet();
+        if (!events) { toast("No events yet.", true); return; }
+        downloadXLSX("registration-details-by-event.xlsx",
+          { sheetName: "Registrations", rows, colWidths });
+        toast(`${entries} participant ${entries === 1 ? "entry" : "entries"} across ${events} events.`);
+      })})
+    ])
+  ]), "Registration details by event"));
 
   // v8 — the result reporting suite.
   root.appendChild(await resultReportsCard());
@@ -160,6 +177,92 @@ async function registrationsData() {
     ],
     rows: regs.sort((a, b) => String(a.eventName).localeCompare(String(b.eventName)))
   };
+}
+
+/**
+ * The registration sheet: one section per event, three blank rows between.
+ *
+ * A row is a PARTICIPANT, not a registration. A group entry holds several
+ * people on one document, and listing that as a single row with the names
+ * run together is exactly the format this export exists to replace — the
+ * roster is what a desk actually reads off. The entry they belong to stays
+ * visible in the Team column, so a four-person team still reads as one team
+ * rather than four unrelated people.
+ */
+async function registrationSheet() {
+  const [regs, events, cats, people] = await Promise.all([
+    getAll("registrations"), getAll("events"), getAll("categories"), getAll("participants")
+  ]);
+  const catName = Object.fromEntries(cats.map(c => [c.id, c.name]));
+  const personById = Object.fromEntries(people.map(p => [p.id, p]));
+
+  const byEvent = {};
+  for (const r of regs) (byEvent[r.eventId] ||= []).push(r);
+
+  const ordered = [...events].sort((a, b) =>
+    String(a.code || "").localeCompare(String(b.code || "")) ||
+    String(a.name || "").localeCompare(String(b.name || "")));
+
+  const HEAD = ["#", "Chest", "Participant", "House", "Category", "Class", "Team / entry", "Code"];
+  const wide = v => [{ v, s: S.TITLE }, ...Array(HEAD.length - 1).fill({ v: "", s: S.TITLE })];
+
+  const rows = [];
+  rows.push(wide(`${window.__FEST_NAME__ || "Fest"} — registration details by event`));
+  rows.push([{ v: "Generated " + new Date().toLocaleString(), s: S.MUTED }]);
+  rows.push(null);
+
+  let entries = 0;
+  for (const e of ordered) {
+    const mine = byEvent[e.id] || [];
+    const title = [e.code, e.name].filter(Boolean).join(" · ") +
+      " — " + eventCategoryLabel(e, catName) + " · " + classLabel(e.eventClass);
+    rows.push(wide(title));
+    rows.push(HEAD.map(h => ({ v: h, s: S.HEAD })));
+
+    const flat = [];
+    for (const r of mine) {
+      const ids = r.participantIds || [];
+      // A whole-team entry has no roster by design — the points go to the
+      // house — so it is one row saying so rather than a blank block.
+      if (r.wholeTeam || !ids.length) {
+        flat.push({ chest: "", name: r.wholeTeam ? "Whole team" : "(no roster)",
+                    house: r.houseName || "", cat: "", cls: "",
+                    team: r.teamLabel || "", code: r.codeLetter || "" });
+        continue;
+      }
+      ids.forEach((pid, i) => {
+        const p = personById[pid] || {};
+        flat.push({
+          chest: (r.chestNumbers || [])[i] ?? p.chestNumber ?? "",
+          name: (r.participantNames || [])[i] || p.name || "",
+          house: r.houseName || "",
+          cat: catName[p.categoryId] || "",
+          cls: p.className || "",
+          team: r.teamLabel || "",
+          code: r.codeLetter || ""
+        });
+      });
+    }
+
+    flat.sort((a, b) =>
+      String(a.house).localeCompare(String(b.house)) ||
+      String(a.team).localeCompare(String(b.team)) ||
+      compareChest(a.chest, b.chest));
+
+    if (!flat.length) {
+      rows.push(["", "", { v: "No entries yet", s: S.MUTED }]);
+    } else {
+      flat.forEach((f, i) =>
+        rows.push([i + 1, String(f.chest ?? ""), f.name, f.house, f.cat, f.cls, f.team, f.code]));
+      entries += flat.length;
+    }
+
+    // The gap the sheet is read by — three rows, as asked.
+    rows.push(null, null, null);
+  }
+
+  return { rows, colWidths: [5, 10, 28, 16, 14, 10, 16, 7],
+           events: ordered.length, entries };
 }
 
 async function runCompliance() {

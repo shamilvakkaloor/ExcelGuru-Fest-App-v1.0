@@ -1,7 +1,5 @@
 # Setup guide
 
-*Matches app version 9.*
-
 Everything below is done in a web browser. No terminal, no Node, no npm, no
 credit card. Budget about 15 minutes for the first run.
 
@@ -343,6 +341,23 @@ Be clear-eyed about what it is not: there are no push notifications, because
 those need a server. A message appears live while the recipient has the
 Messages tab open, and not otherwise. It is useful for a control room, not
 for reaching somebody who is not looking.
+
+**I want one sheet listing who is entered for every event.**
+Downloads → **Registration details by event** → Download Excel. You get a
+real `.xlsx`: each event as a heading, then every participant entered for it
+from every house, then three blank rows before the next event. Events in
+code order, and events nobody has entered are listed too and marked empty,
+so the same sheet shows what is still missing.
+
+A row is a **participant**, not an entry — a four-person group appears as
+four rows sharing one team name in the Team column, because a roster run
+together in a single cell is not something a desk can read off. A
+whole-team event has no roster by design, so it shows one row saying
+"Whole team".
+
+This is different from **Registrations by event** in the Reports card
+above, which is a flat one-row-per-entry CSV for sorting and filtering.
+Use that one for spreadsheet work, this one for printing and handing out.
 
 **Where do I publish contact numbers for organisers or houses?**
 Settings → Fest details → "Organiser contacts" for a free-form public list —
