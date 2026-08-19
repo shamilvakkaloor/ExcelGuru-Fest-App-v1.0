@@ -8,12 +8,12 @@
 // ─────────────────────────────────────────────────────────────
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyCILGu7-XPOt2fMo-r7rlDgolY08faRRrY",
-  authDomain: "excelguru-fest-app-v9-2.firebaseapp.com",
-  projectId: "excelguru-fest-app-v9-2",
-  storageBucket: "excelguru-fest-app-v9-2.firebasestorage.app",
-  messagingSenderId: "635468997883",
-  appId: "1:635468997883:web:bcf3c8d0b98588a69ebc5e"
+  apiKey: "AIzaSyD14w1XITJjDVGu2qvHSWNmg7hQVL0dvv0",
+  authDomain: "excelguru-fest-app-v1-0.firebaseapp.com",
+  projectId: "excelguru-fest-app-v1-0",
+  storageBucket: "excelguru-fest-app-v1-0.firebasestorage.app",
+  messagingSenderId: "189875069995",
+  appId: "1:189875069995:web:d87fb101bdc1fafff5b66e"
 };
 
 // Internal login domain. Accounts are created as
