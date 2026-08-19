@@ -427,6 +427,191 @@ export const ML = {
     "ഈ അക്കൗണ്ടിന്റെ പേരും എല്ലാ ഡാറ്റയും അതേപടി നിലനിൽക്കും. പാസ്‌വേഡ് മാത്രമേ മാറുന്നുള്ളൂ. പുതിയത് അവരോട് നേരിട്ട് പറയുക — ഒന്നും ഇമെയിൽ ചെയ്യുന്നില്ല.",
   "An organiser has to approve this before it takes effect.":
     "ഇത് പ്രാബല്യത്തിൽ വരുന്നതിന് മുമ്പ് ഒരു സംഘാടകൻ അംഗീകരിക്കണം.",
+  /* ── notice() and empty() ────────────────────────────────────────────
+   * Boxed alerts and empty-state messages. Same explanatory prose as a
+   * hint, so they translate too — notice() sets textContent directly and
+   * empty() builds its own children, which is why neither reached tr()
+   * through el()'s .hint rule.
+   */
+  "Not available for your account": "നിങ്ങളുടെ അക്കൗണ്ടിന് ലഭ്യമല്ല",
+  "Not available": "ലഭ്യമല്ല",
+  "This section is Admin-only.": "ഈ ഭാഗം അഡ്മിന് മാത്രമുള്ളതാണ്.",
+  "Page not found": "പേജ് കണ്ടെത്തിയില്ല",
+  "That address does not exist.": "ആ വിലാസം നിലവിലില്ല.",
+  "Each person logs in by picking their name from a dropdown and typing a password. Nobody needs an email address.":
+    "ഓരോരുത്തരും ഡ്രോപ്പ്ഡൗണിൽ നിന്ന് തങ്ങളുടെ പേര് തിരഞ്ഞെടുത്ത് പാസ്‌വേഡ് നൽകിയാണ് ലോഗിൻ ചെയ്യുന്നത്. ആർക്കും ഇമെയിൽ വിലാസം ആവശ്യമില്ല.",
+  "This person has no login yet. Setting a password here creates one.":
+    "ഈ വ്യക്തിക്ക് ഇതുവരെ ലോഗിൻ ഇല്ല. ഇവിടെ പാസ്‌വേഡ് നൽകിയാൽ ഒന്ന് ഉണ്ടാക്കും.",
+  "No accounts of this type exist yet. Ask your Admin to create one.":
+    "ഈ തരത്തിലുള്ള അക്കൗണ്ടുകളൊന്നും ഇതുവരെ ഇല്ല. ഒന്ന് ഉണ്ടാക്കാൻ നിങ്ങളുടെ അഡ്മിനോട് ആവശ്യപ്പെടുക.",
+  "No adjustments": "അഡ്ജസ്റ്റ്മെന്റുകളൊന്നുമില്ല",
+  "A House Manager appeals a published result within a fixed window, with a screenshot as proof the appeal fee was paid. Decide Upheld or Overturned with a reason the house can see — an Overturned result needs a separate Score Override or Adjustment to actually correct it.":
+    "പ്രസിദ്ധീകരിച്ച ഒരു ഫലത്തിനെതിരെ നിശ്ചിത സമയപരിധിക്കുള്ളിൽ ഹൗസ് മാനേജർക്ക് അപ്പീൽ നൽകാം, അപ്പീൽ ഫീസ് അടച്ചതിന്റെ തെളിവായി ഒരു സ്ക്രീൻഷോട്ട് സഹിതം. ഹൗസിന് കാണാവുന്ന ഒരു കാരണത്തോടെ അപ്‌ഹെൽഡ് അല്ലെങ്കിൽ ഓവർടേൺഡ് എന്ന് തീരുമാനിക്കുക — ഓവർടേൺഡ് ആയ ഒരു ഫലം യഥാർഥത്തിൽ തിരുത്താൻ പ്രത്യേകം സ്കോർ ഓവർറൈഡോ അഡ്ജസ്റ്റ്മെന്റോ വേണം.",
+  "Appeals are turned off. Existing appeals are still listed below, but no House Manager can file a new one until this is enabled in Settings → Appeals.":
+    "അപ്പീലുകൾ ഓഫ് ആണ്. നിലവിലുള്ള അപ്പീലുകൾ താഴെ കാണാം, പക്ഷേ ക്രമീകരണങ്ങൾ → അപ്പീലുകൾ എന്നതിൽ ഇത് ഓണാക്കുന്നതുവരെ ഒരു ഹൗസ് മാനേജർക്കും പുതിയത് നൽകാനാവില്ല.",
+  "No appeals filed": "അപ്പീലുകളൊന്നും നൽകിയിട്ടില്ല",
+  "Appeals are not enabled": "അപ്പീലുകൾ പ്രവർത്തനക്ഷമമല്ല",
+  "Ask an Admin to turn this on in Settings if you need to raise one.":
+    "ഒരെണ്ണം നൽകേണ്ടതുണ്ടെങ്കിൽ ക്രമീകരണങ്ങളിൽ ഇത് ഓണാക്കാൻ ഒരു അഡ്മിനോട് ആവശ്യപ്പെടുക.",
+  "No appeals against your events": "നിങ്ങളുടെ ഇവന്റുകൾക്കെതിരെ അപ്പീലുകളൊന്നുമില്ല",
+  "Read-only. An appeal against one of your events, for your information — you take no action here.":
+    "വായിക്കാൻ മാത്രം. നിങ്ങളുടെ ഒരു ഇവന്റിനെതിരായ അപ്പീൽ, നിങ്ങളുടെ അറിവിലേക്ക് — ഇവിടെ നിങ്ങൾ ഒന്നും ചെയ്യേണ്ടതില്ല.",
+  "Nothing logged yet": "ഇതുവരെ ഒന്നും രേഖപ്പെടുത്തിയിട്ടില്ല",
+  "No registration deadline is set, so registration stays open indefinitely. Set one in Settings.":
+    "രജിസ്ട്രേഷന് അവസാന തീയതി നിശ്ചയിച്ചിട്ടില്ല, അതിനാൽ രജിസ്ട്രേഷൻ എപ്പോഴും തുറന്നിരിക്കും. ക്രമീകരണങ്ങളിൽ ഒന്ന് നിശ്ചയിക്കുക.",
+  "Every participant meets the configured minimums.":
+    "എല്ലാ പങ്കാളികളും നിശ്ചയിച്ച കുറഞ്ഞ എണ്ണം പാലിക്കുന്നു.",
+  "These become available once you publish results. Nothing is drawn from unpublished events.":
+    "ഫലങ്ങൾ പ്രസിദ്ധീകരിച്ചാൽ ഇവ ലഭ്യമാകും. പ്രസിദ്ധീകരിക്കാത്ത ഇവന്റുകളിൽ നിന്ന് ഒന്നും എടുക്കുന്നില്ല.",
+  "No events yet": "ഇവന്റുകളൊന്നുമില്ല",
+  "Add them one at a time or import a CSV.": "ഒന്നൊന്നായി ചേർക്കുക, അല്ലെങ്കിൽ ഒരു CSV ഇംപോർട്ട് ചെയ്യുക.",
+  "No events match those filters": "ആ ഫിൽട്ടറുകൾക്ക് അനുയോജ്യമായ ഇവന്റുകളില്ല",
+  "Create events first.": "ആദ്യം ഇവന്റുകൾ ഉണ്ടാക്കുക.",
+  "No results are published yet. You can design freely now, but generating uses published results only.":
+    "ഫലങ്ങളൊന്നും ഇതുവരെ പ്രസിദ്ധീകരിച്ചിട്ടില്ല. ഇപ്പോൾ സ്വതന്ത്രമായി ഡിസൈൻ ചെയ്യാം, പക്ഷേ ജനറേറ്റ് ചെയ്യുമ്പോൾ പ്രസിദ്ധീകരിച്ച ഫലങ്ങൾ മാത്രമേ ഉപയോഗിക്കൂ.",
+  "Nobody matches that.": "അതിനോട് ആരും യോജിക്കുന്നില്ല.",
+  "No published event matches that.": "അതിനോട് യോജിക്കുന്ന പ്രസിദ്ധീകരിച്ച ഇവന്റ് ഇല്ല.",
+  "No saved designs yet": "സേവ് ചെയ്ത ഡിസൈനുകളൊന്നുമില്ല",
+  "Pick a template above to start.": "തുടങ്ങാൻ മുകളിൽ നിന്ന് ഒരു ടെംപ്ലേറ്റ് തിരഞ്ഞെടുക്കുക.",
+  "No judges yet": "ജഡ്ജിമാരൊന്നുമില്ല",
+  "Create judge accounts under Accounts.": "അക്കൗണ്ട്സിൽ ജഡ്ജ് അക്കൗണ്ടുകൾ ഉണ്ടാക്കുക.",
+  "Assign code letters on the Registrations screen before scoring.":
+    "സ്കോർ ചെയ്യുന്നതിന് മുമ്പ് രജിസ്ട്രേഷൻ സ്ക്രീനിൽ കോഡ് ലെറ്ററുകൾ നൽകുക.",
+  "This event is published, so its scores and absences are read-only. To correct one, unpublish it on the Results screen first, then Unfinalize below.":
+    "ഈ ഇവന്റ് പ്രസിദ്ധീകരിച്ചതിനാൽ അതിന്റെ സ്കോറുകളും ആബ്സൻസുകളും വായിക്കാൻ മാത്രം. ഒന്ന് തിരുത്താൻ ആദ്യം റിസൾട്ട്സ് സ്ക്രീനിൽ അൺപബ്ലിഷ് ചെയ്യുക, പിന്നെ താഴെ അൺഫൈനലൈസ് ചെയ്യുക.",
+  "This event is finalized, so its scores and absences are read-only. Unfinalize it below to make a correction — that reopens editing without touching what's already been recorded.":
+    "ഈ ഇവന്റ് ഫൈനലൈസ് ചെയ്തതിനാൽ അതിന്റെ സ്കോറുകളും ആബ്സൻസുകളും വായിക്കാൻ മാത്രം. തിരുത്താൻ താഴെ അൺഫൈനലൈസ് ചെയ്യുക — ഇതിനകം രേഖപ്പെടുത്തിയതിനെ തൊടാതെ അത് എഡിറ്റിംഗ് വീണ്ടും തുറക്കും.",
+  "This is what finalizing will store. Nothing has been saved yet.":
+    "ഫൈനലൈസ് ചെയ്യുമ്പോൾ സൂക്ഷിക്കുന്നത് ഇതാണ്. ഇതുവരെ ഒന്നും സേവ് ചെയ്തിട്ടില്ല.",
+  "This joins the judges' real marks as one more value in the SAME average — a 3-judge entry with this added becomes a 4-way average. The judges' own marks are kept and are not changed — removing this restores their average exactly. The percentage, grade, rank and points all follow from that average, same as for any other entry.":
+    "ഇത് ജഡ്ജിമാരുടെ യഥാർഥ മാർക്കുകൾക്കൊപ്പം അതേ ശരാശരിയിലെ ഒരു മൂല്യമായി ചേരുന്നു — 3 ജഡ്ജിമാരുള്ള ഒരു എൻട്രിയിൽ ഇത് ചേർത്താൽ അത് 4 എണ്ണത്തിന്റെ ശരാശരിയാകും. ജഡ്ജിമാരുടെ സ്വന്തം മാർക്കുകൾ അതേപടി സൂക്ഷിക്കുന്നു, മാറ്റുന്നില്ല — ഇത് നീക്കിയാൽ അവരുടെ ശരാശരി അതേപടി തിരികെ വരും. ശതമാനം, ഗ്രേഡ്, റാങ്ക്, പോയിന്റ് എല്ലാം ആ ശരാശരിയിൽ നിന്നാണ് വരുന്നത്, മറ്റേതൊരു എൻട്രിയിലേതും പോലെ.",
+  "A House Manager submits one item per entry for an event that asks for it — a song title, and the like. Approve or reject each, oldest first; once approved, it is shown to a judge beside the code letter, never the house's name.":
+    "ആവശ്യപ്പെടുന്ന ഒരു ഇവന്റിന് ഓരോ എൻട്രിക്കും ഒരു ഇനം ഹൗസ് മാനേജർ സമർപ്പിക്കുന്നു — ഒരു പാട്ടിന്റെ പേര് പോലുള്ളവ. പഴയത് ആദ്യം എന്ന ക്രമത്തിൽ ഓരോന്നും അംഗീകരിക്കുകയോ നിരസിക്കുകയോ ചെയ്യുക; അംഗീകരിച്ചാൽ അത് കോഡ് ലെറ്ററിനൊപ്പം ജഡ്ജിക്ക് കാണിക്കും, ഹൗസിന്റെ പേര് ഒരിക്കലും കാണിക്കില്ല.",
+  "Nothing awaiting approval": "അംഗീകാരത്തിനായി ഒന്നും കാത്തിരിക്കുന്നില്ല",
+  "Nothing awaiting your approval": "നിങ്ങളുടെ അംഗീകാരത്തിനായി ഒന്നും കാത്തിരിക്കുന്നില്ല",
+  "Add at least one category under Settings → Categories first. Every participant must belong to one.":
+    "ആദ്യം ക്രമീകരണങ്ങൾ → വിഭാഗങ്ങൾ എന്നതിൽ കുറഞ്ഞത് ഒരു വിഭാഗമെങ്കിലും ചേർക്കുക. ഓരോ പങ്കാളിയും ഒരു വിഭാഗത്തിൽ ഉൾപ്പെടണം.",
+  "Create houses under Accounts before adding participants.":
+    "പങ്കാളികളെ ചേർക്കുന്നതിന് മുമ്പ് അക്കൗണ്ട്സിൽ ഹൗസുകൾ ഉണ്ടാക്കുക.",
+  "Run this after changing anything that alters HOW entries are counted: turning per-category limits on or off, changing “split by stage”, or switching Type or Tier limits on. Until you do, those settings refuse to save.":
+    "എൻട്രികൾ എങ്ങനെ എണ്ണുന്നു എന്നത് മാറ്റുന്ന എന്തെങ്കിലും മാറ്റിയ ശേഷം ഇത് പ്രവർത്തിപ്പിക്കുക: വിഭാഗം തിരിച്ചുള്ള പരിധികൾ ഓൺ/ഓഫ് ചെയ്യുക, “സ്റ്റേജ് അനുസരിച്ച് വിഭജിക്കുക” മാറ്റുക, അല്ലെങ്കിൽ ടൈപ്പ്/ടയർ പരിധികൾ ഓണാക്കുക. അതുവരെ ആ ക്രമീകരണങ്ങൾ സേവ് ആകില്ല.",
+  "Uploaded photos and Google Drive links both print — the print window waits for them to load. Anyone with no photo at all gets a silhouette.":
+    "അപ്‌ലോഡ് ചെയ്ത ഫോട്ടോകളും Google Drive ലിങ്കുകളും പ്രിന്റ് ആകും — അവ ലോഡ് ആകുന്നതുവരെ പ്രിന്റ് വിൻഡോ കാത്തിരിക്കും. ഫോട്ടോ ഇല്ലാത്തവർക്ക് ഒരു നിഴൽരൂപം കാണിക്കും.",
+  "No participants match": "അനുയോജ്യമായ പങ്കാളികളില്ല",
+  "Entries are created by House Managers in their own panel. This screen is for code letters, judges and review.":
+    "എൻട്രികൾ ഹൗസ് മാനേജർമാർ അവരുടെ സ്വന്തം പാനലിലാണ് ഉണ്ടാക്കുന്നത്. ഈ സ്ക്രീൻ കോഡ് ലെറ്ററുകൾ, ജഡ്ജിമാർ, അവലോകനം എന്നിവയ്ക്കുള്ളതാണ്.",
+  "This House Manager has agreed to staff registering for them.":
+    "സ്റ്റാഫ് തങ്ങൾക്ക് വേണ്ടി രജിസ്റ്റർ ചെയ്യുന്നതിന് ഈ ഹൗസ് മാനേജർ സമ്മതിച്ചിട്ടുണ്ട്.",
+  "No entries yet": "എൻട്രികളൊന്നുമില്ല",
+  "No entries match those filters": "ആ ഫിൽട്ടറുകൾക്ക് അനുയോജ്യമായ എൻട്രികളില്ല",
+  "Nothing registered for this event": "ഈ ഇവന്റിലേക്ക് ഒന്നും രജിസ്റ്റർ ചെയ്തിട്ടില്ല",
+  "Thresholds must descend, each grade above the next. Saving is blocked until they do.":
+    "പരിധികൾ ഇറങ്ങിവരണം, ഓരോ ഗ്രേഡും അടുത്തതിന് മുകളിൽ. അങ്ങനെ ആകുന്നതുവരെ സേവ് ചെയ്യാനാവില്ല.",
+  "These switches decide which axes CAN carry points. Nothing changes for an existing event until you also set its “Points from” on the Events screen — at a time, one source only, no adding ladders together.":
+    "ഏതൊക്കെ അക്‌സുകൾക്ക് പോയിന്റ് വഹിക്കാനാകും എന്ന് ഈ സ്വിച്ചുകൾ തീരുമാനിക്കുന്നു. ഇവന്റ് സ്ക്രീനിൽ അതിന്റെ “പോയിന്റ് എവിടെ നിന്ന്” എന്നത് കൂടി നിശ്ചയിക്കുന്നതുവരെ നിലവിലുള്ള ഒരു ഇവന്റിനും മാറ്റമില്ല — ഒരു സമയത്ത് ഒരു ഉറവിടം മാത്രം, ലാഡറുകൾ കൂട്ടിച്ചേർക്കില്ല.",
+  "No Types have been added yet — add them on the Type & Tier tab.":
+    "ടൈപ്പുകളൊന്നും ഇതുവരെ ചേർത്തിട്ടില്ല — ടൈപ്പ് & ടയർ ടാബിൽ അവ ചേർക്കുക.",
+  "No Tiers have been added yet — add them on the Type & Tier tab.":
+    "ടയറുകളൊന്നും ഇതുവരെ ചേർത്തിട്ടില്ല — ടൈപ്പ് & ടയർ ടാബിൽ അവ ചേർക്കുക.",
+  "No categories have been added yet — add them on the Categories tab.":
+    "വിഭാഗങ്ങളൊന്നും ഇതുവരെ ചേർത്തിട്ടില്ല — വിഭാഗങ്ങൾ ടാബിൽ അവ ചേർക്കുക.",
+  "No grades are set up yet — add them on the Fest details tab first.":
+    "ഗ്രേഡുകളൊന്നും ഇതുവരെ സജ്ജമാക്കിയിട്ടില്ല — ആദ്യം ഫെസ്റ്റ് വിവരങ്ങൾ ടാബിൽ അവ ചേർക്കുക.",
+  "No categories yet": "വിഭാഗങ്ങളൊന്നുമില്ല",
+  "None yet": "ഇതുവരെ ഒന്നുമില്ല",
+  "No constraint groups": "നിയന്ത്രണ ഗ്രൂപ്പുകളൊന്നുമില്ല",
+  "Registrations are limited only by the caps.": "രജിസ്ട്രേഷനുകൾ പരിധികളാൽ മാത്രമേ നിയന്ത്രിക്കപ്പെടുന്നുള്ളൂ.",
+  "No extra boards yet": "അധിക ബോർഡുകളൊന്നുമില്ല",
+  "Leave a box blank for no limit. Maximums block a registration outright. Minimums never block — they show up in the compliance report instead.":
+    "പരിധി വേണ്ടെങ്കിൽ ബോക്സ് ഒഴിച്ചിടുക. പരമാവധി പരിധികൾ രജിസ്ട്രേഷൻ പൂർണമായി തടയും. കുറഞ്ഞ പരിധികൾ ഒരിക്കലും തടയില്ല — പകരം അവ കംപ്ലയൻസ് റിപ്പോർട്ടിൽ കാണിക്കും.",
+  "House totals always count all four pools plus manual adjustments, regardless of these toggles.":
+    "ഈ സ്വിച്ചുകൾ എന്തായാലും, ഹൗസ് ആകെത്തുകയിൽ നാല് പൂളുകളും കൈകൊണ്ടുള്ള അഡ്ജസ്റ്റ്മെന്റുകളും എപ്പോഴും ഉൾപ്പെടും.",
+  "That delete-everything password is not correct.": "ആ എല്ലാം മായ്ക്കാനുള്ള പാസ്‌വേഡ് ശരിയല്ല.",
+  "There is no email recovery. If the Admin password is lost, reset it from Firebase console → Authentication → the admin user → Reset password.":
+    "ഇമെയിൽ വഴിയുള്ള വീണ്ടെടുക്കൽ ഇല്ല. അഡ്മിൻ പാസ്‌വേഡ് നഷ്ടപ്പെട്ടാൽ, Firebase കൺസോൾ → Authentication → അഡ്മിൻ യൂസർ → Reset password എന്നതിൽ നിന്ന് അത് പുനഃസജ്ജമാക്കുക.",
+  "Use a different password for delete-everything than your Admin login — otherwise it protects nothing extra.":
+    "എല്ലാം മായ്ക്കാനുള്ള പാസ്‌വേഡ് നിങ്ങളുടെ അഡ്മിൻ ലോഗിനിൽ നിന്ന് വ്യത്യസ്തമായിരിക്കട്ടെ — അല്ലെങ്കിൽ അത് അധികമായി ഒന്നും സംരക്ഷിക്കുന്നില്ല.",
+  "House Managers can request a swap only on events you've opened for substitution (Events → edit event). It stays possible until code letters are assigned — after that the running order is fixed and a name change is a result correction in Judging.":
+    "നിങ്ങൾ സബ്സ്റ്റിറ്റ്യൂഷന് തുറന്ന ഇവന്റുകളിൽ മാത്രമേ ഹൗസ് മാനേജർമാർക്ക് മാറ്റം ആവശ്യപ്പെടാനാകൂ (ഇവന്റുകൾ → ഇവന്റ് എഡിറ്റ് ചെയ്യുക). കോഡ് ലെറ്ററുകൾ നൽകുന്നതുവരെ ഇത് സാധ്യമാണ് — അതിനുശേഷം റണ്ണിംഗ് ഓർഡർ ഉറപ്പിക്കപ്പെടും, പേരുമാറ്റം ജഡ്ജിംഗിലെ ഒരു ഫലത്തിരുത്തലാകും.",
+  "Substitutions are only open for events an Admin has switched them on for, from the Our entries tab. An organiser approves each request. This stays possible until code letters are assigned.":
+    "ഒരു അഡ്മിൻ ഓണാക്കിയ ഇവന്റുകൾക്ക് മാത്രമേ സബ്സ്റ്റിറ്റ്യൂഷൻ തുറന്നിട്ടുള്ളൂ, ഞങ്ങളുടെ എൻട്രികൾ ടാബിൽ നിന്ന്. ഓരോ അപേക്ഷയും ഒരു സംഘാടകൻ അംഗീകരിക്കുന്നു. കോഡ് ലെറ്ററുകൾ നൽകുന്നതുവരെ ഇത് സാധ്യമാണ്.",
+  "No substitution requests yet": "സബ്സ്റ്റിറ്റ്യൂഷൻ അപേക്ഷകളൊന്നുമില്ല",
+  "No one else in your house is eligible for this event.":
+    "നിങ്ങളുടെ ഹൗസിൽ മറ്റാരും ഈ ഇവന്റിന് യോഗ്യരല്ല.",
+  "A title is awarded by hand, separate from any scored event — Best Debater, Best All-rounder, and the like. It shows on the public results page and, for the participant's own house, in the House Manager panel.":
+    "സ്കോർ ചെയ്യുന്ന ഇവന്റുകളിൽ നിന്ന് വേറിട്ട്, കൈകൊണ്ടാണ് ഒരു ടൈറ്റിൽ നൽകുന്നത് — മികച്ച ഡിബേറ്റർ, മികച്ച ഓൾ-റൗണ്ടർ എന്നിങ്ങനെ. ഇത് പൊതു ഫല പേജിലും, പങ്കാളിയുടെ സ്വന്തം ഹൗസിന് ഹൗസ് മാനേജർ പാനലിലും കാണിക്കും.",
+  "No titles yet": "ടൈറ്റിലുകളൊന്നുമില്ല",
+  "No titles awarded yet": "ടൈറ്റിലുകളൊന്നും ഇതുവരെ നൽകിയിട്ടില്ല",
+  "Award the first one above.": "മുകളിൽ ആദ്യത്തേത് നൽകുക.",
+  "Every event is already scheduled somewhere. Remove it from its current slot first.":
+    "എല്ലാ ഇവന്റും എവിടെയെങ്കിലും ഇതിനകം ഷെഡ്യൂൾ ചെയ്തിട്ടുണ്ട്. ആദ്യം അതിന്റെ നിലവിലെ സ്ലോട്ടിൽ നിന്ന് നീക്കുക.",
+  "Nothing scheduled here yet": "ഇവിടെ ഇതുവരെ ഒന്നും ഷെഡ്യൂൾ ചെയ്തിട്ടില്ല",
+  "Nothing scheduled": "ഒന്നും ഷെഡ്യൂൾ ചെയ്തിട്ടില്ല",
+  "Add an event slot or a break.": "ഒരു ഇവന്റ് സ്ലോട്ടോ ഇടവേളയോ ചേർക്കുക.",
+  "Schedule not published yet": "ഷെഡ്യൂൾ ഇതുവരെ പ്രസിദ്ധീകരിച്ചിട്ടില്ല",
+  "The schedule has not been published yet. Your assigned events are listed on the Score events tab.":
+    "ഷെഡ്യൂൾ ഇതുവരെ പ്രസിദ്ധീകരിച്ചിട്ടില്ല. നിങ്ങൾക്ക് നൽകിയ ഇവന്റുകൾ സ്കോർ ഇവന്റ്സ് ടാബിൽ കാണാം.",
+  "Contacts are not published": "കോൺടാക്റ്റുകൾ പ്രസിദ്ധീകരിച്ചിട്ടില്ല",
+  "The organisers have not made a contact list public for this fest.":
+    "ഈ ഫെസ്റ്റിനായി സംഘാടകർ ഒരു കോൺടാക്റ്റ് പട്ടിക പൊതുവായി നൽകിയിട്ടില്ല.",
+  "No contacts listed yet": "കോൺടാക്റ്റുകളൊന്നും ഇതുവരെ ചേർത്തിട്ടില്ല",
+  "Nothing published yet": "ഇതുവരെ ഒന്നും പ്രസിദ്ധീകരിച്ചിട്ടില്ല",
+  "Results appear here the moment organisers release them.":
+    "സംഘാടകർ ഫലങ്ങൾ പുറത്തുവിടുന്ന നിമിഷം അവ ഇവിടെ കാണാം.",
+  "No results published yet": "ഫലങ്ങളൊന്നും ഇതുവരെ പ്രസിദ്ധീകരിച്ചിട്ടില്ല",
+  "No event results published yet": "ഇവന്റ് ഫലങ്ങളൊന്നും ഇതുവരെ പ്രസിദ്ധീകരിച്ചിട്ടില്ല",
+  "Standings appear here as soon as the organisers publish them.":
+    "സംഘാടകർ പ്രസിദ്ധീകരിച്ചാലുടൻ നിലവാരപ്പട്ടിക ഇവിടെ കാണാം.",
+  "It will appear here once the organisers make it visible.":
+    "സംഘാടകർ ഇത് ദൃശ്യമാക്കിയാൽ ഇവിടെ കാണാം.",
+  "Board not found": "ബോർഡ് കണ്ടെത്തിയില്ല",
+  "Nothing on this board yet": "ഈ ബോർഡിൽ ഇതുവരെ ഒന്നുമില്ല",
+  "It fills up as results in its events are published.":
+    "അതിലെ ഇവന്റുകളുടെ ഫലങ്ങൾ പ്രസിദ്ധീകരിക്കുന്നതിനനുസരിച്ച് ഇത് നിറയും.",
+  "Maximum event limits are checked as you register. If a participant is at their limit you will see which cap was hit.":
+    "നിങ്ങൾ രജിസ്റ്റർ ചെയ്യുമ്പോൾ പരമാവധി ഇവന്റ് പരിധികൾ പരിശോധിക്കും. ഒരു പങ്കാളി പരിധിയിലെത്തിയാൽ ഏത് പരിധിയാണ് തടഞ്ഞതെന്ന് കാണാം.",
+  "Entries an Admin or Co-Admin registered for your house one at a time, under the older per-event approval. Approving one creates the entry exactly as if you had registered it yourself — the same participant limits and category rules apply, and approval is refused outright if one would be broken. Rejecting one is final; it cannot be forced through.":
+    "പഴയ ഇവന്റ് തിരിച്ചുള്ള അംഗീകാര രീതിയിൽ, ഒരു അഡ്മിനോ കോ-അഡ്മിനോ നിങ്ങളുടെ ഹൗസിന് വേണ്ടി ഒന്നൊന്നായി രജിസ്റ്റർ ചെയ്ത എൻട്രികൾ. ഒന്ന് അംഗീകരിച്ചാൽ നിങ്ങൾ തന്നെ രജിസ്റ്റർ ചെയ്തതുപോലെ എൻട്രി ഉണ്ടാകും — അതേ പങ്കാളി പരിധികളും വിഭാഗ നിയമങ്ങളും ബാധകമാണ്, ഒന്ന് ലംഘിക്കപ്പെടുമെങ്കിൽ അംഗീകാരം പൂർണമായി നിരസിക്കും. നിരസിക്കുന്നത് അന്തിമമാണ്; അത് മറികടക്കാനാവില്ല.",
+  "House not found": "ഹൗസ് കണ്ടെത്തിയില്ല",
+  "Ask your Admin to check this account.": "ഈ അക്കൗണ്ട് പരിശോധിക്കാൻ നിങ്ങളുടെ അഡ്മിനോട് ആവശ്യപ്പെടുക.",
+  "No participants yet": "പങ്കാളികളൊന്നുമില്ല",
+  "An organiser adds participants to your house before registration opens.":
+    "രജിസ്ട്രേഷൻ തുറക്കുന്നതിന് മുമ്പ് ഒരു സംഘാടകൻ നിങ്ങളുടെ ഹൗസിലേക്ക് പങ്കാളികളെ ചേർക്കും.",
+  "Registration is closed": "രജിസ്ട്രേഷൻ അടച്ചിരിക്കുന്നു",
+  "No event is currently open for entries.": "നിലവിൽ ഒരു ഇവന്റും എൻട്രികൾക്ക് തുറന്നിട്ടില്ല.",
+  "Nothing matches those filters": "ആ ഫിൽട്ടറുകൾക്ക് അനുയോജ്യമായി ഒന്നുമില്ല",
+  "Code letters have not been assigned for this event yet. Check back shortly.":
+    "ഈ ഇവന്റിന് കോഡ് ലെറ്ററുകൾ ഇതുവരെ നൽകിയിട്ടില്ല. അൽപ്പസമയത്തിനുള്ളിൽ വീണ്ടും നോക്കുക.",
+  "Code letters are locked — a score has already been recorded for this event, so reassigning them would detach it from the wrong entry.":
+    "കോഡ് ലെറ്ററുകൾ ലോക്ക് ചെയ്തിരിക്കുന്നു — ഈ ഇവന്റിന് ഒരു സ്കോർ ഇതിനകം രേഖപ്പെടുത്തിയിട്ടുണ്ട്, അതിനാൽ അവ വീണ്ടും നൽകിയാൽ അത് തെറ്റായ എൻട്രിയിൽ നിന്ന് വേർപെടും.",
+  "Assign code letters first — they set the running order and are what a judge scores against.":
+    "ആദ്യം കോഡ് ലെറ്ററുകൾ നൽകുക — അവയാണ് റണ്ണിംഗ് ഓർഡർ നിശ്ചയിക്കുന്നതും ജഡ്ജി സ്കോർ ചെയ്യുന്നതും.",
+  "Type a score, then press Save (or Enter). Nothing is stored until you do. Leave a score blank only if the entry is marked absent.":
+    "ഒരു സ്കോർ ടൈപ്പ് ചെയ്ത് സേവ് (അല്ലെങ്കിൽ Enter) അമർത്തുക. അങ്ങനെ ചെയ്യുന്നതുവരെ ഒന്നും സൂക്ഷിക്കില്ല. എൻട്രി ആബ്സന്റ് ആയി അടയാളപ്പെടുത്തിയിട്ടുണ്ടെങ്കിൽ മാത്രം സ്കോർ ഒഴിച്ചിടുക.",
+  "No events assigned yet": "ഇവന്റുകളൊന്നും ഇതുവരെ നൽകിയിട്ടില്ല",
+  "An organiser will assign your events before judging starts.":
+    "ജഡ്ജിംഗ് തുടങ്ങുന്നതിന് മുമ്പ് ഒരു സംഘാടകൻ നിങ്ങളുടെ ഇവന്റുകൾ നൽകും.",
+  "None of your events are scheduled yet": "നിങ്ങളുടെ ഇവന്റുകളൊന്നും ഇതുവരെ ഷെഡ്യൂൾ ചെയ്തിട്ടില്ല",
+  "They will appear here once an organiser adds them to the programme.":
+    "ഒരു സംഘാടകൻ അവ പ്രോഗ്രാമിൽ ചേർത്താൽ ഇവിടെ കാണാം.",
+  "No match": "പൊരുത്തമില്ല",
+  "Check the spelling or the chest number.": "അക്ഷരത്തെറ്റോ ചെസ്റ്റ് നമ്പറോ പരിശോധിക്കുക.",
+  "Messaging is not enabled": "സന്ദേശമയയ്ക്കൽ പ്രവർത്തനക്ഷമമല്ല",
+  "Ask an Admin to turn this on in Settings if you need it.":
+    "ആവശ്യമുണ്ടെങ്കിൽ ക്രമീകരണങ്ങളിൽ ഇത് ഓണാക്കാൻ ഒരു അഡ്മിനോട് ആവശ്യപ്പെടുക.",
+  "No conversations yet": "സംഭാഷണങ്ങളൊന്നുമില്ല",
+  "This fest is already set up.": "ഈ ഫെസ്റ്റ് ഇതിനകം സജ്ജമാക്കിയിട്ടുണ്ട്.",
+  "Give the fest a name.": "ഫെസ്റ്റിന് ഒരു പേര് നൽകുക.",
+  "Nothing shared yet": "ഇതുവരെ ഒന്നും പങ്കുവെച്ചിട്ടില്ല",
+  "The organisers have not made any templates public.":
+    "സംഘാടകർ ഒരു ടെംപ്ലേറ്റും പൊതുവായി നൽകിയിട്ടില്ല.",
+  "A constraint group says “at most N of these”. Pick whole Types, individual events, or both — an event counted once by either route counts once, not twice. Checked when a House Manager registers, with the group named in the refusal so they can see which rule stopped them.":
+    "ഒരു നിയന്ത്രണ ഗ്രൂപ്പ് പറയുന്നത് “ഇവയിൽ പരമാവധി N എണ്ണം” എന്നാണ്. മുഴുവൻ ടൈപ്പുകളോ, വ്യക്തിഗത ഇവന്റുകളോ, രണ്ടും ചേർത്തോ തിരഞ്ഞെടുക്കുക — ഏതെങ്കിലും വഴിയിലൂടെ ഒരിക്കൽ എണ്ണിയ ഇവന്റ് ഒരിക്കൽ മാത്രമേ എണ്ണൂ, രണ്ടുതവണയല്ല. ഹൗസ് മാനേജർ രജിസ്റ്റർ ചെയ്യുമ്പോൾ ഇത് പരിശോധിക്കും, ഏത് നിയമമാണ് തടഞ്ഞതെന്ന് അവർക്ക് കാണാൻ നിരസിക്കുന്ന സന്ദേശത്തിൽ ഗ്രൂപ്പിന്റെ പേരും ഉണ്ടാകും.",
+  "Off by default. When on, a House Manager may appeal a result for a fixed window after it is published, attaching a screenshot as proof the appeal fee was paid — there is no payment gateway on the free tier, so a screenshot stands in for a receipt, the same way the fest manual stands in for an upload. Decide each appeal Upheld (the result stands) or Overturned (it was wrong), with a written reason the house can see. Deciding an appeal does not itself change a score — correct it afterwards with a Score Override or an Adjustment, same as any other manual intervention.":
+    "സ്ഥിരസ്ഥിതിയായി ഓഫ്. ഓണാക്കിയാൽ, ഒരു ഫലം പ്രസിദ്ധീകരിച്ച ശേഷം നിശ്ചിത സമയപരിധിക്കുള്ളിൽ ഹൗസ് മാനേജർക്ക് അതിനെതിരെ അപ്പീൽ നൽകാം, അപ്പീൽ ഫീസ് അടച്ചതിന്റെ തെളിവായി ഒരു സ്ക്രീൻഷോട്ട് ചേർത്ത് — സൗജന്യ പ്ലാനിൽ പേയ്‌മെന്റ് ഗേറ്റ്‌വേ ഇല്ല, അതിനാൽ രസീതിന് പകരം സ്ക്രീൻഷോട്ട് നിൽക്കുന്നു, ഫെസ്റ്റ് മാനുവൽ അപ്‌ലോഡിന് പകരം നിൽക്കുന്നതുപോലെ. ഹൗസിന് കാണാവുന്ന എഴുതിയ കാരണത്തോടെ ഓരോ അപ്പീലും അപ്‌ഹെൽഡ് (ഫലം നിലനിൽക്കുന്നു) അല്ലെങ്കിൽ ഓവർടേൺഡ് (അത് തെറ്റായിരുന്നു) എന്ന് തീരുമാനിക്കുക. ഒരു അപ്പീൽ തീരുമാനിക്കുന്നത് സ്വയം ഒരു സ്കോറും മാറ്റുന്നില്ല — മറ്റേതൊരു കൈകൊണ്ടുള്ള ഇടപെടലും പോലെ, പിന്നീട് സ്കോർ ഓവർറൈഡോ അഡ്ജസ്റ്റ്മെന്റോ ഉപയോഗിച്ച് അത് തിരുത്തുക.",
+  "Registrations already exist. Changing limits that alter HOW entries are counted — turning per-category on or off, changing “split by stage”, or switching Type/Tier limits on — leaves existing counts filed under keys nothing reads any more. Save is blocked for those changes until you run Recount, on the Participants screen.":
+    "രജിസ്ട്രേഷനുകൾ ഇതിനകം ഉണ്ട്. എൻട്രികൾ എങ്ങനെ എണ്ണുന്നു എന്നത് മാറ്റുന്ന പരിധികൾ മാറ്റുന്നത് — വിഭാഗം തിരിച്ചുള്ളത് ഓൺ/ഓഫ് ചെയ്യുക, “സ്റ്റേജ് അനുസരിച്ച് വിഭജിക്കുക” മാറ്റുക, ടൈപ്പ്/ടയർ പരിധികൾ ഓണാക്കുക — നിലവിലെ എണ്ണങ്ങൾ ഇനി ആരും വായിക്കാത്ത കീകൾക്ക് കീഴിൽ ഉപേക്ഷിക്കും. പങ്കാളികൾ സ്ക്രീനിൽ റീകൗണ്ട് പ്രവർത്തിപ്പിക്കുന്നതുവരെ ആ മാറ്റങ്ങൾ സേവ് ചെയ്യാനാവില്ല.",
+
   "On the top bar": "മുകളിലെ ബാറിൽ",
   "On a light page": "ഇളം നിറമുള്ള പേജിൽ",
   "On the home page": "ഹോം പേജിൽ"

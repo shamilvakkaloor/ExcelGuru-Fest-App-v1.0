@@ -105,7 +105,12 @@ export function table(columns, rows, opts = {}) {
 }
 
 export function empty(title, detail) {
-  return el("div.empty", {}, [el("strong", { text: title }), detail ? el("div", { text: detail }) : null]);
+  // "No events yet" is a message to the reader, not a heading in the nav —
+  // the same kind of text as a notice, so it translates too.
+  return el("div.empty", {}, [
+    el("strong", { text: tr(title) }),
+    detail ? el("div", { text: tr(detail) }) : null
+  ]);
 }
 
 /** Inline loading row — shown while a page fetches, so nothing looks frozen. */
@@ -129,8 +134,11 @@ export async function withBusy(node, text, fn) {
  *  put a button or a list inside one. */
 export function notice(kind, content) {
   const box = el(`div.notice.notice-${kind}`);
+  // Translated like a hint: a notice is the same explanatory prose, just
+  // boxed. It sets textContent directly rather than going through el()'s
+  // text attribute, which is why the .hint rule there never reached it.
   if (content instanceof Node) box.appendChild(content);
-  else box.textContent = content ?? "";
+  else box.textContent = tr(content ?? "");
   return box;
 }
 
