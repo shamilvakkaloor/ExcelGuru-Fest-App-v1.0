@@ -1253,14 +1253,21 @@ button.chip.on {
 }
 .rail .theme-toggle { width: 100%; height: auto; padding: .55rem .2rem; color: var(--rail-ink); }
 
-/* Admin-only English/Malayalam switch for hint text — see lib/i18n.js. */
-.lang-toggle { display: flex; gap: 2px; padding: 0 .3rem .35rem; }
+/* Admin-only English/Malayalam switch for hint text — see lib/i18n.js.
+   One button, matching .theme-toggle directly beneath it: same box, same
+   resting colour, so the two read as a pair of switches rather than as a
+   segmented control next to a switch. */
 .lang-btn {
-  flex: 1; font: inherit; font-size: .62rem; font-weight: 700;
-  padding: .32rem 0; border: 1px solid transparent; border-radius: 0;
-  background: transparent; color: var(--rail-ink); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0; flex: none;
+  font: inherit; font-size: .68rem; font-weight: 700; line-height: 1;
+  border: 1px solid transparent; border-radius: 0;
+  background: transparent; color: inherit; cursor: pointer;
 }
-.lang-btn.on { border-color: var(--marigold); background: rgba(236,48,19,.18); color: var(--rail-ink-on); }
+.rail .lang-btn { width: 100%; height: auto; padding: .55rem .2rem; color: var(--rail-ink); }
+/* Malayalam glyphs carry taller ascenders than "EN", so they need the
+   room or the label sits low against the button's floor. */
+.lang-btn.is-ml { font-size: .72rem; line-height: 1.25; }
 
 /* A waiting-count on a nav item — small, but it is the difference between
    a substitution queue being seen and being ignored. */

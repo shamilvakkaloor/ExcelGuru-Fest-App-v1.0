@@ -74,22 +74,39 @@ function navLabel(label) {
  * navigation uses.
  */
 function langToggle() {
-  const wrap = el("div.lang-toggle");
+  // One button, the same shape as the theme toggle directly below it, and
+  // the same convention: it shows what you get by pressing it, not what you
+  // are already in — the theme button shows a sun while the page is dark.
+  // Two side-by-side buttons implied a setting with two switches when there
+  // is only ever one, and cost twice the width in a 76px rail.
+  const LANGS = {
+    en: { next: "ml", label: "മല", title: "Switch to Malayalam" },
+    ml: { next: "en", label: "EN", title: "Switch to English" }
+  };
+  const b = el("button.lang-btn", { type: "button" });
+
   function paint() {
-    wrap.innerHTML = "";
-    const cur = getLang();
-    for (const [code, label, title] of [["en", "EN", "English"], ["ml", "മല", "Malayalam"]]) {
-      const b = el("button.lang-btn" + (cur === code ? ".on" : ""), { type: "button", title, text: label });
-      b.addEventListener("click", () => {
-        if (getLang() === code) return;
-        setLang(code);
-        render();
-      });
-      wrap.appendChild(b);
-    }
+    const cur = LANGS[getLang()] ? getLang() : "en";
+    const s = LANGS[cur];
+    b.textContent = s.label;
+    b.title = s.title;
+    b.setAttribute("aria-label", s.title);
+    // Marks WHICH language is being offered, not an on/off state, so a
+    // reader can tell the two apart at a glance in a dim rail.
+    b.classList.toggle("is-ml", s.next === "ml");
   }
+
+  b.addEventListener("click", () => {
+    setLang(LANGS[getLang()] ? LANGS[getLang()].next : "ml");
+    paint();
+    // Switching language rewrites text content rather than CSS variables,
+    // and there is no way to repaint every open ".hint" in place — so this
+    // re-runs the current page the same way a normal navigation would.
+    render();
+  });
+
   paint();
-  return wrap;
+  return b;
 }
 
 export function applyFestName(festName) {
