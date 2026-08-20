@@ -137,19 +137,6 @@ export default async function homePage(root) {
     }
   }
 
-  /* ── Fest manual ──────────────────────────────────────────────── */
-  // Hidden entirely when no link is set, rather than showing a dead button.
-  // rel=noopener because this is an external destination the fest controls,
-  // not a page of ours.
-  if (settings?.manualUrl) {
-    wrap.appendChild(card(el("div.btn-row", {}, [
-      el("a.btn.btn-accent", {
-        href: settings.manualUrl, target: "_blank", rel: "noopener noreferrer",
-        text: "Download " + (settings.manualLabel || "the fest manual")
-      })
-    ]), settings.manualLabel || "Fest manual"));
-  }
-
   /* ── Navigation tiles ─────────────────────────────────────────── */
   wrap.appendChild(el("h2", { text: "Explore", style: "margin-top:1.4rem" }));
   wrap.appendChild(el("div.home-tiles", {}, [
@@ -165,6 +152,24 @@ export default async function homePage(root) {
     stat(houses.length, housePluralTerm(settings) + " competing"),
     stat(board?.students?.length ?? 0, "Participants scoring")
   ]));
+
+  /* ── Fest manual ──────────────────────────────────────────────── */
+  // Last on the page, deliberately. A spectator opens this page for results
+  // and the schedule; the manual is a one-off download that most visitors
+  // never need, and it used to sit between the results feed and Explore,
+  // pushing the things people actually came for further down.
+  //
+  // Hidden entirely when no link is set, rather than showing a dead button.
+  // rel=noopener because this is an external destination the fest controls,
+  // not a page of ours.
+  if (settings?.manualUrl) {
+    wrap.appendChild(card(el("div.btn-row", {}, [
+      el("a.btn", {
+        href: settings.manualUrl, target: "_blank", rel: "noopener noreferrer",
+        text: "Download " + (settings.manualLabel || "the fest manual")
+      })
+    ]), settings.manualLabel || "Fest manual"));
+  }
 
   // I8 — there is deliberately NO "Open my panel" card down here.
   // The top bar carries it, top right, where it was asked for. v6 appended a
