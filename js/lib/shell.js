@@ -119,7 +119,7 @@ function buildAreas() { return [
         { label: "Events",        icon: "star",      to: "/admin/events" },
         { label: "Registrations", icon: "clipboard", to: "/admin/registrations" },
         { label: "Substitutions", icon: "users",     to: "/admin/substitutions" },
-        { label: "Event material", icon: "clipboard", to: "/admin/materials" },
+        { label: "Event material", icon: "inbox", to: "/admin/materials" },
         { label: "Schedule",      icon: "calendar",  to: "/admin/venues" }
       ]
     }, {
@@ -128,9 +128,9 @@ function buildAreas() { return [
         { label: "Judging",      icon: "gavel", to: "/admin/judging", adminOnly: true },
         { label: "Judge status", icon: "eye",   to: "/admin/judges" },
         { label: "Results",      icon: "award", to: "/admin/publish" },
-        { label: "Titles",       icon: "star",  to: "/admin/titles" },
+        { label: "Titles",       icon: "tag",  to: "/admin/titles" },
         { label: "Adjustments",  icon: "sliders", to: "/admin/adjustments", adminOnly: true },
-        { label: "Appeals",      icon: "shield", to: "/admin/appeals" }
+        { label: "Appeals",      icon: "scale", to: "/admin/appeals" }
       ]
     }, ...(window.__MESSAGING_ENABLED__ ? [{
       label: "Communication",
@@ -142,7 +142,7 @@ function buildAreas() { return [
     groups: [{
       label: "Directory",
       items: [
-        { label: "Participants", icon: "users", to: "/admin/participants" },
+        { label: "Participants", icon: "list", to: "/admin/participants" },
         {
           label: "Accounts", icon: "key", to: "/admin/accounts", adminOnly: true,
           children: [
@@ -156,7 +156,7 @@ function buildAreas() { return [
     }]
   },
   {
-    id: "output", label: "Output", icon: "broadcast", roles: ["admin", "coAdmin"],
+    id: "output", label: "Output", icon: "megaphone", roles: ["admin", "coAdmin"],
     groups: [{
       label: "Produce",
       items: [
@@ -170,10 +170,10 @@ function buildAreas() { return [
         { label: "Results",     icon: "trophy",   to: "/results" },
         { label: "Schedule",    icon: "calendar", to: "/schedule" },
         { label: "Lookup",      icon: "search",   to: "/lookup" },
-        { label: "Templates",   icon: "award",    to: "/templates" },
+        { label: "Templates",   icon: "image",    to: "/templates" },
         { label: "Big screen",  icon: "monitor",  to: "/screen",
           hint: "Full rotating display for a live hall — also announces which event is currently running on stage." },
-        { label: "Slideshow",   icon: "monitor",  to: "/slideshow",
+        { label: "Slideshow",   icon: "play",  to: "/slideshow",
           hint: "Simpler rotating results & standings board, no “now running” slide — for a lobby or projector." }
       ]
     }]
@@ -185,23 +185,23 @@ function buildAreas() { return [
       items: [
         { label: "Fest details",       icon: "sliders", to: "/admin/settings?tab=basic" },
         { label: "Categories",         icon: "list",    to: "/admin/settings?tab=categories" },
-        { label: "Type & Tier",        icon: "list",    to: "/admin/settings?tab=classification" },
+        { label: "Type & Tier",        icon: "layers",    to: "/admin/settings?tab=classification" },
         { label: "Public display",     icon: "eye",     to: "/admin/settings?tab=public" },
         { label: "Points & grades",    icon: "star",    to: "/admin/settings?tab=points" },
         { label: "Participant limits", icon: "shield",  to: "/admin/settings?tab=limits" },
-        { label: "Entry constraints",  icon: "shield",  to: "/admin/settings?tab=constraints" },
+        { label: "Entry constraints",  icon: "funnel",  to: "/admin/settings?tab=constraints" },
         { label: "Leaderboard",        icon: "trophy",  to: "/admin/settings?tab=leaderboard" },
-        { label: "Appeals",            icon: "shield",  to: "/admin/settings?tab=appeals" },
+        { label: "Appeals",            icon: "scale",  to: "/admin/settings?tab=appeals" },
         { label: "My password",        icon: "key",     to: "/admin/settings?tab=password" },
         { label: "Danger zone",        icon: "alert",   to: "/admin/settings?tab=danger" },
-        { label: "Activity log",       icon: "eye",     to: "/admin/auditLog" }
+        { label: "Activity log",       icon: "history",     to: "/admin/auditLog" }
       ]
     }]
   },
   {
     id: "judge", label: "Judging", icon: "gavel", roles: ["judge"],
     groups: [{ label: "My work", items: [
-      { label: "Score events", icon: "gavel", to: "/judge" },
+      { label: "Score events", icon: "clipboard", to: "/judge" },
       ...(window.__MESSAGING_ENABLED__ ? [{ label: "Messages", icon: "mail", to: "/messages" }] : [])
     ] }]
   },
@@ -222,7 +222,7 @@ function buildAreas() { return [
     groups: [{
       label: "On the day",
       items: [
-        { label: "Run the stage", icon: "monitor",  to: "/stage" },
+        { label: "Run the stage", icon: "play",  to: "/stage" },
         { label: "Schedule",      icon: "calendar", to: "/schedule" },
         ...(window.__MESSAGING_ENABLED__ ? [{ label: "Messages", icon: "mail", to: "/messages" }] : [])
       ]
