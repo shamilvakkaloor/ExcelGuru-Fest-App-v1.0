@@ -350,9 +350,45 @@ export async function rebuildPublicSnapshots() {
   const eventById = Object.fromEntries(events.map(e => [e.id, e]));
   const ops = [];
 
+  /* Photos on the public results page — opt-in (Settings → Public display).
+   *
+   * Only for entries that are PUBLICLY RANKED, and capped per event. A photo
+   * is base64 in Firestore (there is no Storage bucket on the free tier), so
+   * a 20 KB portrait against every entry of a 60-entry event would push the
+   * document toward Firestore's hard 1 MiB ceiling and take the whole event
+   * offline — a far worse outcome than a missing thumbnail. An external
+   * photoURL is preferred where one exists precisely because it costs a URL
+   * instead of an image.
+   *
+   * The read only happens when the switch is on, so a fest that never turns
+   * it on pays nothing for it. */
+  const showPhotos = !!cfg.settings.resultsShowPhotos;
+  const PHOTO_CAP_PER_EVENT = 12;
+  let photoById = {};
+  if (showPhotos) {
+    const roster = await getAll("participants").catch(() => []);
+    photoById = Object.fromEntries(roster.map(p =>
+      [p.id, p.photoURL || p.photoData || null]).filter(([, v]) => v));
+  }
+
   // ── One document per published event ──────────────────────────────
   for (const res of results) {
     const ev = eventById[res.id];
+    // Budget spent per event, so one big group entry cannot use up the
+    // whole document on portraits.
+    let photoBudget = showPhotos ? PHOTO_CAP_PER_EVENT : 0;
+    const photosFor = e => {
+      if (!photoBudget || e.isAbsent || !rankIsPublic(e.rank, cfg.rankLimit)) return [];
+      const out = [];
+      for (const pid of (e.participantIds || [])) {
+        if (!photoBudget) break;
+        const src = photoById[pid];
+        if (!src) continue;
+        out.push(src);
+        photoBudget--;
+      }
+      return out;
+    };
     ops.push({
       type: "set", path: "publicResults", id: res.id, merge: false,
       data: {
@@ -381,7 +417,8 @@ export async function rebuildPublicSnapshots() {
           houseId: e.houseId || null,
           houseName: e.houseName || houseName[e.houseId] || "",
           grade: e.grade, percent: e.percent === null ? null : Math.round(e.percent * 100) / 100,
-          totalPoints: e.totalPoints, isAbsent: e.isAbsent
+          totalPoints: e.totalPoints, isAbsent: e.isAbsent,
+          photos: photosFor(e)
         }))
       }
     });
@@ -576,6 +613,20 @@ export async function rebuildPublicSnapshots() {
       showGradesForUnranked: !!cfg.settings.showGradesForUnranked,
       slideshowRecentLimit: cfg.settings.slideshowRecentLimit ?? 12,
       slideshowTalentByCategory: !!cfg.settings.slideshowTalentByCategory,
+      // Slideshow composition. `?? true` rather than `!!` for the three
+      // that default ON, so a fest whose settings predate them keeps
+      // showing those slides instead of going blank.
+      slideshowShowHouses: cfg.settings.slideshowShowHouses ?? true,
+      slideshowShowTalent: cfg.settings.slideshowShowTalent ?? true,
+      slideshowShowResults: cfg.settings.slideshowShowResults ?? true,
+      slideshowCategoryBoards: !!cfg.settings.slideshowCategoryBoards,
+      slideshowBoardIds: Array.isArray(cfg.settings.slideshowBoardIds) ? cfg.settings.slideshowBoardIds : [],
+      slideshowSeconds: Math.max(3, Number(cfg.settings.slideshowSeconds) || 8),
+      resultsShowPhotos: !!cfg.settings.resultsShowPhotos,
+      // 0 is meaningful here ("show every house"), so no `|| 4` and no
+      // Math.max(1, …) — either would erase the setting the Admin chose.
+      homeHouseCards: cfg.settings.homeHouseCards === undefined || cfg.settings.homeHouseCards === null
+        ? 4 : Math.max(0, Number(cfg.settings.homeHouseCards) || 0),
       // The fest's own grade names, so a public page can show them without
       // a second document read — the pattern every other setting here
       // already follows.

@@ -12,6 +12,9 @@ export default async function slideshowPage(root) {
   root.appendChild(backButton());
 
   let slides = [], index = 0, rankArt = {};
+  // Read once at load() and used when the timer starts below; clamped so a
+  // mistyped 0 cannot spin the projector at full speed.
+  let slideMs = 8000;
 
   async function load() {
     const [board, events] = await Promise.all([
@@ -28,9 +31,18 @@ export default async function slideshowPage(root) {
     const recentLimit = board?.slideshowRecentLimit ?? 12;
     rankArt = board?.rankArt || {};
     const houseStyle = board?.houseStyle || {};
+    slideMs = Math.max(3, Number(board?.slideshowSeconds) || 8) * 1000;
+
+    // Which slides to build. Each defaults ON where it always showed, so a
+    // fest that never opens the new settings sees the slideshow it had.
+    const showHouses  = board?.slideshowShowHouses  ?? true;
+    const showTalent  = board?.slideshowShowTalent  ?? true;
+    const showResults = board?.slideshowShowResults ?? true;
+    const showCatBoards = !!board?.slideshowCategoryBoards;
+    const boardIds = Array.isArray(board?.slideshowBoardIds) ? board.slideshowBoardIds : [];
 
     slides = [];
-    if (board?.houses?.length) {
+    if (showHouses && board?.houses?.length) {
       slides.push({
         title: "House Rankings",
         items: board.houses.slice(0, 10).map(h => ({
@@ -40,7 +52,7 @@ export default async function slideshowPage(root) {
         }))
       });
     }
-    if (board?.students?.length) {
+    if (showTalent && board?.students?.length) {
       // The combined board always shows — the per-category breakdown is
       // additional, not a replacement for it.
       slides.push({
@@ -68,7 +80,49 @@ export default async function slideshowPage(root) {
         }
       }
     }
-    const recent = recentLimit ? events.slice(-recentLimit) : events;
+    /* House points per category — one slide each. The same
+     * categoryBreakdown the public results page and the big screen already
+     * read, so a projector can never disagree with either. */
+    if (showCatBoards) {
+      const cb = board?.categoryBreakdown;
+      for (const col of (cb?.columns || [])) {
+        const rows = (cb.rows || [])
+          .map(r => ({ id: r.id, name: r.name, total: r.byCategory?.[col.id] || 0 }))
+          .filter(r => r.total > 0);
+        if (!rows.length) continue;
+        slides.push({
+          title: col.name,
+          sub: (board?.housePluralTerm || "Houses") + " · points in this category",
+          items: reRank(rows).map(r => ({
+            rank: r.rank, main: r.name, value: r.total + " pts",
+            crest: houseStyle[r.id]?.logoData || null,
+            color: houseStyle[r.id]?.color || null
+          }))
+        });
+      }
+    }
+
+    /* Custom leaderboards, whichever ones the Admin picked. Only boards
+     * already marked public reach the snapshot at all, so a staff-only
+     * board cannot be put on a projector by choosing it here. */
+    if (boardIds.length) {
+      for (const b of (board?.boards || [])) {
+        if (!boardIds.includes(b.id)) continue;
+        const rows = (b.rows || []).slice(0, b.rowLimit || 10);
+        if (!rows.length) continue;
+        slides.push({
+          title: b.name,
+          items: rows.map(r => ({
+            rank: r.rank, main: r.name, sub: r.houseName || "",
+            value: (r.total ?? 0) + " pts",
+            crest: houseStyle[r.id]?.logoData || null,
+            color: houseStyle[r.id]?.color || null
+          }))
+        });
+      }
+    }
+
+    const recent = showResults ? (recentLimit ? events.slice(-recentLimit) : events) : [];
     for (const ev of recent) {
       const top = (ev.entries || []).filter(e => !e.isAbsent && rankIsPublic(e.rank, rankLimit));
       if (!top.length) continue;
@@ -119,7 +173,9 @@ export default async function slideshowPage(root) {
 
   await load();
   paint();
-  const tick = setInterval(paint, 8000);
+  // Slide duration is a setting: a board of ten houses needs longer on
+  // screen than a single winner does, and only the fest knows which.
+  const tick = setInterval(paint, slideMs);
   const refresh = setInterval(() => load().catch(() => {}), 120000);
   return () => { clearInterval(tick); clearInterval(refresh); };
 }

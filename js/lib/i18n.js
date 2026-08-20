@@ -681,6 +681,35 @@ export const ML = {
   "{grade} is fixed at 0 grade points. An entry graded that way still keeps any rank points it earned. This table is the default for every ladder that does not define its own.":
     "{grade} എന്നത് 0 ഗ്രേഡ് പോയിന്റായി ഉറപ്പിച്ചിരിക്കുന്നു. അങ്ങനെ ഗ്രേഡ് ചെയ്ത ഒരു എൻട്രിക്ക് അത് നേടിയ റാങ്ക് പോയിന്റുകൾ അതേപടി ലഭിക്കും. സ്വന്തമായി നിർവചിക്കാത്ത എല്ലാ ലാഡറിനുമുള്ള സ്ഥിരസ്ഥിതിയാണ് ഈ പട്ടിക.",
 
+  /* ── Slideshow, result photos, home podium, manual code letters ──── */
+  "Which slides the projector cycles through, and how long each one holds. Everything here starts as what the slideshow already showed, so nothing changes until you change it.":
+    "പ്രൊജക്ടർ ഏതൊക്കെ സ്ലൈഡുകൾ മാറിമാറി കാണിക്കും, ഓരോന്നും എത്ര നേരം നിൽക്കും എന്നത്. ഇവിടെയുള്ളതെല്ലാം സ്ലൈഡ്ഷോ ഇപ്പോൾ കാണിക്കുന്നത് തന്നെയാണ് തുടക്കത്തിൽ, അതിനാൽ നിങ്ങൾ മാറ്റുന്നതുവരെ ഒന്നും മാറില്ല.",
+  "Minimum 3. A ten-row board needs longer on screen than a single winner.":
+    "കുറഞ്ഞത് 3. പത്ത് വരിയുള്ള ഒരു ബോർഡിന് ഒരൊറ്റ വിജയിയെക്കാൾ കൂടുതൽ സമയം സ്ക്രീനിൽ വേണം.",
+  "One slide per category, ranking the houses by what they scored in it. Reads the same breakdown the results page and the big screen already use, so the three can never disagree.":
+    "ഓരോ വിഭാഗത്തിനും ഒരു സ്ലൈഡ്, ആ വിഭാഗത്തിൽ നേടിയ പോയിന്റ് അനുസരിച്ച് ഹൗസുകളെ ക്രമപ്പെടുത്തി. ഫല പേജും ബിഗ് സ്ക്രീനും ഉപയോഗിക്കുന്ന അതേ വിവരണമാണ് ഇത് വായിക്കുന്നത്, അതിനാൽ മൂന്നും തമ്മിൽ ഒരിക്കലും വ്യത്യാസം വരില്ല.",
+  "The combined Student Talent slide always shows when Student Talent is on. This adds one further slide per category, matching the Student Talent tab on the public results page.":
+    "സ്റ്റുഡന്റ് ടാലന്റ് ഓണായിരിക്കുമ്പോൾ സംയോജിത സ്ലൈഡ് എപ്പോഴും കാണിക്കും. ഇത് ഓരോ വിഭാഗത്തിനും ഒരു സ്ലൈഡ് കൂടി ചേർക്കുന്നു, പൊതു ഫല പേജിലെ സ്റ്റുഡന്റ് ടാലന്റ് ടാബിന് അനുസൃതമായി.",
+  "Custom leaderboards": "ഇഷ്ടാനുസൃത ലീഡർബോർഡുകൾ",
+  "No public leaderboards yet. Build one under Settings → Leaderboard and tick \"visible to the public\" — a staff-only board is never put on a projector.":
+    "പൊതു ലീഡർബോർഡുകളൊന്നും ഇതുവരെയില്ല. ക്രമീകരണങ്ങൾ → ലീഡർബോർഡ് എന്നതിൽ ഒന്ന് ഉണ്ടാക്കി “പൊതുജനങ്ങൾക്ക് ദൃശ്യം” ടിക് ചെയ്യുക — സ്റ്റാഫിന് മാത്രമുള്ള ബോർഡ് ഒരിക്കലും പ്രൊജക്ടറിൽ വരില്ല.",
+  "Off by default. A photo is personal data and the results page is world-readable, so showing one is a deliberate choice. Only entries that actually placed carry a photo, and only a limited number per event — a photo is stored inside the document (there is no file storage on the free tier), so an unbounded number would eventually push an event past Firestore's size limit and take it offline.":
+    "സ്ഥിരസ്ഥിതിയായി ഓഫ്. ഫോട്ടോ വ്യക്തിഗത വിവരമാണ്, ഫല പേജ് ആർക്കും വായിക്കാവുന്നതുമാണ്, അതിനാൽ അത് കാണിക്കുന്നത് ബോധപൂർവമായ ഒരു തീരുമാനമാണ്. സ്ഥാനം നേടിയ എൻട്രികൾക്ക് മാത്രമേ ഫോട്ടോ ഉണ്ടാകൂ, ഓരോ ഇവന്റിനും പരിമിതമായ എണ്ണം മാത്രം — ഫോട്ടോ ഡോക്യുമെന്റിനുള്ളിൽ തന്നെയാണ് സൂക്ഷിക്കുന്നത് (സൗജന്യ പ്ലാനിൽ ഫയൽ സ്റ്റോറേജ് ഇല്ല), അതിനാൽ പരിധിയില്ലാത്ത എണ്ണം ഒടുവിൽ ഒരു ഇവന്റിനെ Firestore-ന്റെ വലുപ്പ പരിധി കടത്തി ഓഫ്‌ലൈൻ ആക്കും.",
+  "How many houses the podium on the public home page shows. 0 shows every house. This was fixed at 4, which simply hid the rest on a fest with more.":
+    "പൊതു ഹോം പേജിലെ പോഡിയം എത്ര ഹൗസുകളെ കാണിക്കും എന്നത്. 0 എല്ലാ ഹൗസുകളെയും കാണിക്കും. ഇത് 4 ആയി ഉറപ്പിച്ചിരുന്നു, അതിനാൽ കൂടുതൽ ഹൗസുള്ള ഫെസ്റ്റിൽ ബാക്കിയുള്ളവ മറഞ്ഞുപോയിരുന്നു.",
+  "One letter or short code per entry — A, B, C, or whatever your programme uses. Every entry needs one and no two may match. Leave the dialog to keep what is already set.":
+    "ഓരോ എൻട്രിക്കും ഒരു അക്ഷരം അല്ലെങ്കിൽ ചെറിയ കോഡ് — A, B, C, അല്ലെങ്കിൽ നിങ്ങളുടെ പ്രോഗ്രാമിൽ ഉപയോഗിക്കുന്നത്. ഓരോ എൻട്രിക്കും ഒന്ന് വേണം, രണ്ടെണ്ണം ഒരുപോലെ ആകരുത്. ഇപ്പോഴുള്ളത് അതേപടി നിലനിർത്താൻ ഈ ഡയലോഗ് അടയ്ക്കുക.",
+  "Judging has already started. Marks stay with their entry, but a judge reading a printed sheet will see the old letters.":
+    "ജഡ്ജിംഗ് ഇതിനകം തുടങ്ങിക്കഴിഞ്ഞു. മാർക്കുകൾ അതത് എൻട്രിയോടൊപ്പം തന്നെ നിലനിൽക്കും, പക്ഷേ പ്രിന്റ് ചെയ്ത ഷീറ്റ് നോക്കുന്ന ജഡ്ജി പഴയ അക്ഷരങ്ങളാണ് കാണുക.",
+  "Judging has already started for this event. Letters can still be changed — every mark stays attached to the entry that earned it, not to the letter — but any judge working from a printed sheet will be reading the old ones, so tell them before you do it.":
+    "ഈ ഇവന്റിന് ജഡ്ജിംഗ് ഇതിനകം തുടങ്ങിക്കഴിഞ്ഞു. അക്ഷരങ്ങൾ ഇപ്പോഴും മാറ്റാം — ഓരോ മാർക്കും അത് നേടിയ എൻട്രിയോട് തന്നെ ചേർന്നിരിക്കും, അക്ഷരത്തോടല്ല — പക്ഷേ പ്രിന്റ് ചെയ്ത ഷീറ്റ് ഉപയോഗിക്കുന്ന ജഡ്ജി പഴയവയാണ് വായിക്കുക, അതിനാൽ ചെയ്യുന്നതിന് മുമ്പ് അവരോട് പറയുക.",
+  "Judging has already started. Letters can still be reassigned — every mark stays with the entry that earned it — but a judge reading a printed sheet will still see the old ones.":
+    "ജഡ്ജിംഗ് ഇതിനകം തുടങ്ങിക്കഴിഞ്ഞു. അക്ഷരങ്ങൾ ഇപ്പോഴും വീണ്ടും നൽകാം — ഓരോ മാർക്കും അത് നേടിയ എൻട്രിയോടൊപ്പം നിലനിൽക്കും — പക്ഷേ പ്രിന്റ് ചെയ്ത ഷീറ്റ് നോക്കുന്ന ജഡ്ജി പഴയവ തന്നെ കാണും.",
+  "Code letters are locked because this event has a result. Unfinalize it first if a correction is genuinely needed.":
+    "ഈ ഇവന്റിന് ഒരു ഫലം ഉള്ളതിനാൽ കോഡ് ലെറ്ററുകൾ ലോക്ക് ചെയ്തിരിക്കുന്നു. ശരിക്കും ഒരു തിരുത്തൽ വേണമെങ്കിൽ ആദ്യം അത് അൺഫൈനലൈസ് ചെയ്യുക.",
+  "Code letters are locked because this event has a result. An organiser can unfinalize it if a correction is genuinely needed.":
+    "ഈ ഇവന്റിന് ഒരു ഫലം ഉള്ളതിനാൽ കോഡ് ലെറ്ററുകൾ ലോക്ക് ചെയ്തിരിക്കുന്നു. ശരിക്കും ഒരു തിരുത്തൽ വേണമെങ്കിൽ ഒരു സംഘാടകന് അത് അൺഫൈനലൈസ് ചെയ്യാം.",
+
   "On the top bar": "മുകളിലെ ബാറിൽ",
   "On a light page": "ഇളം നിറമുള്ള പേജിൽ",
   "On the home page": "ഹോം പേജിൽ"

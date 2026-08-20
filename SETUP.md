@@ -359,6 +359,53 @@ This is different from **Registrations by event** in the Reports card
 above, which is a flat one-row-per-entry CSV for sorting and filtering.
 Use that one for spreadsheet work, this one for printing and handing out.
 
+**Can I change what the slideshow shows?**
+Settings → Public display → **Slideshow**. Seconds per slide, and a switch
+for each kind: house standings, Student Talent (with an optional slide per
+category), **house points by category**, recent event results (with a limit
+on how many), and any of your **custom leaderboards**. Only boards ticked
+"visible to the public" can be put on a projector — a staff-only board never
+reaches the snapshot the slideshow reads.
+
+Everything starts as whatever the slideshow already showed, so nothing
+changes until you change it.
+
+**Our fest has more than four houses and the home page cuts them off.**
+Settings → Public display → **Public home page** → House cards on the home
+page. It was fixed at 4. Set it to your number, or 0 to show every house —
+the podium already wraps onto more rows by itself.
+
+**Can the results page show participant photos?**
+Settings → Public display → "Show participant photos beside published
+results". Off by default, because a photo is personal data and the results
+page is world-readable.
+
+Worth knowing what it does *not* do: only entries that actually placed carry
+a photo, and only a limited number per event. Photos live inside the
+document (there is no file storage on the free tier), so putting one against
+every entry of a large event would eventually push it past Firestore's size
+limit and take that event's results offline — a missing thumbnail is the
+better failure.
+
+**Can I set code letters myself instead of shuffling?**
+Registrations → pick the event → **Set letters manually**. Type a letter or
+short code against each entry; duplicates and blanks are refused, because
+two entries sharing a letter is the one mistake a judge cannot recover from.
+The shuffle stays the default — it exists so nobody can infer whose entry is
+whose from the running order — but a lot drawn in front of the houses, or an
+order printed in the programme, is a real thing to have to honour.
+
+**Can I reassign code letters after judging has started?**
+Yes, up until the event is finalized. This used to be refused as soon as the
+first mark landed, on the grounds that it would detach scores. It does not:
+a mark is filed against the entry, not against the letter, so re-lettering
+rewrites what judges see and leaves every score exactly where it was.
+
+The real cost is human — a judge working from a printed sheet will still be
+reading the old letters — so the app warns you and expects you to tell them.
+Once the event is finalized the letters lock; unfinalize first if a
+correction is genuinely needed.
+
 **Can I make the big banner on the public home page light instead of dark?**
 Settings → Public display → **Public home hero** → Dark or Light, with a live
 preview beside it. It defaults to Dark, which is what every fest already has.

@@ -327,14 +327,33 @@ export default async function resultsPage(root) {
 // re-deriving it from a house name and entry number.
 function entryDisplay(r, ev, houseStyle = {}) {
   const nameStyle = nameColorStyle(houseStyle, r.houseId);
+
+  /* Photos ride along only when an Admin switched them on, and the
+   * snapshot only carries them for publicly-ranked entries — see
+   * rebuildPublicSnapshots(). onerror removes the node rather than leaving
+   * a broken-image icon: a Drive link that stopped being shared should
+   * read as "no photo", not as a fault on the results page. */
+  const photos = Array.isArray(r.photos) ? r.photos.filter(Boolean) : [];
+  const withPhotos = node => photos.length
+    ? el("div", { style: "display:flex;gap:.5rem;align-items:center" }, [
+        el("div", { style: "display:flex;flex:0 0 auto" }, photos.slice(0, 4).map((src, i) =>
+          el("img.result-photo", {
+            src, alt: "", loading: "lazy",
+            style: i ? "margin-left:-10px" : null,
+            onerror: e => e.target.remove()
+          }))),
+        node
+      ])
+    : node;
+
   if (!isGroupClass(ev.eventClass) || !r.teamLabel) {
-    return el("span", { text: (r.names || []).join(", "), style: nameStyle });
+    return withPhotos(el("span", { text: (r.names || []).join(", "), style: nameStyle }));
   }
-  if (r.wholeTeam) return el("span", { text: r.teamLabel, style: nameStyle });
-  return el("div", {}, [
+  if (r.wholeTeam) return withPhotos(el("span", { text: r.teamLabel, style: nameStyle }));
+  return withPhotos(el("div", {}, [
     el("div", { text: r.teamLabel, style: nameStyle }),
     el("div.hint", { style: "margin:0", text: (r.names || []).join(", ") })
-  ]);
+  ]));
 }
 
 function gradeKind(g) {

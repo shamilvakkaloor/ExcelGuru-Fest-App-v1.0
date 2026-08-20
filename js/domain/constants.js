@@ -142,6 +142,23 @@ export const DEFAULTS = {
     showGradesForUnranked: false,
     slideshowRecentLimit: 12,    // 0 = show every published event
     slideshowTalentByCategory: false,
+    // ── Slideshow composition ───────────────────────────────────────
+    // Which slides the projector cycles, and how long each one holds.
+    // Defaults reproduce exactly what the slideshow showed before these
+    // existed, so an upgraded fest sees no change until someone opts in.
+    slideshowShowHouses: true,
+    slideshowShowTalent: true,
+    slideshowShowResults: true,
+    slideshowCategoryBoards: false,  // house points, one slide per category
+    slideshowBoardIds: [],           // custom leaderboards, by board id
+    slideshowSeconds: 8,             // seconds per slide
+    // Public results may carry the participant's photo. Off by default:
+    // a photo is personal data and a results page is world-readable, so
+    // showing one has to be a deliberate choice.
+    resultsShowPhotos: false,
+    // How many houses the home page podium shows. Was hard-coded to 4,
+    // which cut off a fest with more.
+    homeHouseCards: 4,
     rankArt: {},                 // { "1": dataUrl, … } — overrides the built-ins
 
     // ── v8 ──────────────────────────────────────────────────────────

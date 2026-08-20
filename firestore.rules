@@ -562,21 +562,28 @@ service cloud.firestore {
       // would mean they could move an entry to another house or swap its
       // participants, which is a far larger power than assigning a letter.
       //
-      // A code letter is what a judge's mark is actually attached to — once
-      // any mark exists for this event, reassigning letters would quietly
-      // detach real scores from the entries they belong to. So a letter
-      // change is refused once the event is locked (finalized or published)
-      // OR once scoringStarted() says a first mark has already landed,
-      // whichever comes first — staff included, not just Stage. Every OTHER
-      // update to a registration (a substitution's roster swap, and the
-      // like) is untouched by this: the check only fires when codeLetter
+      // A letter change is refused once the event is LOCKED — finalized or
+      // published. It is allowed before that, even after judging has begun.
+      //
+      // This used to also refuse once scoringStarted(), on the stated
+      // grounds that reassigning "would detach real scores from the entries
+      // they belong to". That premise was wrong: a score's document id is
+      // {eventId}_{regId}_{judgeUid} and it stores regId, so a mark is bound
+      // to the REGISTRATION, never to the letter. Re-lettering rewrites the
+      // judge-facing labels in judgingEntries and leaves every mark attached
+      // exactly where it was — finalize reads scores by regId either way.
+      // The real cost of re-lettering mid-judging is that a judge working
+      // from a printed sheet sees the labels move under them, which is a
+      // reason to warn loudly in the UI, not a reason the write is unsafe.
+      //
+      // Every OTHER update to a registration (a substitution's roster swap,
+      // and the like) is untouched: the check only fires when codeLetter
       // itself is part of what changed.
       allow update: if (isStaff()
                         && (!codeLetterChanged(resource.data, request.resource.data)
-                            || (!resultLocked(resource.data.eventId) && !scoringStarted(resource.data.eventId))))
+                            || !resultLocked(resource.data.eventId)))
                     || (isStage()
                         && !resultLocked(resource.data.eventId)
-                        && !scoringStarted(resource.data.eventId)
                         && request.resource.data.diff(resource.data).affectedKeys()
                              .hasOnly(["codeLetter", "codeLetterAssignedBy", "codeLetterAssignedAt"]));
     }

@@ -739,8 +739,9 @@ function typeTierList(panel, collection, heading, placeholder, hint) {
 
 /* ── Public display ────────────────────────────────────────────────── */
 async function publicTab(panel) {
-  const [settingsDoc, ...ladders] = await Promise.all([
+  const [settingsDoc, allBoards, ...ladders] = await Promise.all([
     getOne("config", "festSettings"),
+    getAll("leaderboards").catch(() => []),
     ...EVENT_CLASSES.map(c => getOne("pointsConfig", c.id).catch(() => null))
   ]);
   const s = { ...DEFAULTS.festSettings, ...(settingsDoc || {}) };
@@ -755,6 +756,23 @@ async function publicTab(panel) {
   // last 12 events with no setting to change it.
   const slideshowLimit = input({ type: "number", min: 0, value: s.slideshowRecentLimit ?? 12 });
   let slideshowByCat = !!s.slideshowTalentByCategory;
+
+  // ── Slideshow composition ──────────────────────────────────────────
+  let ssHouses  = s.slideshowShowHouses  ?? true;
+  let ssTalent  = s.slideshowShowTalent  ?? true;
+  let ssResults = s.slideshowShowResults ?? true;
+  let ssCatBoards = !!s.slideshowCategoryBoards;
+  const ssSeconds = input({ type: "number", min: 3, max: 120, value: s.slideshowSeconds ?? 8 });
+  // Only boards already marked public can go on a projector — a staff-only
+  // board never reaches the snapshot the slideshow reads, so offering it
+  // here would be offering something that cannot work.
+  const publicBoards = (allBoards || []).filter(b => b.isPublic);
+  const ssBoardIds = new Set(Array.isArray(s.slideshowBoardIds) ? s.slideshowBoardIds : []);
+
+  // ── Photos on the public results page ──────────────────────────────
+  let showResultPhotos = !!s.resultsShowPhotos;
+  // ── House cards on the home page ───────────────────────────────────
+  const homeCards = input({ type: "number", min: 0, max: 24, value: s.homeHouseCards ?? 4 });
 
   // A live swatch rather than words: "dark or light" is a look, and the one
   // thing an Admin actually wants to know is what it will look like.
@@ -818,12 +836,48 @@ async function publicTab(panel) {
       "event fields stay blank, so nobody can print a certificate claiming a placement they did not win. " +
       "Turning it on lets a visitor fill those in themselves." }),
     el("hr", { style: "border:none;border-top:1px solid var(--line);margin:1rem 0" }),
-    field("Recent results shown on the slideshow", slideshowLimit, "How many of the latest published events get their own slide. 0 shows every published event."),
+    checkbox("Show participant photos beside published results", showResultPhotos, v => showResultPhotos = v),
+    el("div.hint", { text:
+      "Off by default. A photo is personal data and the results page is world-readable, so showing one is " +
+      "a deliberate choice. Only entries that actually placed carry a photo, and only a limited number per " +
+      "event — a photo is stored inside the document (there is no file storage on the free tier), so an " +
+      "unbounded number would eventually push an event past Firestore's size limit and take it offline." })
+  ]), "Results on public screens"));
+
+  panel.appendChild(card(el("div", {}, [
+    el("p.hint", { text:
+      "Which slides the projector cycles through, and how long each one holds. Everything here starts as " +
+      "what the slideshow already showed, so nothing changes until you change it." }),
+    field("Seconds per slide", ssSeconds, "Minimum 3. A ten-row board needs longer on screen than a single winner."),
+    el("hr", { style: "border:none;border-top:1px solid var(--line);margin:1rem 0" }),
+    checkbox("House standings", ssHouses, v => ssHouses = v),
+    checkbox("Student Talent", ssTalent, v => ssTalent = v),
     checkbox("Also show Student Talent by category", slideshowByCat, v => slideshowByCat = v),
     el("div.hint", { text:
-      "The combined Student Talent slide always shows. Switching this on adds one further slide per " +
-      "category, matching the Student Talent tab on the public results page." })
-  ]), "Results on public screens"));
+      "The combined Student Talent slide always shows when Student Talent is on. This adds one further " +
+      "slide per category, matching the Student Talent tab on the public results page." }),
+    checkbox("House points by category", ssCatBoards, v => ssCatBoards = v),
+    el("div.hint", { text:
+      "One slide per category, ranking the houses by what they scored in it. Reads the same breakdown " +
+      "the results page and the big screen already use, so the three can never disagree." }),
+    checkbox("Recent event results", ssResults, v => ssResults = v),
+    field("Recent results shown on the slideshow", slideshowLimit,
+      "How many of the latest published events get their own slide. 0 shows every published event."),
+    el("hr", { style: "border:none;border-top:1px solid var(--line);margin:1rem 0" }),
+    el("strong.tr", { text: "Custom leaderboards" }),
+    publicBoards.length
+      ? el("div", { style: "margin-top:.4rem" }, publicBoards.map(b =>
+          checkbox(b.name, ssBoardIds.has(b.id), v => v ? ssBoardIds.add(b.id) : ssBoardIds.delete(b.id))))
+      : el("div.hint", { text:
+          "No public leaderboards yet. Build one under Settings → Leaderboard and tick \"visible to the " +
+          "public\" — a staff-only board is never put on a projector." })
+  ]), "Slideshow"));
+
+  panel.appendChild(card(el("div", {}, [
+    field("House cards on the home page", homeCards,
+      "How many houses the podium on the public home page shows. 0 shows every house. This was fixed at " +
+      "4, which simply hid the rest on a fest with more."),
+  ]), "Public home page"));
 
   panel.appendChild(card(el("div", {}, [
     field("Hero band", heroSel),
@@ -873,6 +927,16 @@ async function publicTab(panel) {
       publicTemplatesFreeText: freeText,
       slideshowRecentLimit: Math.max(0, Number(slideshowLimit.value) || 0),
       slideshowTalentByCategory: slideshowByCat,
+      slideshowShowHouses: ssHouses,
+      slideshowShowTalent: ssTalent,
+      slideshowShowResults: ssResults,
+      slideshowCategoryBoards: ssCatBoards,
+      slideshowBoardIds: [...ssBoardIds],
+      slideshowSeconds: Math.min(120, Math.max(3, Number(ssSeconds.value) || 8)),
+      resultsShowPhotos: showResultPhotos,
+      // Blank means "leave it at the default 4"; a typed 0 means "show all"
+      // and must survive as 0.
+      homeHouseCards: homeCards.value.trim() === "" ? 4 : Math.max(0, Number(homeCards.value) || 0),
       chestFormat: chestFormat.value,
       chestAllocation: chestAlloc.value,
       heroTheme: heroSel.value === "light" ? "light" : "dark"

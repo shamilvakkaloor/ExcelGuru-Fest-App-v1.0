@@ -58,7 +58,12 @@ export default async function homePage(root) {
   const usingChampionship = board?.championshipMode === "percentage" && board?.championship?.length;
   const houses = usingChampionship ? board.championship : (board?.houses || []);
   if (houses.length) {
-    const top = houses.slice(0, 4);
+    // Was hard-coded to 4, which simply hid houses 5 and up on a fest that
+    // has more. 0 means show every house — so this cannot use `|| 4`, which
+    // would turn that 0 straight back into 4.
+    const raw = board?.homeHouseCards;
+    const cardCount = (raw === undefined || raw === null || raw === "") ? 4 : Number(raw);
+    const top = Number.isFinite(cardCount) && cardCount > 0 ? houses.slice(0, cardCount) : houses;
     const valueOf = h => usingChampionship ? h.percent : h.total;
     const labelOf = h => usingChampionship ? h.percent.toFixed(1) + "%" : (h.total ?? 0) + " pts";
     const max = Math.max(1, ...houses.map(h => valueOf(h) || 0));

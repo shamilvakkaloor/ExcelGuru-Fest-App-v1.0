@@ -121,11 +121,11 @@ export default async function stagePage(root) {
     const here = new Set(arrivals.filter(a => a.arrived).map(a => a.regId));
     const lettered = regs.filter(r => r.codeLetter);
     const done = lettered.filter(r => here.has(r.id)).length;
-    // I9 (bug) — a code letter is what a judge's mark is attached to.
-    // Reassigning after any mark exists would silently detach real scores
-    // from the entries they belong to, so this locks the moment the first
-    // one lands — well before Finalize, not just after it.
-    const lettersLocked = !!result || !!entriesDoc?.scoringStarted;
+    // Locks at FINALIZE only. A mark is filed against its regId, not against
+    // the letter, so re-lettering moves nothing — see the registrations rule
+    // in firestore.rules. Judging having started earns a warning instead.
+    const lettersLocked = !!result;
+    const scoringUnderway = !!entriesDoc?.scoringStarted;
 
     panel.appendChild(card(el("div.btn-row", {}, [
       badge(classLabel(event.eventClass)),
@@ -143,8 +143,11 @@ export default async function stagePage(root) {
 
     if (lettered.length && lettersLocked) {
       panel.appendChild(notice("info",
-        "Code letters are locked — a score has already been recorded for this event, so reassigning them " +
-        "would detach it from the wrong entry."));
+        "Code letters are locked because this event has a result. An organiser can unfinalize it if a correction is genuinely needed."));
+    } else if (lettered.length && scoringUnderway) {
+      panel.appendChild(notice("warn",
+        "Judging has already started. Letters can still be reassigned — every mark stays with the entry " +
+        "that earned it — but a judge reading a printed sheet will still see the old ones."));
     }
 
     if (!regs.length) { panel.appendChild(empty("Nothing registered for this event")); return; }
