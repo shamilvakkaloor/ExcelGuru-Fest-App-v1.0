@@ -1029,7 +1029,11 @@ async function pointsTab(panel) {
     gradeInputs.length
       ? el("div.grid.grid-3", {}, gradeInputs.map(g => field(`${g.label} (at least ${g.minPercent}%)`, g.input)))
       : notice("warn", "No grades are set up yet — add them on the Fest details tab first."),
-    notice("info", `${s.withoutLabel || "Without"} is fixed at 0 grade points. An entry graded that way still keeps any rank points it earned. This table is the default for every ladder that does not define its own.`),
+    // {grade} placeholder — the "Without" grade is renameable per fest.
+    notice("info", tr(
+      "{grade} is fixed at 0 grade points. An entry graded that way still keeps any rank points it " +
+      "earned. This table is the default for every ladder that does not define its own.",
+      { grade: s.withoutLabel || "Without" })),
     preview
   ]), "Grade points — shared default"));
 
@@ -1716,11 +1720,15 @@ async function leaderboardTab(panel) {
   paintManual();
 
   panel.appendChild(card(el("div", {}, [
-    el("p.hint", { text:
-      `Settle a tie the pools above cannot — after a toss, or a judges' decision. Lower number places higher. ` +
-      `Leave blank to let the ${hPlural.toLowerCase()} share the rank as co-toppers, which is what happens ` +
-      `with tiebreakers switched off. A manual place is only consulted after every configured pool has been ` +
-      `tried, so it can never override real scoring.` }),
+    // Keyed with a {houses} placeholder rather than interpolated: the fest's
+    // own word for a house made this a different string every fest, so it
+    // could never be looked up.
+    el("p.hint", { text: tr(
+      "Settle a tie the pools above cannot — after a toss, or a judges' decision. Lower number places " +
+      "higher. Leave blank to let the {houses} share the rank as co-toppers, which is what happens with " +
+      "tiebreakers switched off. A manual place is only consulted after every configured pool has been " +
+      "tried, so it can never override real scoring.",
+      { houses: hPlural.toLowerCase() }) }),
     manualBox
   ]), "Manual tie resolution"));
 
@@ -2002,7 +2010,7 @@ async function dangerTab(panel) {
     }, [
       el("div", { style: "display:flex;gap:.75rem;align-items:flex-start;flex-wrap:wrap" }, [
         el("div", { style: "flex:1;min-width:220px" }, [
-          el("strong", { text: g.label }),
+          el("strong.tr", { text: g.label }),
           hint(g.detail, { style: "margin:.15rem 0 0" })
         ]),
         button("Delete", { class: "btn-sm btn-danger",
@@ -2015,14 +2023,14 @@ async function dangerTab(panel) {
     `Everything below deletes the WHOLE fest — every event, participant, registration, score and result. There is no undo and no backup — this is not a "hide" or "archive", the data is gone.`));
 
   panel.appendChild(card(el("div", {}, [
-    el("p", { text: "What this does, exactly:" }),
+    el("p.tr", { text: "What this does, exactly:" }),
     el("ul", {}, [
       "Deletes all events, participants, registrations, scores, results and published pages",
       "Deletes the schedule and every venue",
       "Revokes every House, Judge and Co-Admin account — they can no longer log in",
       "Deletes your own Admin login too, and signs you out",
       "Sends you back to the first-run Set up your fest screen"
-    ].map(t => el("li", { text: t }))),
+    ].map(t => el("li.tr", { text: t }))),
     el("p.hint", {
       text: "One limitation worth knowing: revoked House, Judge and Co-Admin logins are disabled immediately, but the underlying account entries still show up under Firebase console → Authentication until you delete them there by hand. They cannot sign in to anything once this finishes — they are just not swept away automatically. The browser is only ever allowed to delete the account currently signed in, which is why your own Admin login can be removed completely but theirs cannot."
     })

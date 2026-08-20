@@ -27,7 +27,15 @@ export function el(tag, attrs = {}, children = []) {
     // skipped tr() entirely, which is why a settings page showed one line in
     // Malayalam and the next two in English. Keyed on the .hint class, so
     // this covers div/p/span alike and any hint added later.
-    else if (k === "text") node.textContent = node.classList.contains("hint") ? tr(v) : v;
+    // ".tr" is an opt-in marker for prose that is not a .hint — a bullet in
+    // an explanation, the label above one. It carries no styling, so adding
+    // it changes nothing except that the text now reaches the dictionary.
+    // Deliberately opt-in rather than translating every <p> and <li>: plenty
+    // of them carry a house name or an event title, which must not be looked
+    // up at all.
+    else if (k === "text") {
+      node.textContent = (node.classList.contains("hint") || node.classList.contains("tr")) ? tr(v) : v;
+    }
     else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
     else if (k === "value") node.value = v;
     else if (k === "checked" || k === "disabled" || k === "selected") node[k] = !!v;
@@ -412,10 +420,37 @@ export function forgetFilters() { FILTER_MEMORY.clear(); }
 // deep-links its own tabs through the query string (?tab=…) keeps its
 // filters; leaving the screen entirely drops them.
 let lastFilterPath = location.hash.split("?")[0];
+// Counts in-app route changes, which is what tells backButton() whether
+// there is anywhere in this app to go back TO.
+let routeChanges = 0;
 window.addEventListener("hashchange", () => {
+  routeChanges++;
   const p = location.hash.split("?")[0];
   if (p !== lastFilterPath) { lastFilterPath = p; FILTER_MEMORY.clear(); }
 });
+
+/**
+ * A small "‹" for screens that fill the display and carry no navigation —
+ * the projector slideshow and the big screen. Both hide the whole app shell
+ * on purpose, which also removed every way out of them short of editing the
+ * URL or hitting the browser's own Back.
+ *
+ * history.back() ONLY when this session has actually navigated within the
+ * app. A projector is usually opened straight at #/slideshow as its first
+ * page, and going "back" from there leaves the app entirely — a blank tab
+ * on a screen in front of an audience. With no in-app history it goes to
+ * `fallback` instead, which is somewhere rather than nowhere.
+ */
+export function backButton(fallback = "/") {
+  const b = button("‹", {
+    class: "back-fab", title: "Back", "aria-label": "Back"
+  });
+  b.addEventListener("click", () => {
+    if (routeChanges > 0) history.back();
+    else location.hash = "#" + fallback;
+  });
+  return b;
+}
 
 export function filterBar({ filters, onChange, compact = false, remember = null }) {
   const values = {};

@@ -3,7 +3,7 @@
 // Deliberately not a live listener — it refreshes on a timer, because a
 // screen left running all day on a live subscription is the one thing most
 // likely to eat the daily read allowance.
-import { el } from "../lib/ui.js";
+import { el, backButton } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { classLabel, rankIsPublic, isGroupClass } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
@@ -17,6 +17,8 @@ const REFRESH_MS = 120000;
 export default async function screenPage(root) {
   const stage = el("div.screen");
   root.appendChild(stage);
+  // This screen hides the app shell, so it needs its own way out.
+  root.appendChild(backButton());
 
   let slides = [], index = 0, timer = null, refresh = null;
   let rankLimit = 3, talentLimit = 8, rankArt = {}, houseStyle = {};

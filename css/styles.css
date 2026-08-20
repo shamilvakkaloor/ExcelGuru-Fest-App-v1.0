@@ -1315,3 +1315,30 @@ button.chip.on {
   .rail .theme-toggle:hover { color: var(--rail-ink-on); }
   .lang-btn:hover { color: var(--rail-ink-on); }
 }
+
+/* ═══ Back control for full-screen displays ═══════════════════════════
+ * The slideshow and big screen deliberately hide the app shell, which also
+ * removed every way out of them. This sits over the top-left corner: dim
+ * enough that a projector audience does not read it as content, solid the
+ * moment a cursor or keyboard focus finds it.
+ */
+.back-fab {
+  position: fixed; top: 14px; left: 14px; z-index: 60;
+  width: 42px; height: 42px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; line-height: 1; font-family: var(--body);
+  border-radius: 50%; border: 1px solid rgba(255,255,255,.28);
+  background: rgba(17,16,16,.55); color: #fff;
+  opacity: .35; transition: opacity .18s ease, background .18s ease;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.back-fab:hover,
+.back-fab:focus-visible { opacity: 1; background: rgba(17,16,16,.85); }
+/* Keyboard users must see it even before hover. */
+.back-fab:focus-visible { outline: 2px solid var(--marigold); outline-offset: 2px; }
+
+/* A projector shows this at a distance, so give it more to grab. */
+@media (min-width: 1400px) {
+  .back-fab { width: 52px; height: 52px; font-size: 2rem; top: 18px; left: 18px; }
+}
+@media print { .back-fab { display: none; } }

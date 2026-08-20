@@ -31,9 +31,31 @@ export function setLang(lang) {
  * as anything other than Admin — this is an admin convenience, not a
  * public-facing feature, so no other role or device ever sees Malayalam
  * even if "ml" is still saved from a shared browser. */
-export function tr(text) {
-  if (!text || getLang() !== "ml" || !is.admin()) return text;
-  return ML[text] || text;
+export function tr(text, vars) {
+  if (!text) return text;
+  const src = (getLang() !== "ml" || !is.admin()) ? text : (ML[text] || text);
+  return vars ? fill(src, vars) : src;
+}
+
+/**
+ * Fill {placeholders}.
+ *
+ * Some sentences carry a value that is not translatable — the fest's own
+ * word for a house, a renamed grade — spliced into the middle of them.
+ * Written as a template literal those become a different string every fest
+ * and can never be dictionary-keyed, which is why several of the longest
+ * explanations stayed English. Keyed with a {placeholder} instead, the
+ * sentence is one stable key and the value drops in afterwards — and it
+ * drops into the MALAYALAM sentence at whatever position that language
+ * puts it, which a concatenated prefix could never do.
+ *
+ * An unknown placeholder is left visible rather than blanked: a stray
+ * {house} in the UI is a bug someone reports, an empty gap is one nobody
+ * notices.
+ */
+function fill(s, vars) {
+  return String(s).replace(/\{(\w+)\}/g, (m, k) =>
+    Object.prototype.hasOwnProperty.call(vars, k) ? vars[k] : m);
 }
 
 /**
@@ -611,6 +633,53 @@ export const ML = {
     "സ്ഥിരസ്ഥിതിയായി ഓഫ്. ഓണാക്കിയാൽ, ഒരു ഫലം പ്രസിദ്ധീകരിച്ച ശേഷം നിശ്ചിത സമയപരിധിക്കുള്ളിൽ ഹൗസ് മാനേജർക്ക് അതിനെതിരെ അപ്പീൽ നൽകാം, അപ്പീൽ ഫീസ് അടച്ചതിന്റെ തെളിവായി ഒരു സ്ക്രീൻഷോട്ട് ചേർത്ത് — സൗജന്യ പ്ലാനിൽ പേയ്‌മെന്റ് ഗേറ്റ്‌വേ ഇല്ല, അതിനാൽ രസീതിന് പകരം സ്ക്രീൻഷോട്ട് നിൽക്കുന്നു, ഫെസ്റ്റ് മാനുവൽ അപ്‌ലോഡിന് പകരം നിൽക്കുന്നതുപോലെ. ഹൗസിന് കാണാവുന്ന എഴുതിയ കാരണത്തോടെ ഓരോ അപ്പീലും അപ്‌ഹെൽഡ് (ഫലം നിലനിൽക്കുന്നു) അല്ലെങ്കിൽ ഓവർടേൺഡ് (അത് തെറ്റായിരുന്നു) എന്ന് തീരുമാനിക്കുക. ഒരു അപ്പീൽ തീരുമാനിക്കുന്നത് സ്വയം ഒരു സ്കോറും മാറ്റുന്നില്ല — മറ്റേതൊരു കൈകൊണ്ടുള്ള ഇടപെടലും പോലെ, പിന്നീട് സ്കോർ ഓവർറൈഡോ അഡ്ജസ്റ്റ്മെന്റോ ഉപയോഗിച്ച് അത് തിരുത്തുക.",
   "Registrations already exist. Changing limits that alter HOW entries are counted — turning per-category on or off, changing “split by stage”, or switching Type/Tier limits on — leaves existing counts filed under keys nothing reads any more. Save is blocked for those changes until you run Recount, on the Participants screen.":
     "രജിസ്ട്രേഷനുകൾ ഇതിനകം ഉണ്ട്. എൻട്രികൾ എങ്ങനെ എണ്ണുന്നു എന്നത് മാറ്റുന്ന പരിധികൾ മാറ്റുന്നത് — വിഭാഗം തിരിച്ചുള്ളത് ഓൺ/ഓഫ് ചെയ്യുക, “സ്റ്റേജ് അനുസരിച്ച് വിഭജിക്കുക” മാറ്റുക, ടൈപ്പ്/ടയർ പരിധികൾ ഓണാക്കുക — നിലവിലെ എണ്ണങ്ങൾ ഇനി ആരും വായിക്കാത്ത കീകൾക്ക് കീഴിൽ ഉപേക്ഷിക്കും. പങ്കാളികൾ സ്ക്രീനിൽ റീകൗണ്ട് പ്രവർത്തിപ്പിക്കുന്നതുവരെ ആ മാറ്റങ്ങൾ സേവ് ചെയ്യാനാവില്ല.",
+
+  /* ── Danger zone, reset groups and the newer screens ─────────────── */
+  "What this does, exactly:": "ഇത് കൃത്യമായി ചെയ്യുന്നത്:",
+  "Deletes all events, participants, registrations, scores, results and published pages":
+    "എല്ലാ ഇവന്റുകളും പങ്കാളികളും രജിസ്ട്രേഷനുകളും സ്കോറുകളും ഫലങ്ങളും പ്രസിദ്ധീകരിച്ച പേജുകളും ഇല്ലാതാക്കുന്നു",
+  "Deletes the schedule and every venue": "ഷെഡ്യൂളും എല്ലാ വേദികളും ഇല്ലാതാക്കുന്നു",
+  "Revokes every House, Judge and Co-Admin account — they can no longer log in":
+    "എല്ലാ ഹൗസ്, ജഡ്ജ്, കോ-അഡ്മിൻ അക്കൗണ്ടുകളും റദ്ദാക്കുന്നു — അവർക്ക് ഇനി ലോഗിൻ ചെയ്യാനാവില്ല",
+  "Deletes your own Admin login too, and signs you out":
+    "നിങ്ങളുടെ സ്വന്തം അഡ്മിൻ ലോഗിനും ഇല്ലാതാക്കി സൈൻ ഔട്ട് ചെയ്യുന്നു",
+  "Sends you back to the first-run Set up your fest screen":
+    "ആദ്യ ഉപയോഗത്തിലെ “നിങ്ങളുടെ ഫെസ്റ്റ് സജ്ജമാക്കുക” സ്ക്രീനിലേക്ക് തിരികെ കൊണ്ടുപോകുന്നു",
+  "Everything below deletes the WHOLE fest — every event, participant, registration, score and result. There is no undo and no backup — this is not a \"hide\" or \"archive\", the data is gone.":
+    "താഴെയുള്ളതെല്ലാം മുഴുവൻ ഫെസ്റ്റും ഇല്ലാതാക്കും — എല്ലാ ഇവന്റും പങ്കാളിയും രജിസ്ട്രേഷനും സ്കോറും ഫലവും. തിരികെ എടുക്കാനാവില്ല, ബാക്കപ്പുമില്ല — ഇത് “മറയ്ക്കൽ” അല്ലെങ്കിൽ “ആർക്കൈവ്” അല്ല, ഡാറ്റ പോയി.",
+
+  "All judging and results": "എല്ലാ ജഡ്ജിംഗും ഫലങ്ങളും",
+  "Every score, absence flag, override, finalized result, published result page and appeal. Registrations, participants and events all stay — so the fest can simply be judged again from scratch.":
+    "എല്ലാ സ്കോറും ആബ്സൻസ് അടയാളവും ഓവർറൈഡും ഫൈനലൈസ് ചെയ്ത ഫലവും പ്രസിദ്ധീകരിച്ച ഫല പേജും അപ്പീലും. രജിസ്ട്രേഷനുകളും പങ്കാളികളും ഇവന്റുകളും അതേപടി നിലനിൽക്കും — അതിനാൽ ഫെസ്റ്റ് ആദ്യം മുതൽ വീണ്ടും ജഡ്ജ് ചെയ്യാം.",
+  "All registrations": "എല്ലാ രജിസ്ട്രേഷനുകളും",
+  "Every entry a House Manager made, plus the substitution requests and event material attached to them. Participants and events stay. Judging and results go too, because they are scored per entry.":
+    "ഹൗസ് മാനേജർ ഉണ്ടാക്കിയ എല്ലാ എൻട്രിയും, ഒപ്പം അവയോട് ചേർത്ത സബ്സ്റ്റിറ്റ്യൂഷൻ അപേക്ഷകളും ഇവന്റ് സാമഗ്രികളും. പങ്കാളികളും ഇവന്റുകളും നിലനിൽക്കും. ജഡ്ജിംഗും ഫലങ്ങളും കൂടി പോകും, കാരണം അവ ഓരോ എൻട്രിക്കും സ്കോർ ചെയ്യുന്നതാണ്.",
+  "All participants": "എല്ലാ പങ്കാളികളും",
+  "Every student on the roster, and any special title awarded to one. Their registrations, and everything judged from those, go with them.":
+    "പട്ടികയിലുള്ള എല്ലാ വിദ്യാർഥിയും, അവർക്ക് നൽകിയ ഏതെങ്കിലും പ്രത്യേക ടൈറ്റിലും. അവരുടെ രജിസ്ട്രേഷനുകളും അവയിൽ നിന്ന് ജഡ്ജ് ചെയ്തതെല്ലാം അവരോടൊപ്പം പോകും.",
+  "All events": "എല്ലാ ഇവന്റുകളും",
+  "Every competition item. Registrations for them, and everything judged from those, go too. Participants stay on the roster.":
+    "എല്ലാ മത്സര ഇനവും. അവയ്ക്കുള്ള രജിസ്ട്രേഷനുകളും അവയിൽ നിന്ന് ജഡ്ജ് ചെയ്തതെല്ലാം കൂടി പോകും. പങ്കാളികൾ പട്ടികയിൽ നിലനിൽക്കും.",
+  "The whole schedule": "മുഴുവൻ ഷെഡ്യൂളും",
+  "Every venue, fest day and time slot, and the public schedule page. Nothing else is touched — events themselves stay.":
+    "എല്ലാ വേദിയും ഫെസ്റ്റ് ദിവസവും സമയ സ്ലോട്ടും, ഒപ്പം പൊതു ഷെഡ്യൂൾ പേജും. മറ്റൊന്നും തൊടില്ല — ഇവന്റുകൾ അതേപടി നിലനിൽക്കും.",
+
+  "One sheet, every event in code order: the event as a heading, then every participant entered for it from every house, then a gap before the next one. Events nobody has entered are listed too, marked empty, so the sheet doubles as a check on what is still missing.":
+    "ഒരൊറ്റ ഷീറ്റ്, എല്ലാ ഇവന്റും കോഡ് ക്രമത്തിൽ: ഇവന്റ് ഒരു തലക്കെട്ടായി, പിന്നെ എല്ലാ ഹൗസിൽ നിന്നും അതിൽ ചേർന്ന എല്ലാ പങ്കാളിയും, പിന്നെ അടുത്തതിന് മുമ്പ് ഒരു വിടവ്. ആരും ചേരാത്ത ഇവന്റുകളും ഒഴിഞ്ഞതായി അടയാളപ്പെടുത്തി പട്ടികയിലുണ്ട്, അതിനാൽ ഇനിയും എന്താണ് ബാക്കിയുള്ളതെന്ന് പരിശോധിക്കാനും ഈ ഷീറ്റ് ഉപയോഗിക്കാം.",
+  "How many of the latest published events get their own slide. 0 shows every published event.":
+    "ഏറ്റവും പുതുതായി പ്രസിദ്ധീകരിച്ച എത്ര ഇവന്റുകൾക്ക് സ്വന്തം സ്ലൈഡ് ലഭിക്കും. 0 എല്ലാ പ്രസിദ്ധീകരിച്ച ഇവന്റും കാണിക്കും.",
+  "The banner at the top of the public home page, behind the fest name or logo. It is the one band that does not follow the visitor's light/dark setting — it carries your logo and sets the tone of the site, so you choose it once and every visitor sees the same thing, whichever mode their phone is in.":
+    "പൊതു ഹോം പേജിന്റെ മുകളിലുള്ള ബാനർ, ഫെസ്റ്റിന്റെ പേരിനോ ലോഗോയ്ക്കോ പിന്നിൽ. സന്ദർശകന്റെ ലൈറ്റ്/ഡാർക്ക് ക്രമീകരണം പിന്തുടരാത്ത ഒരേയൊരു ബാൻഡ് ഇതാണ് — ഇത് നിങ്ങളുടെ ലോഗോ വഹിക്കുകയും സൈറ്റിന്റെ ഭാവം നിശ്ചയിക്കുകയും ചെയ്യുന്നു, അതിനാൽ നിങ്ങൾ ഒരിക്കൽ തിരഞ്ഞെടുക്കുന്നു, ഓരോ സന്ദർശകനും അവരുടെ ഫോൺ ഏത് മോഡിലായാലും ഒരേ കാഴ്ച കാണുന്നു.",
+  "The separate password set in Danger Zone.": "ഡേഞ്ചർ സോണിൽ സജ്ജമാക്കിയ പ്രത്യേക പാസ്‌വേഡ്.",
+  "Change my password": "എന്റെ പാസ്‌വേഡ് മാറ്റുക",
+  "Rules & criteria": "നിയമങ്ങളും മാനദണ്ഡങ്ങളും",
+
+  /* Placeholder-keyed. {houses} and {grade} are the fest's own vocabulary,
+     which used to be interpolated and made the whole sentence unkeyable. */
+  "Settle a tie the pools above cannot — after a toss, or a judges' decision. Lower number places higher. Leave blank to let the {houses} share the rank as co-toppers, which is what happens with tiebreakers switched off. A manual place is only consulted after every configured pool has been tried, so it can never override real scoring.":
+    "മുകളിലെ പൂളുകൾക്ക് തീർക്കാനാവാത്ത ഒരു ടൈ തീർക്കാൻ — ടോസിന് ശേഷമോ ജഡ്ജിമാരുടെ തീരുമാനപ്രകാരമോ. ചെറിയ സംഖ്യ മുന്നിൽ വരും. {houses} എന്നിവർ ഒരുമിച്ച് ആ റാങ്ക് പങ്കിടാൻ ഇത് ഒഴിച്ചിടുക — ടൈബ്രേക്കറുകൾ ഓഫ് ആയിരിക്കുമ്പോൾ സംഭവിക്കുന്നതും അതുതന്നെ. ക്രമീകരിച്ച എല്ലാ പൂളും പരീക്ഷിച്ചതിന് ശേഷം മാത്രമേ കൈകൊണ്ട് നൽകിയ സ്ഥാനം പരിഗണിക്കൂ, അതിനാൽ അതിന് യഥാർഥ സ്കോറിംഗിനെ മറികടക്കാനാവില്ല.",
+  "{grade} is fixed at 0 grade points. An entry graded that way still keeps any rank points it earned. This table is the default for every ladder that does not define its own.":
+    "{grade} എന്നത് 0 ഗ്രേഡ് പോയിന്റായി ഉറപ്പിച്ചിരിക്കുന്നു. അങ്ങനെ ഗ്രേഡ് ചെയ്ത ഒരു എൻട്രിക്ക് അത് നേടിയ റാങ്ക് പോയിന്റുകൾ അതേപടി ലഭിക്കും. സ്വന്തമായി നിർവചിക്കാത്ത എല്ലാ ലാഡറിനുമുള്ള സ്ഥിരസ്ഥിതിയാണ് ഈ പട്ടിക.",
 
   "On the top bar": "മുകളിലെ ബാറിൽ",
   "On a light page": "ഇളം നിറമുള്ള പേജിൽ",

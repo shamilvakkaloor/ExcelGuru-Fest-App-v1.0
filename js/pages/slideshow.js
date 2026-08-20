@@ -1,6 +1,6 @@
 // Auto-rotating display board for a projector. Reads the same snapshots as
 // /results, refreshed every two minutes rather than held on a live listener.
-import { el } from "../lib/ui.js";
+import { el, backButton } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { rankIsPublic, isGroupClass } from "../domain/constants.js";
@@ -8,6 +8,8 @@ import { rankIsPublic, isGroupClass } from "../domain/constants.js";
 export default async function slideshowPage(root) {
   const stage = el("div.slideshow");
   root.appendChild(stage);
+  // This screen hides the app shell, so it needs its own way out.
+  root.appendChild(backButton());
 
   let slides = [], index = 0, rankArt = {};
 
