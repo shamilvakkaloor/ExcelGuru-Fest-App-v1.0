@@ -23,6 +23,25 @@ export default async function judging(root) {
   const picker = select([]);
   const panel = el("div");
 
+  // Typed-but-unsaved score values, keyed the same way scoreBy is
+  // (regId|judgeUid), surviving across a repaint of the SAME event.
+  //
+  // Saving one entry's score calls paint(), which rebuilds the whole panel
+  // from a fresh Firestore read — that is what makes the Average column and
+  // every other row's saved state trustworthy after any single save. But it
+  // also wiped out anything typed into every OTHER row that had not been
+  // saved yet: type two scores, Save the first, and the second vanished —
+  // reported directly, and reproducible from the code (the box for an
+  // unsaved row is rebuilt from `existing?.score` alone, which has nothing
+  // to say about a value that was only ever in that now-destroyed DOM node).
+  //
+  // Cleared on an actual event change, not on every paint(), so a value
+  // survives exactly as long as it should: through a same-event repaint,
+  // gone the moment scoring context changes to something the value was
+  // never meant for.
+  const pendingScores = new Map();
+  let paintedEventId = null;
+
   // I3 — filter the picker, so a fest with 120 events does not present one
   // flat dropdown of 120 items.
   const bar = filterBar({
@@ -64,6 +83,7 @@ export default async function judging(root) {
     const event = events.find(e => e.id === picker.value);
     panel.innerHTML = "";
     if (!event) return;
+    if (event.id !== paintedEventId) { pendingScores.clear(); paintedEventId = event.id; }
 
     const [regs, judgeAssignments, scores, flags, result, directRows, ladderDoc, overrideRows, materialRows, notes] =
       await Promise.all([
@@ -364,10 +384,15 @@ export default async function judging(root) {
     }
 
     function scoreInput(reg, col) {
-      const existing = scoreBy[reg.id + "|" + col.uid];
+      const key = reg.id + "|" + col.uid;
+      const existing = scoreBy[key];
+      // A pending value from BEFORE this repaint wins over what is on
+      // record — it is what the admin typed and has not saved yet, which
+      // is exactly the thing this repaint would otherwise have erased.
+      const pending = pendingScores.get(key);
       const box = input({
         type: "number", min: 0, max: scale, step: "0.01",
-        value: existing?.score ?? "",
+        value: pending !== undefined ? pending : (existing?.score ?? ""),
         style: "max-width:110px",
         disabled: absentBy[reg.id] || locked
       });
@@ -388,9 +413,17 @@ export default async function judging(root) {
         saveBtn.disabled = !changed || locked;
         state.textContent = changed ? "unsaved" : (existing ? "saved" : "");
         state.style.color = changed ? "var(--marigold-d)" : "";
+        // Recorded on every keystroke, not only at save time — a repaint can
+        // land in between (another row's Save), and by then it is too late
+        // to ask the box what it used to hold.
+        if (changed) pendingScores.set(key, box.value); else pendingScores.delete(key);
       };
       box.addEventListener("input", markDirty);
       box.addEventListener("keydown", e => { if (e.key === "Enter" && !saveBtn.disabled) saveBtn.click(); });
+      // A value restored from a previous repaint IS a change from `existing`
+      // by definition, so this shows "unsaved" and an enabled Save
+      // immediately rather than waiting for the next keystroke to notice.
+      if (pending !== undefined) markDirty();
 
       saveBtn.addEventListener("click", guard(async () => {
         if (locked) { box.value = existing?.score ?? ""; markDirty(); return; }
@@ -401,6 +434,7 @@ export default async function judging(root) {
 
         if (raw === "") {
           await remove("scores", id);
+          pendingScores.delete(key);
           toast("Score cleared.");
           paint();
           return;
@@ -421,6 +455,7 @@ export default async function judging(root) {
             } },
           { type: "set", path: "judgingEntries", id: event.id, data: { scoringStarted: true } }
         ]);
+        pendingScores.delete(key);
         toast(existing ? "Score corrected." : "Score saved.");
         paint();
       }));
