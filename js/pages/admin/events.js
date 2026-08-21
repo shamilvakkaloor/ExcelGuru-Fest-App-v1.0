@@ -1,5 +1,5 @@
 import { el, card, field, input, select, checkbox, button, table, toast, guard, notice, empty, modal, confirmDialog, badge, toLocalInput, fromLocalInput, filterBar, hint } from "../../lib/ui.js";
-import { getAll, getOne, add, patch, remove, nextCounter, raiseCounter, batchWrite } from "../../lib/db.js";
+import { getAll, getOne, add, patch, remove, nextCounter, raiseCounter, batchWrite, where } from "../../lib/db.js";
 import { EVENT_CLASSES, STAGES, classLabel, isGroupClass, isGeneralClass,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, DEFAULTS,
          POINTS_FROM, RESULT_MODES, typeTierFilters, eventFilterKeys,
@@ -221,6 +221,10 @@ async function eventDialog(existing, categories, settings, classification, refre
   const regStart = input({ type: "datetime-local", value: toLocalInput(existing?.registrationStart) });
   const regEnd   = input({ type: "datetime-local", value: toLocalInput(existing?.registrationEnd) });
   let blind = existing?.blindJudging ?? !!settings?.blindJudgingDefault;
+  // Compared at save time: blind is baked into judgingEntries when letters
+  // are assigned, so flipping it here does nothing to an event already
+  // lettered unless that's re-synced deliberately — see the save handler.
+  const originalBlind = blind;
 
   /* ── v8 — classification and the points source ────────────────────
    * Type and Tier are plain selects, shown only when the fest turned the
@@ -541,6 +545,25 @@ async function eventDialog(existing, categories, settings, classification, refre
           };
           if (existing) await patch("events", existing.id, data);
           else await add("events", data);
+
+          // Blind is baked into judgingEntries at lettering time — the
+          // entries a judge reads either carry names or don't, decided once
+          // when letters were assigned. Flipping the toggle here changes
+          // nothing for an event already lettered until that document is
+          // rebuilt, which is exactly what a judge's Score events screen
+          // otherwise fails to reflect until someone happens to re-letter.
+          if (existing && blind !== originalBlind) {
+            const regs = await getAll("registrations", where("eventId", "==", existing.id));
+            const lettered = regs.filter(r => r.codeLetter);
+            if (lettered.length) {
+              const { writeJudgingEntries } = await import("./registrations.js");
+              await writeJudgingEntries({ ...existing, ...data, id: existing.id }, lettered, settings);
+              toast("Saved — judges' view of already-lettered entries updated too.");
+              close(true); refresh();
+              return;
+            }
+          }
+
           toast("Saved."); close(true); refresh();
         })
       }

@@ -449,6 +449,16 @@ and/or chest number, but no name to read off. None of this touches a
 *blind* event — that always shows a code letter and nothing else,
 regardless of any of the three.
 
+**I flipped an event from blind to non-blind (or back) — why does the judge still see the old behaviour?**
+It updates immediately if letters haven't been assigned for that event yet.
+If they already have, Events → edit that event → toggling "Blind judging
+for this event" and saving now rebuilds that event's judging entries for
+you, so this is not something you need to worry about — just save the
+change, and the judge's Score events screen reflects it the next time they
+load it. (Before this existed, blind was baked in at the moment letters
+were assigned and only re-lettering could refresh it — reported directly,
+and fixed the same way the scored/direct policy switch already was.)
+
 A switch only changes events lettered from that point on — an event already
 lettered keeps what was baked in at lettering time, the same as the
 scored/direct policy switch above. Saving the setting re-syncs every
