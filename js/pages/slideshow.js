@@ -194,10 +194,27 @@ export default async function slideshowPage(root) {
 
   await load();
   paint();
-  // Slide duration is a setting: a board of ten houses needs longer on
-  // screen than a single winner does, and only the fest knows which.
-  const tick = setInterval(paint, slideMs);
-  const refresh = setInterval(() => load().catch(() => {}), 120000);
+
+  /* Slide duration is a setting: a board of ten houses needs longer on
+   * screen than a single winner does, and only the fest knows which.
+   *
+   * The timer has to be REBUILT when that setting changes, not just read
+   * once at startup. setInterval fixes its period at the moment it is
+   * created, so the original code left a running projector stuck on
+   * whatever the duration was when the page was first opened — load()
+   * refreshes every two minutes and did update slideMs, but nothing acted
+   * on the new value. Since a projector is meant to run unattended all
+   * day, "change the setting and nothing happens" was the whole bug. */
+  let tick = setInterval(paint, slideMs);
+  let tickMs = slideMs;
+  const retime = () => {
+    if (slideMs === tickMs) return;
+    clearInterval(tick);
+    tick = setInterval(paint, slideMs);
+    tickMs = slideMs;
+  };
+
+  const refresh = setInterval(() => load().then(retime).catch(() => {}), 120000);
   return () => { clearInterval(tick); clearInterval(refresh); };
 }
 

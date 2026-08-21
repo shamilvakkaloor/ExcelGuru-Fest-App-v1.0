@@ -411,6 +411,14 @@ an unbounded number of portraits there is a much bigger risk — only the top
 30 ranked participants across the whole board ever carry a photo, however
 many places the rank limit above shows.
 
+**I changed "Seconds per slide" and the display ignored it.**
+Two things used to get in the way, both fixed. Big screen mode never read
+that setting at all — it was fixed at 9 seconds however you set it; it now
+shares the same setting as the Slideshow. And a display already running kept
+whatever duration it started with, because the timer was set once when the
+page opened. Both displays now pick up a change within two minutes, without
+being reopened.
+
 **We only want the per-category Student Talent slides on the slideshow, not the combined one.**
 Settings → Public display → Slideshow: turn "Student Talent" off and leave
 "Also show Student Talent by category" on. The two are independent — one
@@ -540,6 +548,19 @@ participant with their chest number, photo, house and the events they are
 entered in — separate from the Certificates screen's Participant ID Card
 *design*, which is one of several full-page layouts you can also generate
 for the same purpose. Use whichever fits how you plan to print and cut them.
+
+**Card background** offers three looks: White (uses least ink), App theme
+(the dark red-and-black gradient, printed with light text), or House colours
+(each card shaded from that house's own colour). A house with no colour set
+falls back to the app theme, so a sheet never mixes dark and white cards.
+Whatever colour a house picked, the shading is worked out so the light text
+stays readable — a house that chose a very pale colour still prints dark
+enough to read.
+
+One thing to watch with the two dark options: your browser's print dialog
+has a **Background graphics** checkbox, and some browsers leave it off by
+default. With it off you get white paper and white text. Turn it on in the
+print preview.
 
 **Two houses both entered a group event — how do I tell the entries apart?**
 By team name. A group entry is shown as "Red", or "Red A" and "Red B" where

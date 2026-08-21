@@ -24,21 +24,95 @@ const LAYOUTS = {
 
 export const CARDS_PER_SHEET = Object.keys(LAYOUTS).map(Number);
 
+/** Card background choices offered in the print dialog. */
+export const CARD_BACKGROUNDS = [
+  { value: "white", label: "White (uses least ink)" },
+  { value: "theme", label: "App theme — dark red and black" },
+  { value: "house", label: "House colours — one shade per house" }
+];
+
+/* The app's own hero gradient, restated in print-safe terms. The screen
+ * version layers a translucent red over near-black, which a print engine
+ * flattens unpredictably; an opaque two-stop gradient between the same two
+ * colours prints the same everywhere. */
+const THEME_DARK = "#111010";
+const THEME_RED  = "#5A1206";
+
+/**
+ * Scale a colour toward black PROPORTIONALLY (each channel × factor).
+ *
+ * Deliberately not houseColor.js's darkenColor(), which subtracts a flat
+ * amount per channel: that cannot guarantee a dark result for a LIGHT input.
+ * A white house colour subtracted by the same amount lands on mid-grey —
+ * measured at 3.45:1 against white text, below the 4.5:1 needed to read —
+ * so a house that picked a pale colour would print unreadable cards.
+ * Multiplying is proportional, so every input lands dark enough whatever it
+ * started as, and hue survives better than clamping channels at zero does.
+ */
+function scaleToDark(hex, factor) {
+  const h = String(hex || "").replace("#", "");
+  const full = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
+  const num = parseInt(full, 16);
+  if (Number.isNaN(num) || full.length !== 6) return null;
+  const ch = i => Math.max(0, Math.min(255, Math.round(((num >> i) & 0xff) * factor)));
+  return "#" + [ch(16), ch(8), ch(0)].map(v => v.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Background and matching ink for one card.
+ *
+ * "house" falls back to the app theme rather than to white when a house has
+ * no colour set: a sheet where three houses print dark and the fourth prints
+ * white looks like a fault, not a choice.
+ */
+function cardSkin(background, houseColor) {
+  if (background === "theme") return themeSkin();
+  if (background === "house") {
+    const deep = scaleToDark(houseColor, 0.34);
+    const deeper = scaleToDark(houseColor, 0.16);
+    // An unset or unparseable colour falls back to the app theme rather than
+    // to white: a sheet where three houses print dark and the fourth prints
+    // white reads as a fault, not a choice.
+    if (!deep || !deeper) return themeSkin();
+    return {
+      dark: true,
+      background: `linear-gradient(140deg, ${deep} 0%, ${deeper} 100%)`,
+      // The house's own colour at full strength is the accent ON the card —
+      // it has to stand off a background derived from that same colour.
+      chip: houseColor
+    };
+  }
+  return { dark: false, background: "#fff", chip: null };
+}
+
+function themeSkin() {
+  return {
+    dark: true,
+    background: `linear-gradient(140deg, ${THEME_RED} 0%, ${THEME_DARK} 62%)`,
+    chip: "#EC3013"
+  };
+}
+
 /**
  * Build the print HTML for a set of cards.
  *
  * `cards` is [{ chestNumber, name, houseName, houseColor, categoryName,
  *               className, photo, events: [string] }]
  */
-export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null } = {}) {
+export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null, background = "white" } = {}) {
   const layout = LAYOUTS[perSheet] || LAYOUTS[8];
   const { cols, rows } = layout;
   const perPage = cols * rows;
+  const tinted = background === "theme" || background === "house";
 
   // Cut guides matter more than decoration here — these get scissored apart.
   const css = `
     <style>
       @page { size: A4 portrait; margin: 8mm; }
+      /* A tinted card is only a tinted card if the browser actually prints
+         backgrounds. Chrome and Firefox both honour this; without it the
+         whole feature silently degrades to white paper with white text. */
+      ${tinted ? `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` : ""}
       .cc-sheet {
         display: grid;
         grid-template-columns: repeat(${cols}, 1fr);
@@ -49,12 +123,24 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null 
       }
       .cc-sheet:last-child { page-break-after: auto; }
       .cc-card {
-        border: 1px dashed #9aa5ad;
+        border: 1px dashed ${tinted ? "#6D7076" : "#9aa5ad"};
         padding: 4mm 4.5mm;
         display: flex; flex-direction: column; gap: 1.5mm;
         overflow: hidden;
         font-family: Inter, Helvetica, Arial, sans-serif;
         color: #14232E;
+      }
+      /* Light ink for a dark card. Set on the card itself so an empty
+         padding slot on the last sheet stays plain paper. */
+      .cc-card.cc-dark { color: #F6F5F2; }
+      .cc-card.cc-dark .cc-fest { color: rgba(246,245,242,.62); }
+      .cc-card.cc-dark .cc-meta { color: rgba(246,245,242,.78); }
+      .cc-card.cc-dark .cc-events { border-top-color: rgba(246,245,242,.22); }
+      .cc-card.cc-dark .cc-events-h { color: rgba(246,245,242,.55); }
+      .cc-card.cc-dark .cc-none { color: rgba(246,245,242,.5); }
+      .cc-card.cc-dark .cc-photo { background: rgba(255,255,255,.1); }
+      .cc-card.cc-dark .cc-photo-blank {
+        background: rgba(255,255,255,.1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFFFFF' fill-opacity='0.45'%3E%3Ccircle cx='12' cy='9' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0z'/%3E%3C/svg%3E") center/58% no-repeat;
       }
       .cc-top { display: flex; align-items: center; justify-content: space-between; gap: 3mm; }
       .cc-fest { font-size: 7pt; letter-spacing: .06em; text-transform: uppercase; color: #6B7A87; }
@@ -95,16 +181,21 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null 
     // Pad the last sheet so the grid keeps its shape rather than stretching
     // two cards to fill eight slots.
     const filled = [...page, ...Array(perPage - page.length).fill(null)];
-    return `<div class="cc-sheet">` + filled.map(c => c ? cardHTML(c, festName, logo) : `<div class="cc-card"></div>`).join("") + `</div>`;
+    return `<div class="cc-sheet">` + filled.map(c => c ? cardHTML(c, festName, logo, background) : `<div class="cc-card"></div>`).join("") + `</div>`;
   }).join("");
 
   return css + body;
 }
 
-function cardHTML(c, festName, logo) {
+function cardHTML(c, festName, logo, background = "white") {
   const events = (c.events || []).filter(Boolean);
+  const skin = cardSkin(background, c.houseColor);
+  // The house chip's own colour: its normal job is to identify the house,
+  // but on a card already tinted with that house's colour it would vanish,
+  // so a tinted card gives it the skin's contrasting chip colour instead.
+  const chipColor = skin.chip || c.houseColor || null;
   return `
-    <div class="cc-card">
+    <div class="cc-card${skin.dark ? " cc-dark" : ""}"${skin.dark ? ` style="background:${skin.background}"` : ""}>
       <div class="cc-top">
         <span class="cc-fest">${escapeHTML(festName)}</span>
         ${logo ? `<img src="${logo}" alt="">` : ""}
@@ -117,7 +208,7 @@ function cardHTML(c, festName, logo) {
           <div class="cc-chest">${escapeHTML(String(c.chestNumber ?? ""))}</div>
           <div class="cc-name">${escapeHTML(c.name || "")}</div>
           <div class="cc-meta">
-            <span class="cc-house"${c.houseColor ? ` style="background:${escapeHTML(c.houseColor)}"` : ""}>${escapeHTML(c.houseName || "")}</span>
+            <span class="cc-house"${chipColor ? ` style="background:${escapeHTML(chipColor)}"` : ""}>${escapeHTML(c.houseName || "")}</span>
             ${c.categoryName ? " " + escapeHTML(c.categoryName) : ""}
             ${c.className ? " &middot; " + escapeHTML(c.className) : ""}
           </div>

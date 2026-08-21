@@ -11,6 +11,11 @@ import { rankNode, hasMedal } from "../lib/ranks.js";
 import { currentlyRunning } from "./home.js";
 import { darkenColor, lightenColor, nameColorStyle } from "../domain/houseColor.js";
 
+// Fallback only — the real value comes from Settings → Public display →
+// Slideshow → "Seconds per slide", which this screen shares with the
+// projector Slideshow. It used to be hard-coded here with no way to change
+// it, so a fest that set the duration saw the Slideshow obey and the Big
+// screen carry on at nine seconds.
 const SLIDE_MS = 9000;
 const REFRESH_MS = 120000;
 
@@ -22,6 +27,7 @@ export default async function screenPage(root) {
 
   let slides = [], index = 0, timer = null, refresh = null;
   let rankLimit = 3, talentLimit = 8, rankArt = {}, houseStyle = {};
+  let slideMs = SLIDE_MS;
 
   async function load() {
     const [settings, board, schedule, results] = await Promise.all([
@@ -39,6 +45,10 @@ export default async function screenPage(root) {
     talentLimit = Number(board?.talentBoardLimit) || 8;
     rankArt = board?.rankArt || {};
     houseStyle = board?.houseStyle || {};
+    // Shared with the projector Slideshow — one "Seconds per slide" setting
+    // covers both rotating displays. Clamped the same way, so a mistyped 0
+    // cannot spin the screen at full speed.
+    slideMs = Math.max(3, Number(board?.slideshowSeconds) || (SLIDE_MS / 1000)) * 1000;
 
     const running = currentlyRunning(settings, schedule);
     if (running.length) {
@@ -215,8 +225,18 @@ export default async function screenPage(root) {
 
   await load();
   paint();
-  timer = setInterval(paint, SLIDE_MS);
-  refresh = setInterval(() => load().catch(() => {}), REFRESH_MS);
+  timer = setInterval(paint, slideMs);
+  // Rebuilt when the duration changes, not just read once: setInterval fixes
+  // its period when created, so without this a screen left running all day
+  // would keep the duration it started with however often load() refreshed.
+  let timerMs = slideMs;
+  const retime = () => {
+    if (slideMs === timerMs) return;
+    clearInterval(timer);
+    timer = setInterval(paint, slideMs);
+    timerMs = slideMs;
+  };
+  refresh = setInterval(() => load().then(retime).catch(() => {}), REFRESH_MS);
 
   // Route teardown — without this the timers keep firing after navigation.
   return () => { clearInterval(timer); clearInterval(refresh); };

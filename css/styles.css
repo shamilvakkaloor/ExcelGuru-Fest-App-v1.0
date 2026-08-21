@@ -923,23 +923,16 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
 }
 .boot-inner { max-width: 460px; }
 
-/* Four bars rising and falling — a tabulation bar chart, mid-count. */
-.boot-mark {
-  display: flex; align-items: flex-end; justify-content: center;
-  gap: 6px; height: 46px; margin: 0 auto 1.4rem;
+/* The real app icon, not an abstract mark — a slow pulse is enough motion
+   to read as "working" without competing with the letters animating in
+   just below it. */
+.boot-logo {
+  display: block; margin: 0 auto 1.2rem; border-radius: 18px;
+  animation: boot-logo-pulse 1.8s ease-in-out infinite;
 }
-.boot-bar {
-  width: 9px; border-radius: 0;
-  background: var(--grad-warm);
-  animation: boot-rise 1.15s ease-in-out infinite;
-}
-.boot-bar:nth-child(1) { animation-delay: 0s;    height: 18px; }
-.boot-bar:nth-child(2) { animation-delay: .13s;  height: 30px; background: linear-gradient(180deg,var(--violet),var(--sky)); }
-.boot-bar:nth-child(3) { animation-delay: .26s;  height: 24px; }
-.boot-bar:nth-child(4) { animation-delay: .39s;  height: 38px; background: linear-gradient(180deg,var(--teal),var(--ok)); }
-@keyframes boot-rise {
-  0%, 100% { transform: scaleY(.45); opacity: .55; }
-  50%      { transform: scaleY(1);   opacity: 1; }
+@keyframes boot-logo-pulse {
+  0%, 100% { transform: scale(.96); opacity: .85; }
+  50%      { transform: scale(1);   opacity: 1; }
 }
 
 /* Letters fade up one after another, then hold. */
@@ -965,6 +958,14 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
 @keyframes boot-letter {
   from { opacity: 0; transform: translateY(.42em) rotate(-4deg); filter: blur(4px); }
   to   { opacity: 1; transform: none; filter: none; }
+}
+
+/* The product name under the brand mark — smaller and quieter than
+   ExcelGuru itself, the way a subtitle sits under a masthead. */
+.boot-product {
+  margin-top: .35rem; font-family: var(--display); font-weight: 700;
+  font-size: .8rem; letter-spacing: .22em; text-transform: uppercase;
+  color: #C8D6E2;
 }
 
 .boot-rule {
@@ -997,7 +998,7 @@ body.nav-collapsed .navpanel { opacity: 0; pointer-events: none; }
 /* Anyone who has asked for less motion gets the words and none of the
    movement — the screen still communicates, it just holds still. */
 @media (prefers-reduced-motion: reduce) {
-  .boot-bar, .boot-rule, .boot-line, .boot-word span { animation: none; }
+  .boot-logo, .boot-rule, .boot-line, .boot-word span { animation: none; }
   .boot-word span { opacity: 1; }
   .boot-lines { height: auto; }
   .boot-line { opacity: 1; transform: none; }

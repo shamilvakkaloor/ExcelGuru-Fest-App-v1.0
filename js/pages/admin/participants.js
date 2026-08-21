@@ -7,7 +7,7 @@ import { allocateChest, allocateChestNumber, takenChestNumbers, readChestCounter
          seedFromValue, hasRange } from "../../domain/chest.js";
 import { GENDERS, LEGACY_GENDERS, DEFAULTS } from "../../domain/constants.js";
 import { resolveCategory } from "../../domain/autocategory.js";
-import { chestCardHTML, CARDS_PER_SHEET } from "../../domain/chestcards.js";
+import { chestCardHTML, CARDS_PER_SHEET, CARD_BACKGROUNDS } from "../../domain/chestcards.js";
 import { recountParticipant } from "../../domain/limits.js";
 import { printDocument } from "../../lib/pdf.js";
 
@@ -475,6 +475,7 @@ function chestCardDialog(allParticipants, houses, cfg) {
   const catSel = select([{ value: "", label: "All categories" },
     ...[...new Map(allParticipants.filter(p => p.categoryId)
       .map(p => [p.categoryId, { value: p.categoryId, label: p.categoryName || "" }])).values()]]);
+  const bgSel = select(CARD_BACKGROUNDS, { value: "white" });
   let withPhotos = true;
   const count = el("div.report-count");
 
@@ -499,6 +500,11 @@ function chestCardDialog(allParticipants, houses, cfg) {
       notice("info", "Uploaded photos and Google Drive links both print — the print window waits for them to load. Anyone with no photo at all gets a silhouette."),
       field("Cards per sheet", perSheet),
       el("div.grid.grid-2", {}, [field("House", houseSel), field("Category", catSel)]),
+      field("Card background", bgSel,
+        "A dark background prints the text light to match. \"House colours\" shades each card from that " +
+        "house's own colour; a house with no colour set falls back to the app theme, so a sheet never " +
+        "mixes dark and white cards. Check \"Background graphics\" is on in the print dialog — some " +
+        "browsers leave it off and would print white paper with white text."),
       checkbox("Include photos", true, v => withPhotos = v),
       count
     ]),
@@ -544,7 +550,8 @@ function chestCardDialog(allParticipants, houses, cfg) {
             bodyHTML: chestCardHTML(cards, {
               perSheet: Number(perSheet.value) || 8,
               festName: cfg.festName || "",
-              logo: cfg.useLogo ? cfg.logoData : null
+              logo: cfg.useLogo ? cfg.logoData : null,
+              background: bgSel.value
             })
           });
           close(true);

@@ -920,7 +920,10 @@ async function publicTab(panel) {
     el("p.hint", { text:
       "Which slides the projector cycles through, and how long each one holds. Everything here starts as " +
       "what the slideshow already showed, so nothing changes until you change it." }),
-    field("Seconds per slide", ssSeconds, "Minimum 3. A ten-row board needs longer on screen than a single winner."),
+    field("Seconds per slide", ssSeconds,
+      "Minimum 3. A ten-row board needs longer on screen than a single winner. Applies to Big screen mode " +
+      "as well as the Slideshow — Big screen used to be fixed at 9 seconds whatever this said. A display " +
+      "already running picks up a change within two minutes; it does not need reopening."),
     el("hr", { style: "border:none;border-top:1px solid var(--line);margin:1rem 0" }),
     checkbox("House standings", ssHouses, v => ssHouses = v),
     checkbox("Student Talent", ssTalent, v => ssTalent = v),
