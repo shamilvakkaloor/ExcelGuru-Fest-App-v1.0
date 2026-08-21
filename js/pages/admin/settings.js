@@ -449,6 +449,64 @@ async function basicTab(panel) {
       "With this off, an event counts as complete once a house has entered at least one participant." })
   ]), "Entry requirements"));
 
+  // Fest timezone and chest numbers moved here from Public display — neither
+  // is a visibility toggle (what a spectator does or does not see); both are
+  // core fest configuration in the same vein as the registration window and
+  // grades above. Each keeps its own small Save, matching how it already
+  // worked before the move rather than folding into the big "Save settings"
+  // button below — timezone always saved independently; chest numbers used
+  // to ride inside Public display's own combined save, which no longer
+  // exists here to ride inside.
+  const tzSel = el("select", { class: "input" });
+  for (const z of zoneList()) tzSel.appendChild(el("option", { value: z, text: z }));
+  if (isValidZone(s.festTimeZone)) tzSel.value = s.festTimeZone;
+  else if (detectZone()) tzSel.value = detectZone();
+
+  panel.appendChild(card(el("div", {}, [
+    el("p.hint", { text:
+      "Schedule times are wall-clock times where the fest is held. Used to decide whether an event is " +
+      "upcoming, ongoing or finished. Daylight saving is worked out per date, so a fest spanning a " +
+      "clock change stays correct." }),
+    el("p", { text: "Currently: " + describeZone(s.festTimeZone) }),
+    field("Fest timezone", tzSel),
+    el("div.btn-row", {}, button("Save timezone", { onclick: guard(async () => {
+      await patch("config", "festSettings", { festTimeZone: tzSel.value || null });
+      queueRepublish({ results: true });
+      toast("Fest timezone set to " + tzSel.value + ".");
+    })}))
+  ]), "Fest timezone"));
+
+  const chestFormat = select(CHEST_FORMATS, { value: s.chestFormat || "digits" });
+  const chestAlloc  = select(CHEST_ALLOCATIONS, { value: s.chestAllocation || "houseRange" });
+  const allocBox = field("How digit numbers are handed out", chestAlloc);
+  const formatWarn = el("div.hint", { style: "margin:.4rem 0 0" });
+
+  function syncChest() {
+    // Allocation modes only mean anything for digit-only numbers; the other
+    // two formats are seeded per house from a typed example.
+    allocBox.style.display = chestFormat.value === "digits" ? "" : "none";
+    formatWarn.textContent = chestFormat.value === (s.chestFormat || "digits")
+      ? ""
+      : "Changing the format does NOT reissue chest numbers already given out — those are printed on bibs and written on judge sheets. The new format applies to participants added from now on.";
+  }
+  chestFormat.addEventListener("change", syncChest);
+  syncChest();
+
+  panel.appendChild(card(el("div", {}, [
+    field("Chest number format", chestFormat),
+    allocBox,
+    formatWarn,
+    el("div.hint", { text:
+      "Digits only: numbers are assigned automatically, either from each house's range or from one shared sequence. " +
+      "Alphanumerical and Alphabets only: add a house's first participant with the chest number typed in — for example RED-A01 — and every later one follows that pattern." }),
+    el("div.btn-row", { style: "margin-top:.6rem" }, button("Save chest numbers", { onclick: guard(async () => {
+      await patch("config", "festSettings", {
+        chestFormat: chestFormat.value, chestAllocation: chestAlloc.value
+      });
+      toast("Chest number settings saved.");
+    })}))
+  ]), "Chest numbers"));
+
   panel.appendChild(el("div.btn-row", {}, button("Save settings", { class: "btn-accent", onclick: guard(async () => {
     if (!gradeScale.length) { toast("Add at least one grade.", true); return; }
     const mins = gradeScale.map(g => g.minPercent);
@@ -800,21 +858,6 @@ async function publicTab(panel) {
   heroSel.addEventListener("change", paintHero);
   paintHero();
 
-  const chestFormat = select(CHEST_FORMATS, { value: s.chestFormat || "digits" });
-  const chestAlloc  = select(CHEST_ALLOCATIONS, { value: s.chestAllocation || "houseRange" });
-  const allocBox = field("How digit numbers are handed out", chestAlloc);
-  const formatWarn = el("div.hint", { style: "margin:.4rem 0 0" });
-
-  function syncChest() {
-    // Allocation modes only mean anything for digit-only numbers; the other
-    // two formats are seeded per house from a typed example.
-    allocBox.style.display = chestFormat.value === "digits" ? "" : "none";
-    formatWarn.textContent = chestFormat.value === (s.chestFormat || "digits")
-      ? ""
-      : "Changing the format does NOT reissue chest numbers already given out — those are printed on bibs and written on judge sheets. The new format applies to participants added from now on.";
-  }
-  chestFormat.addEventListener("change", syncChest);
-
   // I4 / I2 — display limits.
   panel.appendChild(card(el("div", {}, [
     el("p.hint", { text:
@@ -889,35 +932,6 @@ async function publicTab(panel) {
     heroPreview
   ]), "Public home hero"));
 
-  // I23 — chest number format.
-  const tzSel = el("select", { class: "input" });
-  for (const z of zoneList()) tzSel.appendChild(el("option", { value: z, text: z }));
-  if (isValidZone(s.festTimeZone)) tzSel.value = s.festTimeZone;
-  else if (detectZone()) tzSel.value = detectZone();
-
-  panel.appendChild(card(el("div", {}, [
-    el("p.hint", { text:
-      "Schedule times are wall-clock times where the fest is held. Used to decide whether an event is " +
-      "upcoming, ongoing or finished. Daylight saving is worked out per date, so a fest spanning a " +
-      "clock change stays correct." }),
-    el("p", { text: "Currently: " + describeZone(s.festTimeZone) }),
-    field("Fest timezone", tzSel),
-    el("div.btn-row", {}, button("Save timezone", { onclick: guard(async () => {
-      await patch("config", "festSettings", { festTimeZone: tzSel.value || null });
-      queueRepublish({ results: true });
-      toast("Fest timezone set to " + tzSel.value + ".");
-    })}))
-  ]), "Fest timezone"));
-
-  panel.appendChild(card(el("div", {}, [
-    field("Chest number format", chestFormat),
-    allocBox,
-    formatWarn,
-    el("div.hint", { text:
-      "Digits only: numbers are assigned automatically, either from each house's range or from one shared sequence. " +
-      "Alphanumerical and Alphabets only: add a house's first participant with the chest number typed in — for example RED-A01 — and every later one follows that pattern." })
-  ]), "Chest numbers"));
-
   panel.appendChild(el("div.btn-row", {}, button("Save", { class: "btn-accent", onclick: guard(async () => {
     const rl = rankLimit.value.trim();
     await put("config", "festSettings", {
@@ -937,16 +951,12 @@ async function publicTab(panel) {
       // Blank means "leave it at the default 4"; a typed 0 means "show all"
       // and must survive as 0.
       homeHouseCards: homeCards.value.trim() === "" ? 4 : Math.max(0, Number(homeCards.value) || 0),
-      chestFormat: chestFormat.value,
-      chestAllocation: chestAlloc.value,
       heroTheme: heroSel.value === "light" ? "light" : "dark"
     });
     // These feed the snapshots, so they only reach the public on a rebuild.
     queueRepublish({ results: true });
     toast("Saved. Public pages are updating.");
   })})));
-
-  syncChest();
 }
 
 /* ── Points & grades ───────────────────────────────────────────────── */
