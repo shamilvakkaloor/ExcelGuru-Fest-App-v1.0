@@ -120,6 +120,12 @@ export const DEFAULTS = {
     gradeThresholds: { aMin: 85, bMin: 70, cMin: 50 },
     registrationWindow: { start: null, end: null },
     blindJudgingDefault: true,
+    // What a judge sees on a NON-blind event — a blind one still shows code
+    // letters only, regardless of either of these. Both default true so an
+    // upgraded fest's judges see exactly what they always saw (name, house)
+    // plus chest number now included with it, matching what changed here.
+    judgeShowHouse: true,
+    judgeShowChest: true,
     scheduleVisible: false,
     resultsVisible: true,
     // The public hero band. Deliberately NOT tied to the viewer's dark-mode

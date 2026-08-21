@@ -114,6 +114,8 @@ async function basicTab(panel) {
   syncAutoCat();
 
   let blind = !!s.blindJudgingDefault;
+  let judgeShowHouse = s.judgeShowHouse ?? true;
+  let judgeShowChest = s.judgeShowChest ?? true;
   let gradeless = !!s.gradelessDefault;
   let schedVisible = !!s.scheduleVisible;
   let contactsVisible = !!s.contactsVisible;
@@ -372,6 +374,11 @@ async function basicTab(panel) {
 
   panel.appendChild(card(el("div", {}, [
     checkbox("Blind judging on by default (judges see code letters only)", blind, v => blind = v),
+    el("div.hint", { style: "margin:.2rem 0 .5rem 1.6rem", text:
+      "A judge on a blind event always sees a code letter only, whatever the two switches below say — those " +
+      "only affect a NON-blind event, deciding what a judge sees alongside the participant's name." }),
+    checkbox("Judges also see the house on a non-blind event", judgeShowHouse, v => judgeShowHouse = v),
+    checkbox("Judges also see the chest number on a non-blind event", judgeShowChest, v => judgeShowChest = v),
     checkbox("Schedule visible to the public", schedVisible, v => schedVisible = v),
     hint("While the schedule is hidden you can build and edit it privately."),
     checkbox("Contact page visible to the public", contactsVisible, v => contactsVisible = v),
@@ -571,6 +578,8 @@ async function basicTab(panel) {
       autoCategory: autoCat.value,
       autoCategoryWinner: autoCatWinner.value,
       blindJudgingDefault: blind,
+      judgeShowHouse,
+      judgeShowChest,
       gradelessDefault: gradeless,
       scheduleVisible: schedVisible,
       contactsVisible,
@@ -592,8 +601,13 @@ async function basicTab(panel) {
     /* A policy change must reach events whose code letters are already out.
      * The mode is baked into judgingEntries when lettering happens, so
      * without this a judge keeps seeing score boxes on an event finalize
-     * now treats as direct — they enter marks that are never read. */
-    if (resultPolicy.value !== (s.resultPolicy || "both")) {
+     * now treats as direct — they enter marks that are never read. The same
+     * applies to what a judge sees on a non-blind event: house and chest
+     * number are baked in at lettering time too, so flipping either switch
+     * would otherwise do nothing for an event already lettered. */
+    if (resultPolicy.value !== (s.resultPolicy || "both")
+        || judgeShowHouse !== (s.judgeShowHouse ?? true)
+        || judgeShowChest !== (s.judgeShowChest ?? true)) {
       const lettered = await getAll("judgingEntries").catch(() => []);
       if (lettered.length) {
         const { writeJudgingEntries } = await import("./registrations.js");

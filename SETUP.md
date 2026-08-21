@@ -439,6 +439,20 @@ would refuse forever on an entry nobody could satisfy. The "Reassign code
 letters" shuffle stays fully locked either way, since it touches every
 entry, not just the new one.
 
+**What does a judge see on a non-blind event?**
+The participant's name always. Settings → Fest details → **Visibility** has
+two more switches, both on by default: "Judges also see the house" and
+"Judges also see the chest number". Turn either off for a fest that wants
+non-blind judging (so a judge can still call a name if something goes
+wrong) without handing over quite everything. None of this touches a
+*blind* event — that always shows a code letter and nothing else,
+regardless of either switch.
+
+A switch only changes events lettered from that point on — an event already
+lettered keeps what was baked in at lettering time, the same as the
+scored/direct policy switch above. Saving the setting re-syncs every
+already-lettered event automatically, so nothing needs re-lettering by hand.
+
 **Can I make the big banner on the public home page light instead of dark?**
 Settings → Public display → **Public home hero** → Dark or Light, with a live
 preview beside it. It defaults to Dark, which is what every fest already has.

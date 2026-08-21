@@ -325,6 +325,11 @@ export async function writeJudgingEntries(event, regs, settings = null) {
   // Read the policy here rather than trusting a caller to pass it.
   const cfg = settings || await getOne("config", "festSettings");
   const isDirect = effectiveResultMode(event, cfg) === "direct";
+  // Settings → Fest details → Visibility. Only meaningful for a NON-blind
+  // event — a blind one never carries house or chest number here at all,
+  // whatever these say, since the blind branch below never reads them.
+  const showHouse = cfg.judgeShowHouse ?? true;
+  const showChest = cfg.judgeShowChest ?? true;
   let placements = [];
   if (isDirect) {
     // "custom" points live on the event itself, not a pointsConfig doc.
@@ -376,7 +381,8 @@ export async function writeJudgingEntries(event, regs, settings = null) {
         ? { regId: r.id, codeLetter: r.codeLetter,
             material: materialByReg[r.id]?.title || "", materialLink: materialByReg[r.id]?.link || "" }
         : { regId: r.id, codeLetter: r.codeLetter, label: r.wholeTeam ? r.houseName : (r.participantNames || []).join(", "),
-            houseName: r.houseName,
+            houseName: showHouse ? (r.houseName || "") : "",
+            chestNumbers: showChest ? (r.chestNumbers || []) : [],
             material: materialByReg[r.id]?.title || "", materialLink: materialByReg[r.id]?.link || "" })
   }, false);
 }

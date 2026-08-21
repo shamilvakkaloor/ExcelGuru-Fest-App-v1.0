@@ -231,7 +231,18 @@ export default async function judgePage(root) {
       { key: "codeLetter", label: "Code", render: r => el("span.code-letter", { text: r.codeLetter }) },
       { key: "label", label: "Entry", render: r => entries.blind
           ? el("span.hint", { text: "—" })
-          : el("span", {}, [r.label || "", r.houseName ? el("div.hint", { style: "margin:0", text: r.houseName }) : null]) },
+          // houseName and chestNumbers are only ever present when Settings
+          // → Fest details → Visibility has that switch on — see
+          // writeJudgingEntries() in admin/registrations.js, which is what
+          // decides whether they reach this document at all.
+          : el("span", {}, [
+              r.label || "",
+              r.chestNumbers?.length
+                ? el("span.mono", { style: "margin-left:.5rem;color:var(--ink-2)",
+                    text: "#" + r.chestNumbers.join(", #") })
+                : null,
+              r.houseName ? el("div.hint", { style: "margin:0", text: r.houseName }) : null
+            ]) },
       // v9 — approved event material (a song title, and the like). Shown
       // even for a blind event: this is about the performance's content,
       // not who is performing it, so it carries no identity to hide.
