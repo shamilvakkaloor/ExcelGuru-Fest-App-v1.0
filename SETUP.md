@@ -557,10 +557,17 @@ Whatever colour a house picked, the shading is worked out so the light text
 stays readable — a house that chose a very pale colour still prints dark
 enough to read.
 
-One thing to watch with the two dark options: your browser's print dialog
-has a **Background graphics** checkbox, and some browsers leave it off by
-default. With it off you get white paper and white text. Turn it on in the
-print preview.
+If your fest uses a logo (Settings → Fest details → the logo, with "show
+the lockup instead of the fest name" on), it is also printed very faintly
+across the card as a watermark, behind the text. It is flattened to a
+single-colour silhouette first, so it shows up the same whether the card
+is white or dark — a logo with dark lettering would otherwise be invisible
+against a dark card.
+
+One thing to watch with the two dark options, and with the watermark: your
+browser's print dialog has a **Background graphics** checkbox, and some
+browsers leave it off by default. With it off you get white paper and white
+text. Turn it on in the print preview.
 
 **Two houses both entered a group event — how do I tell the entries apart?**
 By team name. A group entry is shown as "Red", or "Red A" and "Red B" where

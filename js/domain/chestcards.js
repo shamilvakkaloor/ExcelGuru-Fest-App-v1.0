@@ -111,8 +111,10 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null,
       @page { size: A4 portrait; margin: 8mm; }
       /* A tinted card is only a tinted card if the browser actually prints
          backgrounds. Chrome and Firefox both honour this; without it the
-         whole feature silently degrades to white paper with white text. */
-      ${tinted ? `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` : ""}
+         whole feature silently degrades to white paper with white text.
+         The watermark needs the same guarantee — a faint mark is exactly
+         what a print engine "helpfully" drops to save ink. */
+      ${tinted || logo ? `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` : ""}
       .cc-sheet {
         display: grid;
         grid-template-columns: repeat(${cols}, 1fr);
@@ -126,10 +128,31 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null,
         border: 1px dashed ${tinted ? "#6D7076" : "#9aa5ad"};
         padding: 4mm 4.5mm;
         display: flex; flex-direction: column; gap: 1.5mm;
-        overflow: hidden;
+        overflow: hidden; position: relative;
         font-family: Inter, Helvetica, Arial, sans-serif;
         color: #14232E;
       }
+
+      /* The fest logo, very faint, filling the card behind everything else.
+         Flattened to a single-colour silhouette rather than printed as-is:
+         a logo is usually dark lettering, which would be invisible against
+         a dark card, and the point of a watermark is that it reads the same
+         whatever colour the artwork happens to be. brightness(0) makes it
+         solid black for a white card; the dark rule below inverts that to
+         solid white. Kept faint enough to sit under the text — this is
+         texture, not a second logo. */
+      .cc-wm {
+        position: absolute; left: 50%; top: 52%;
+        transform: translate(-50%, -50%);
+        width: 76%; height: 62%; object-fit: contain;
+        opacity: .07; filter: brightness(0);
+        pointer-events: none;
+      }
+      .cc-card.cc-dark .cc-wm { opacity: .13; filter: brightness(0) invert(1); }
+      /* Everything except the watermark is positioned, so it paints above:
+         two positioned siblings with no z-index stack in document order,
+         and the watermark is deliberately written first. */
+      .cc-card > *:not(.cc-wm) { position: relative; }
       /* Light ink for a dark card. Set on the card itself so an empty
          padding slot on the last sheet stays plain paper. */
       .cc-card.cc-dark { color: #F6F5F2; }
@@ -196,6 +219,7 @@ function cardHTML(c, festName, logo, background = "white") {
   const chipColor = skin.chip || c.houseColor || null;
   return `
     <div class="cc-card${skin.dark ? " cc-dark" : ""}"${skin.dark ? ` style="background:${skin.background}"` : ""}>
+      ${logo ? `<img class="cc-wm" src="${logo}" alt="" aria-hidden="true">` : ""}
       <div class="cc-top">
         <span class="cc-fest">${escapeHTML(festName)}</span>
         ${logo ? `<img src="${logo}" alt="">` : ""}

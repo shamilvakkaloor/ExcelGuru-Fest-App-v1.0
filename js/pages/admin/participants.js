@@ -503,7 +503,8 @@ function chestCardDialog(allParticipants, houses, cfg) {
       field("Card background", bgSel,
         "A dark background prints the text light to match. \"House colours\" shades each card from that " +
         "house's own colour; a house with no colour set falls back to the app theme, so a sheet never " +
-        "mixes dark and white cards. Check \"Background graphics\" is on in the print dialog — some " +
+        "mixes dark and white cards. If your fest uses a logo it is also printed faintly behind the text, " +
+        "whichever background you pick. Check \"Background graphics\" is on in the print dialog — some " +
         "browsers leave it off and would print white paper with white text."),
       checkbox("Include photos", true, v => withPhotos = v),
       count
