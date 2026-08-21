@@ -145,8 +145,9 @@ export default async function stagePage(root) {
         "Code letters are locked because this event has a result. An organiser can unfinalize it if a correction is genuinely needed."));
     } else if (lettered.length && scoringUnderway) {
       panel.appendChild(notice("warn",
-        "Code letters are locked because judging has already started for this event. If a genuine " +
-        "correction is needed, an organiser has to make it deliberately, not from this screen."));
+        "An existing code letter is locked because judging has already started for this event — reassigning " +
+        "one now has to be done deliberately, not from this screen. A newly registered entry with no letter " +
+        "yet can still be given one, from Registrations → Set letters manually."));
     }
 
     if (!regs.length) { panel.appendChild(empty("Nothing registered for this event")); return; }

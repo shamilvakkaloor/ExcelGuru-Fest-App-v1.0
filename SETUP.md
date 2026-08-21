@@ -422,14 +422,22 @@ whose from the running order — but a lot drawn in front of the houses, or an
 order printed in the programme, is a real thing to have to honour.
 
 **Can I reassign code letters after judging has started?**
-No. Letters lock the moment the first judge saves a mark for the event, the
-same as they lock once the event is finalized — both the "Reassign code
-letters" and "Set letters manually" buttons disappear at that point, on
-Registrations and on the Stage screen alike. Technically a mark is filed
-against the entry, not the letter, so re-lettering would not corrupt a
-score — but a judge already has that letter in front of them, and shuffling
-it out from under them mid-judging is a real risk, not just a stale printed
-sheet, so the app refuses it outright rather than only warning about it.
+Not one that already has a letter — that locks the moment the first judge
+saves a mark for the event, the same as it locks once the event is
+finalized, on Registrations and on the Stage screen alike. Technically a
+mark is filed against the entry, not the letter, so re-lettering would not
+corrupt a score — but a judge already has that letter in front of them, and
+shuffling it out from under them mid-judging is a real risk, not just a
+stale printed sheet, so the app refuses it outright rather than only
+warning about it.
+
+An entry that registers *after* judging is already underway is the one
+exception: it has no letter to protect yet, so Registrations → "Set letters
+manually" can still give it a first one at any point before the event is
+finalized — otherwise it would have no way to ever be scored, and Finalize
+would refuse forever on an entry nobody could satisfy. The "Reassign code
+letters" shuffle stays fully locked either way, since it touches every
+entry, not just the new one.
 
 **Can I make the big banner on the public home page light instead of dark?**
 Settings → Public display → **Public home hero** → Dark or Light, with a live

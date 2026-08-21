@@ -563,34 +563,53 @@ service cloud.firestore {
       // participants, which is a far larger power than assigning a letter.
       //
       // A letter change is refused once the event is LOCKED (finalized or
-      // published) OR once scoringStarted() (the first mark a judge saves).
-      // A mark's document id is {eventId}_{regId}_{judgeUid} and it stores
-      // regId, so re-lettering never technically detaches a mark from the
-      // entry that earned it — that part was true. But the fest asked for a
-      // hard stop anyway: once a judge has a code letter in front of them,
-      // shuffling it out from under them is a live risk, not just a stale
-      // printed sheet, and a warning in the UI was not enough to stop it
-      // actually happening. Admin/Co-Admin can still lift this — they hold
-      // unconditional write on judgingEntries below and can flip
-      // scoringStarted back to false there if a genuine emergency fix is
-      // needed before Unfinalize is otherwise available.
+      // published) — full stop, no letter of any kind moves after that.
+      // Before that, once scoringStarted() (the first mark a judge saves),
+      // REASSIGNING an already-lettered entry is refused, but giving a
+      // first letter to an entry that has none yet is still allowed. That
+      // split matters: an entry can register after judging is underway (a
+      // late approval, an on-behalf registration), and with no letter it
+      // can never be scored or marked Absent — Finalize would then refuse
+      // forever on an entry nobody can ever satisfy. A mark's document id
+      // is {eventId}_{regId}_{judgeUid} and stores regId, so re-lettering
+      // never technically detaches a mark from the entry that earned it —
+      // that was true even before this existed. But the fest asked for a
+      // hard stop on REASSIGNING anyway: once a judge has a code letter in
+      // front of them, shuffling it out from under them is a live risk,
+      // not just a stale printed sheet, and a warning in the UI was not
+      // enough to stop it actually happening. Handing a letter to someone
+      // who never had one carries none of that risk — no judge has seen
+      // the old value, because there wasn't one. Admin/Co-Admin can still
+      // lift the reassignment freeze if a genuine emergency needs it —
+      // they hold unconditional write on judgingEntries below and can flip
+      // scoringStarted back to false there, before Unfinalize is otherwise
+      // available.
       //
       // Every OTHER update to a registration (a substitution's roster swap,
       // and the like) is untouched: the check only fires when codeLetter
       // itself is part of what changed.
       allow update: if (isStaff()
                         && (!codeLetterChanged(resource.data, request.resource.data)
-                            || (!resultLocked(resource.data.eventId)
-                                && !scoringStarted(resource.data.eventId))))
+                            || codeLetterWriteAllowed(resource.data, request.resource.data)))
                     || (isStage()
-                        && !resultLocked(resource.data.eventId)
-                        && !scoringStarted(resource.data.eventId)
+                        && codeLetterWriteAllowed(resource.data, request.resource.data)
                         && request.resource.data.diff(resource.data).affectedKeys()
                              .hasOnly(["codeLetter", "codeLetterAssignedBy", "codeLetterAssignedAt"]));
     }
 
     function codeLetterChanged(before, after) {
       return before.codeLetter != after.codeLetter;
+    }
+    // A letter can always be given to an entry that has none (before ==
+    // ""), even mid-judging — see the comment above. Reassigning one that
+    // already has a value is refused once scoring has started, same as an
+    // outright no-op (before == after) is always fine. Either way, nothing
+    // moves once the event is locked.
+    function codeLetterWriteAllowed(before, after) {
+      return !resultLocked(before.eventId)
+          && (before.codeLetter == after.codeLetter
+              || before.codeLetter == ""
+              || !scoringStarted(before.eventId));
     }
     // Sibling to resultLocked(), but fires earlier: the first mark a judge
     // or Admin saves, well before Finalize. Set on judgingEntries because

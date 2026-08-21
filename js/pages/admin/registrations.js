@@ -88,10 +88,16 @@ export default async function registrations(root) {
     // outright. Unfinalize first for either to reopen them.
     const resultLocked = !!result;
     const scoringUnderway = !!entriesDoc?.scoringStarted;
-    // Letters lock the moment the first mark is saved, same as the
-    // firestore.rules registrations rule — see that file for why this is a
-    // hard stop rather than the printed-sheet warning it used to be.
-    const lettersLocked = resultLocked || scoringUnderway;
+    const anyUnlettered = regs.some(r => !r.codeLetter);
+    // The full shuffle touches every entry, including ones a judge has
+    // already scored, so it locks the moment the first mark is saved — same
+    // as the firestore.rules registrations rule. "Set letters manually" is
+    // narrower: it can still hand a first letter to an entry that never had
+    // one (a late registration), just not move one that already exists —
+    // so it only fully locks at finalize, and only hides mid-judging once
+    // there is nobody left to letter.
+    const shuffleLocked = resultLocked || scoringUnderway;
+    const manualLocked = resultLocked || (scoringUnderway && !anyUnlettered);
 
     panel.appendChild(notice("info",
       "Entries are created by House Managers in their own panel. This screen is for code letters, judges and review."));
@@ -104,16 +110,16 @@ export default async function registrations(root) {
         badge(`${regs.length} entries`)
       ]),
       el("div.btn-row", { style: "margin-top:.8rem" }, [
-        lettersAssigned && lettersLocked
+        lettersAssigned && shuffleLocked
           ? null
           : button(lettersAssigned ? "Reassign code letters" : "Assign code letters", {
               onclick: guard(() => assignLetters(event, regs, paint))
             }),
-        lettersLocked
+        manualLocked
           ? null
           : button("Set letters manually", {
               disabled: !regs.length,
-              onclick: () => manualLetterDialog(event, regs, paint)
+              onclick: () => manualLetterDialog(event, regs, paint, scoringUnderway)
             }),
         button(`Assign judges (${assigned.length})`, {
           disabled: resultLocked,
@@ -130,7 +136,13 @@ export default async function registrations(root) {
         ? el("div.hint", { style: "margin-top:.5rem", text:
             "Code letters are locked because this event has a result. Unfinalize it first if a correction is genuinely needed." })
         : null,
-      lettersAssigned && !resultLocked && scoringUnderway
+      lettersAssigned && !resultLocked && scoringUnderway && anyUnlettered
+        ? el("div.hint", { style: "margin-top:.5rem", text:
+            "Judging has already started, so an existing letter can no longer be reassigned — a judge already " +
+            "has it in front of them. A newly registered entry with no letter yet can still be given one, from " +
+            "“Set letters manually”." })
+        : null,
+      lettersAssigned && !resultLocked && scoringUnderway && !anyUnlettered
         ? el("div.hint", { style: "margin-top:.5rem", text:
             "Code letters are locked because judging has already started for this event — a judge already has " +
             "these letters in front of them. If a genuine correction is needed, it has to be made deliberately, " +
@@ -215,7 +227,7 @@ async function assignLetters(event, regs, refresh) {
  * duplicates and blanks, because two entries sharing a letter is the one
  * mistake a judge cannot recover from.
  */
-function manualLetterDialog(event, regs, refresh) {
+function manualLetterDialog(event, regs, refresh, scoringUnderway = false) {
   const rows = [...regs].sort((a, b) =>
     String(a.codeLetter || "~").localeCompare(String(b.codeLetter || "~")) ||
     String(a.houseName || "").localeCompare(String(b.houseName || "")));
@@ -227,8 +239,22 @@ function manualLetterDialog(event, regs, refresh) {
     el("p.hint", { text:
       "One letter or short code per entry — A, B, C, or whatever your programme uses. Every entry needs " +
       "one and no two may match. Leave the dialog to keep what is already set." }),
+    // firestore.rules refuses to move a letter that already exists once
+    // judging has started — see the registrations rule — so those rows are
+    // locked here too, rather than letting the admin type a change that
+    // would only fail silently at Save. A row with no letter yet (a late
+    // registration) stays open, which is the one thing this screen still
+    // needs to do mid-judging.
+    scoringUnderway
+      ? notice("warn", "Judging has already started, so an entry that already has a letter can't be reassigned " +
+          "from here — only entries with no letter yet, shown open below, can be set.")
+      : null,
     ...rows.map(r => {
-      const inp = input({ value: r.codeLetter || "", maxlength: 4, style: "text-transform:uppercase" });
+      const alreadyLettered = !!r.codeLetter;
+      const inp = input({
+        value: r.codeLetter || "", maxlength: 4, style: "text-transform:uppercase",
+        disabled: scoringUnderway && alreadyLettered
+      });
       inputs.set(r.id, inp);
       return el("div.slot-row", {}, [
         el("div.body", {}, [
