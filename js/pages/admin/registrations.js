@@ -87,12 +87,11 @@ export default async function registrations(root) {
     // lock on the same condition: any mark recorded, or the event locked
     // outright. Unfinalize first for either to reopen them.
     const resultLocked = !!result;
-    // Letters lock at FINALIZE, not at the first mark. A score is stored
-    // against its regId, so re-lettering never moves a mark — see the
-    // registrations rule in firestore.rules. Scoring having started is a
-    // reason to warn (a judge's printed sheet goes stale), not to refuse.
-    const lettersLocked = resultLocked;
     const scoringUnderway = !!entriesDoc?.scoringStarted;
+    // Letters lock the moment the first mark is saved, same as the
+    // firestore.rules registrations rule — see that file for why this is a
+    // hard stop rather than the printed-sheet warning it used to be.
+    const lettersLocked = resultLocked || scoringUnderway;
 
     panel.appendChild(notice("info",
       "Entries are created by House Managers in their own panel. This screen is for code letters, judges and review."));
@@ -108,13 +107,13 @@ export default async function registrations(root) {
         lettersAssigned && lettersLocked
           ? null
           : button(lettersAssigned ? "Reassign code letters" : "Assign code letters", {
-              onclick: guard(() => assignLetters(event, regs, paint, scoringUnderway))
+              onclick: guard(() => assignLetters(event, regs, paint))
             }),
         lettersLocked
           ? null
           : button("Set letters manually", {
               disabled: !regs.length,
-              onclick: () => manualLetterDialog(event, regs, paint, scoringUnderway)
+              onclick: () => manualLetterDialog(event, regs, paint)
             }),
         button(`Assign judges (${assigned.length})`, {
           disabled: resultLocked,
@@ -127,15 +126,15 @@ export default async function registrations(root) {
               houseDialog(event, houses, settings, lim, catName, constraintGroups, eventById, onBehalfRole, paint) })
           : null
       ]),
-      lettersAssigned && lettersLocked
+      lettersAssigned && resultLocked
         ? el("div.hint", { style: "margin-top:.5rem", text:
             "Code letters are locked because this event has a result. Unfinalize it first if a correction is genuinely needed." })
         : null,
-      lettersAssigned && !lettersLocked && scoringUnderway
+      lettersAssigned && !resultLocked && scoringUnderway
         ? el("div.hint", { style: "margin-top:.5rem", text:
-            "Judging has already started for this event. Letters can still be changed — every mark stays " +
-            "attached to the entry that earned it, not to the letter — but any judge working from a printed " +
-            "sheet will be reading the old ones, so tell them before you do it." })
+            "Code letters are locked because judging has already started for this event — a judge already has " +
+            "these letters in front of them. If a genuine correction is needed, it has to be made deliberately, " +
+            "not from this screen." })
         : null,
       resultLocked
         ? el("div.hint", { style: "margin-top:.3rem", text:
@@ -179,15 +178,12 @@ function entryCell(r, event) {
   ]);
 }
 
-async function assignLetters(event, regs, refresh, scoringUnderway = false) {
+async function assignLetters(event, regs, refresh) {
   if (!regs.length) { toast("No entries to letter.", true); return; }
   if (regs.some(r => r.codeLetter)) {
     const ok = await confirmDialog("Reassign code letters",
       "Existing letters will be replaced. Every score already recorded stays attached to the entry that " +
-      "earned it — a mark is filed against the entry, not the letter." +
-      (scoringUnderway
-        ? " Judging has already started, though, so any judge reading a printed sheet will still be looking at the old letters."
-        : ""),
+      "earned it — a mark is filed against the entry, not the letter.",
       "Reassign");
     if (!ok) return;
   }
@@ -219,7 +215,7 @@ async function assignLetters(event, regs, refresh, scoringUnderway = false) {
  * duplicates and blanks, because two entries sharing a letter is the one
  * mistake a judge cannot recover from.
  */
-function manualLetterDialog(event, regs, refresh, scoringUnderway) {
+function manualLetterDialog(event, regs, refresh) {
   const rows = [...regs].sort((a, b) =>
     String(a.codeLetter || "~").localeCompare(String(b.codeLetter || "~")) ||
     String(a.houseName || "").localeCompare(String(b.houseName || "")));
@@ -231,9 +227,6 @@ function manualLetterDialog(event, regs, refresh, scoringUnderway) {
     el("p.hint", { text:
       "One letter or short code per entry — A, B, C, or whatever your programme uses. Every entry needs " +
       "one and no two may match. Leave the dialog to keep what is already set." }),
-    scoringUnderway
-      ? notice("warn", "Judging has already started. Marks stay with their entry, but a judge reading a printed sheet will see the old letters.")
-      : null,
     ...rows.map(r => {
       const inp = input({ value: r.codeLetter || "", maxlength: 4, style: "text-transform:uppercase" });
       inputs.set(r.id, inp);

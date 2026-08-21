@@ -127,6 +127,12 @@ export default async function homePage(root) {
           hasMedal(w.rank)
             ? rankNode(w.rank, { size: 34, rankArt })
             : el("div.feed-rank.r" + w.rank, { text: String(w.rank) }),
+          Array.isArray(w.photos) && w.photos.length
+            ? el("div", { style: "display:flex;flex:0 0 auto" }, w.photos.slice(0, 3).map((src, i) =>
+                el("img.result-photo", { src, alt: "", loading: "lazy",
+                  style: i ? "margin-left:-10px" : null,
+                  onerror: e => e.target.remove() })))
+            : null,
           el("div", { style: "flex:1;min-width:0" }, [
             el("div", { text: (w.names || []).join(", "), style: nameColorStyle(board?.houseStyle, w.houseId) }),
             el("div.hint", { style: "margin:0", text: w.houseName || "" })

@@ -387,9 +387,10 @@ every entry of a large event would eventually push it past Firestore's size
 limit and take that event's results offline — a missing thumbnail is the
 better failure.
 
-The same switch also puts winner photos on the projector **Slideshow**, next
-to the medal on each event's slide — one setting covers both, so there is
-nothing extra to turn on.
+The same switch puts winner photos everywhere a result appears in public:
+next to the medal on the projector **Slideshow** and **Big screen** slides,
+and beside the "Just published" feed on the home page — one setting covers
+all of it, so there is nothing extra to turn on.
 
 **Can different event classes award different grade points?**
 Yes. Settings → Points & grades → **Points — by class** → pick a class tab →
@@ -416,15 +417,14 @@ whose from the running order — but a lot drawn in front of the houses, or an
 order printed in the programme, is a real thing to have to honour.
 
 **Can I reassign code letters after judging has started?**
-Yes, up until the event is finalized. This used to be refused as soon as the
-first mark landed, on the grounds that it would detach scores. It does not:
-a mark is filed against the entry, not against the letter, so re-lettering
-rewrites what judges see and leaves every score exactly where it was.
-
-The real cost is human — a judge working from a printed sheet will still be
-reading the old letters — so the app warns you and expects you to tell them.
-Once the event is finalized the letters lock; unfinalize first if a
-correction is genuinely needed.
+No. Letters lock the moment the first judge saves a mark for the event, the
+same as they lock once the event is finalized — both the "Reassign code
+letters" and "Set letters manually" buttons disappear at that point, on
+Registrations and on the Stage screen alike. Technically a mark is filed
+against the entry, not the letter, so re-lettering would not corrupt a
+score — but a judge already has that letter in front of them, and shuffling
+it out from under them mid-judging is a real risk, not just a stale printed
+sheet, so the app refuses it outright rather than only warning about it.
 
 **Can I make the big banner on the public home page light instead of dark?**
 Settings → Public display → **Public home hero** → Dark or Light, with a live

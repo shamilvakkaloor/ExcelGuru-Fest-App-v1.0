@@ -121,11 +121,10 @@ export default async function stagePage(root) {
     const here = new Set(arrivals.filter(a => a.arrived).map(a => a.regId));
     const lettered = regs.filter(r => r.codeLetter);
     const done = lettered.filter(r => here.has(r.id)).length;
-    // Locks at FINALIZE only. A mark is filed against its regId, not against
-    // the letter, so re-lettering moves nothing — see the registrations rule
-    // in firestore.rules. Judging having started earns a warning instead.
-    const lettersLocked = !!result;
+    // Locks the moment the first mark is saved, same as the firestore.rules
+    // registrations rule — see that file for why this is a hard stop.
     const scoringUnderway = !!entriesDoc?.scoringStarted;
+    const lettersLocked = !!result || scoringUnderway;
 
     panel.appendChild(card(el("div.btn-row", {}, [
       badge(classLabel(event.eventClass)),
@@ -141,13 +140,13 @@ export default async function stagePage(root) {
           })
     ]), event.name));
 
-    if (lettered.length && lettersLocked) {
+    if (lettered.length && result) {
       panel.appendChild(notice("info",
         "Code letters are locked because this event has a result. An organiser can unfinalize it if a correction is genuinely needed."));
     } else if (lettered.length && scoringUnderway) {
       panel.appendChild(notice("warn",
-        "Judging has already started. Letters can still be reassigned — every mark stays with the entry " +
-        "that earned it — but a judge reading a printed sheet will still see the old ones."));
+        "Code letters are locked because judging has already started for this event. If a genuine " +
+        "correction is needed, an organiser has to make it deliberately, not from this screen."));
     }
 
     if (!regs.length) { panel.appendChild(empty("Nothing registered for this event")); return; }

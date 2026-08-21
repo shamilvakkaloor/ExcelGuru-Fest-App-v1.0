@@ -562,28 +562,29 @@ service cloud.firestore {
       // would mean they could move an entry to another house or swap its
       // participants, which is a far larger power than assigning a letter.
       //
-      // A letter change is refused once the event is LOCKED — finalized or
-      // published. It is allowed before that, even after judging has begun.
-      //
-      // This used to also refuse once scoringStarted(), on the stated
-      // grounds that reassigning "would detach real scores from the entries
-      // they belong to". That premise was wrong: a score's document id is
-      // {eventId}_{regId}_{judgeUid} and it stores regId, so a mark is bound
-      // to the REGISTRATION, never to the letter. Re-lettering rewrites the
-      // judge-facing labels in judgingEntries and leaves every mark attached
-      // exactly where it was — finalize reads scores by regId either way.
-      // The real cost of re-lettering mid-judging is that a judge working
-      // from a printed sheet sees the labels move under them, which is a
-      // reason to warn loudly in the UI, not a reason the write is unsafe.
+      // A letter change is refused once the event is LOCKED (finalized or
+      // published) OR once scoringStarted() (the first mark a judge saves).
+      // A mark's document id is {eventId}_{regId}_{judgeUid} and it stores
+      // regId, so re-lettering never technically detaches a mark from the
+      // entry that earned it — that part was true. But the fest asked for a
+      // hard stop anyway: once a judge has a code letter in front of them,
+      // shuffling it out from under them is a live risk, not just a stale
+      // printed sheet, and a warning in the UI was not enough to stop it
+      // actually happening. Admin/Co-Admin can still lift this — they hold
+      // unconditional write on judgingEntries below and can flip
+      // scoringStarted back to false there if a genuine emergency fix is
+      // needed before Unfinalize is otherwise available.
       //
       // Every OTHER update to a registration (a substitution's roster swap,
       // and the like) is untouched: the check only fires when codeLetter
       // itself is part of what changed.
       allow update: if (isStaff()
                         && (!codeLetterChanged(resource.data, request.resource.data)
-                            || !resultLocked(resource.data.eventId)))
+                            || (!resultLocked(resource.data.eventId)
+                                && !scoringStarted(resource.data.eventId))))
                     || (isStage()
                         && !resultLocked(resource.data.eventId)
+                        && !scoringStarted(resource.data.eventId)
                         && request.resource.data.diff(resource.data).affectedKeys()
                              .hasOnly(["codeLetter", "codeLetterAssignedBy", "codeLetterAssignedAt"]));
     }

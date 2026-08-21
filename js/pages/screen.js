@@ -118,7 +118,11 @@ export default async function screenPage(root) {
           main: (isGroupClass(ev.eventClass) && e.teamLabel) ? e.teamLabel : (e.names || []).join(", "),
           sub: e.houseName,
           value: e.grade ? gradeLabel(e.grade, settings) : "",
-          nameColor: nameColorStyle(houseStyle, e.houseId)
+          nameColor: nameColorStyle(houseStyle, e.houseId),
+          // Only present when Settings → Public display → "Show participant
+          // photos beside published results" is on — see rebuildPublicSnapshots()
+          // in domain/publish.js, which also caps how many exist per event.
+          photos: Array.isArray(e.photos) ? e.photos.filter(Boolean) : []
         }))
       });
     }
@@ -186,6 +190,12 @@ export default async function screenPage(root) {
           r.rank
             ? (hasMedal(r.rank) ? rankNode(r.rank, { size: 54, rankArt })
                                 : el("span.screen-rank", { text: "#" + r.rank }))
+            : null,
+          r.photos?.length
+            ? el("span.screen-photo-row", {}, r.photos.slice(0, 4).map((src, i) =>
+                el("img.screen-photo", { src, alt: "", loading: "lazy",
+                  style: i ? "margin-left:-1vw" : null,
+                  onerror: e => e.target.remove() })))
             : null,
           el("div", { style: "flex:1;min-width:0" }, [
             el("div.screen-main", { text: r.main, style: r.nameColor || null }),
