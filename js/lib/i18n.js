@@ -715,6 +715,12 @@ export const ML = {
   "Leave this off to use the shared grade table below.":
     "താഴെയുള്ള പൊതു ഗ്രേഡ് ടേബിൾ ഉപയോഗിക്കാൻ ഇത് ഓഫ് ആയി വിടുക.",
 
+  /* {word} placeholder — the fest name and a delete-group name are both
+     values, not translatable prose, so this is one key regardless of which
+     one fills it in. */
+  "Case does not matter, but it must be \"{word}\".":
+    "അക്ഷരവലുപ്പം ബാധകമല്ല, പക്ഷേ \"{word}\" ആയിരിക്കണം.",
+
   "On the top bar": "മുകളിലെ ബാറിൽ",
   "On a light page": "ഇളം നിറമുള്ള പേജിൽ",
   "On the home page": "ഹോം പേജിൽ"

@@ -387,6 +387,10 @@ every entry of a large event would eventually push it past Firestore's size
 limit and take that event's results offline — a missing thumbnail is the
 better failure.
 
+The same switch also puts winner photos on the projector **Slideshow**, next
+to the medal on each event's slide — one setting covers both, so there is
+nothing extra to turn on.
+
 **Can different event classes award different grade points?**
 Yes. Settings → Points & grades → **Points — by class** → pick a class tab →
 tick **"… uses its own grade points"**. A grade table appears for that class

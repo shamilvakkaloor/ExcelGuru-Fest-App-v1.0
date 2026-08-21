@@ -163,12 +163,12 @@ export default async function homePage(root) {
   // rel=noopener because this is an external destination the fest controls,
   // not a page of ours.
   if (settings?.manualUrl) {
-    wrap.appendChild(card(el("div.btn-row", {}, [
-      el("a.btn", {
+    wrap.appendChild(el("div", { style: "margin-top:1.2rem" }, card(el("div.btn-row", {}, [
+      el("a.btn.btn-accent", {
         href: settings.manualUrl, target: "_blank", rel: "noopener noreferrer",
         text: "Download " + (settings.manualLabel || "the fest manual")
       })
-    ]), settings.manualLabel || "Fest manual"));
+    ]), settings.manualLabel || "Fest manual")));
   }
 
   // I8 — there is deliberately NO "Open my panel" card down here.

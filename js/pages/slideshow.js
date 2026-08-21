@@ -140,7 +140,12 @@ export default async function slideshowPage(root) {
             main: (isGroupClass(ev.eventClass) && e.teamLabel) ? e.teamLabel : (e.names || []).join(", "),
             sub: e.houseName,
             crest: est.logoData || null,
-            color: est.useAsNameColor ? est.color : null
+            color: est.useAsNameColor ? est.color : null,
+            // Only present when Settings → Public display → "Show
+            // participant photos beside published results" is on — see
+            // rebuildPublicSnapshots() in domain/publish.js, which is also
+            // what caps how many of these exist per event.
+            photos: Array.isArray(e.photos) ? e.photos.filter(Boolean) : []
           };
         })
       });
@@ -162,6 +167,16 @@ export default async function slideshowPage(root) {
         hasMedal(it.rank)
           ? rankNode(it.rank, { size: 64, rankArt })
           : el("span.item-rank", { text: "#" + it.rank }),
+        it.photos?.length
+          ? el("span.slide-photo-row", {}, it.photos.slice(0, 4).map((src, i) =>
+              el("img.slide-photo", {
+                src, alt: "", loading: "lazy",
+                style: i ? "margin-left:-16px" : null,
+                // A stale Drive link should read as "no photo", not as a
+                // broken-image icon on a screen an audience is watching.
+                onerror: e => e.target.remove()
+              })))
+          : null,
         it.crest ? el("img.house-crest", { src: it.crest, alt: "" }) : null,
         el("span.item-main", { text: it.main, style: it.color ? "color:" + it.color : null }),
         it.sub ? el("span.item-sub", { text: it.sub }) : null,

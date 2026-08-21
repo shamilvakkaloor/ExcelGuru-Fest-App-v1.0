@@ -1358,3 +1358,14 @@ button.chip.on {
   border: 2px solid var(--surface); background: var(--paper); flex: 0 0 auto;
 }
 @media print { .result-photo { border-color: #fff; } }
+
+/* Winner photos on the projector slideshow — same idea as .result-photo on
+   the public results page, sized for a room instead of a screen someone is
+   holding. .item's children are appended with no gap between them by
+   design (relies on being spaced by their own margins, not by whitespace),
+   so this carries its own margin on both sides rather than assuming one. */
+.slide-photo-row { display: inline-flex; margin: 0 .6rem 0 0; vertical-align: middle; }
+.slide-photo {
+  width: 54px; height: 54px; border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--rail-bg); background: #1A1818; flex: 0 0 auto;
+}

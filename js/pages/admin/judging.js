@@ -371,13 +371,46 @@ export default async function judging(root) {
         style: "max-width:110px",
         disabled: absentBy[reg.id] || locked
       });
-      box.addEventListener("change", guard(async () => {
-        if (locked) { box.value = existing?.score ?? ""; return; }
+
+      // Explicit Save, matching the judge's own page (js/pages/judge.js) —
+      // this used to commit on the input's native `change` event, which
+      // fires on blur. That is easy to trigger by accident (tab to the next
+      // cell, click elsewhere to check something) with no on-screen sign a
+      // correction had already gone in, which read as "there's no save
+      // option here". Nothing is written until Save is pressed, same rule
+      // as the judge's screen.
+      const state = el("span.hint", { style: "margin:0;white-space:nowrap",
+        text: existing ? "saved" : "" });
+      const saveBtn = button("Save", { class: "btn-sm btn-accent", disabled: true });
+
+      const markDirty = () => {
+        const changed = box.value.trim() !== String(existing?.score ?? "");
+        saveBtn.disabled = !changed || locked;
+        state.textContent = changed ? "unsaved" : (existing ? "saved" : "");
+        state.style.color = changed ? "var(--marigold-d)" : "";
+      };
+      box.addEventListener("input", markDirty);
+      box.addEventListener("keydown", e => { if (e.key === "Enter" && !saveBtn.disabled) saveBtn.click(); });
+
+      saveBtn.addEventListener("click", guard(async () => {
+        if (locked) { box.value = existing?.score ?? ""; markDirty(); return; }
         const raw = box.value.trim();
         const id = `${event.id}_${reg.id}_${col.uid}`;
-        if (raw === "") { await remove("scores", id); toast("Score cleared."); paint(); return; }
+        saveBtn.disabled = true;
+        state.textContent = "saving…"; state.style.color = "";
+
+        if (raw === "") {
+          await remove("scores", id);
+          toast("Score cleared.");
+          paint();
+          return;
+        }
         const val = Number(raw);
-        if (isNaN(val) || val < 0 || val > scale) { toast(`Score must be between 0 and ${scale}.`, true); box.value = existing?.score ?? ""; return; }
+        if (isNaN(val) || val < 0 || val > scale) {
+          toast(`Score must be between 0 and ${scale}.`, true);
+          state.textContent = "unsaved"; state.style.color = "var(--marigold-d)"; saveBtn.disabled = false;
+          return;
+        }
         await batchWrite([
           { type: "set", path: "scores", id, data: {
               eventId: event.id, regId: reg.id, judgeUid: col.uid, judgeName: col.name,
@@ -398,11 +431,16 @@ export default async function judging(root) {
         ? el("span.hint", { style: "margin:0", title: existing.remark, text: "remark" })
         : null;
 
+      const row = el("div", { style: "display:flex;flex-direction:column;gap:.3rem;align-items:flex-start" }, [
+        el("div", { style: "display:flex;gap:.4rem;align-items:center" }, [box, saveBtn, state])
+      ]);
+      if (remarkHint) row.appendChild(remarkHint);
+
       // v9.2 — freeze ONE judge's mark on ONE entry out of the average,
       // as a correction, without touching that judge's marks anywhere
       // else. The mark itself is kept, not deleted — un-freezing restores
       // it exactly, the same reversibility an override already has.
-      if (!existing) return box;
+      if (!existing) return row;
       const excludeBtn = button(existing.excluded ? "Frozen" : "Freeze", {
         class: "btn-sm" + (existing.excluded ? " btn-danger" : ""),
         disabled: locked,
@@ -417,8 +455,8 @@ export default async function judging(root) {
           paint();
         })
       });
-      return el("div", { style: "display:flex;flex-direction:column;gap:.25rem;align-items:flex-start" },
-        [box, excludeBtn, remarkHint]);
+      row.appendChild(excludeBtn);
+      return row;
     }
   }
 }

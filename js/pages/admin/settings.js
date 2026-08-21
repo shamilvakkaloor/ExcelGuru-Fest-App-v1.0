@@ -2236,7 +2236,15 @@ async function dangerTab(panel) {
   }));
 
   panel.appendChild(card(el("div", {}, [
-    field(`Type the fest name to confirm — "${festName}"`, nameCheck),
+    // The fest name sits in a .hint line, not the label: every field label
+    // is CSS-uppercased for the whole app (a deliberate, consistent look),
+    // which for most labels is harmless — nobody reads "PASSWORD" as an
+    // instruction to type in block capitals. Here it read as one: the exact
+    // phrase to type appeared to REQUIRE capitals, contradicting the
+    // placeholder in the box directly below showing it in its real case.
+    // The check was always case-insensitive; only the display was confusing.
+    field("Type the fest name to confirm", nameCheck,
+      tr(`Case does not matter, but it must be "{word}".`, { word: festName })),
     field("Your current password", pw, "Needed to remove your own login."),
     guardDoc ? field("Delete-everything password", guardPw, "The separate password set for this action.") : null,
     status,
@@ -2270,7 +2278,11 @@ async function runGroupDelete(group, guardDoc, panel) {
     title: "Delete — " + group.label,
     body: el("div", {}, [
       notice("danger", group.detail),
-      field(`Type "${confirmWord}" to confirm`, nameCheck),
+      // Same fix as the full-wipe screen: the phrase to type lives in the
+      // hint, not the always-uppercase label, so it is not shown as if it
+      // demanded capitals it does not actually require.
+      field("Type to confirm", nameCheck,
+        tr(`Case does not matter, but it must be "{word}".`, { word: confirmWord })),
       guardDoc ? field("Delete-everything password", guardPw,
         "The same separate password that guards a full reset.") : null,
       status
