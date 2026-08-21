@@ -909,9 +909,11 @@ async function publicTab(panel) {
     checkbox("Show participant photos beside published results", showResultPhotos, v => showResultPhotos = v),
     el("div.hint", { text:
       "Off by default. A photo is personal data and the results page is world-readable, so showing one is " +
-      "a deliberate choice. Only entries that actually placed carry a photo, and only a limited number per " +
-      "event — a photo is stored inside the document (there is no file storage on the free tier), so an " +
-      "unbounded number would eventually push an event past Firestore's size limit and take it offline." })
+      "a deliberate choice. One switch covers every public screen — results, the home feed, Big screen, " +
+      "the projector Slideshow, and the Student Talent board. Only entries that actually placed carry a " +
+      "photo, and only a limited number per event or per board — a photo is stored inside the document " +
+      "(there is no file storage on the free tier), so an unbounded number would eventually push a " +
+      "document past Firestore's size limit and take it offline." })
   ]), "Results on public screens"));
 
   panel.appendChild(card(el("div", {}, [
@@ -924,8 +926,9 @@ async function publicTab(panel) {
     checkbox("Student Talent", ssTalent, v => ssTalent = v),
     checkbox("Also show Student Talent by category", slideshowByCat, v => slideshowByCat = v),
     el("div.hint", { text:
-      "The combined Student Talent slide always shows when Student Talent is on. This adds one further " +
-      "slide per category, matching the Student Talent tab on the public results page." }),
+      "One slide per category, matching the Student Talent tab on the public results page. Independent of " +
+      "\"Student Talent\" above — turn that off and keep this on if a fest only wants the per-category " +
+      "boards, with no single combined slide." }),
     checkbox("House points by category", ssCatBoards, v => ssCatBoards = v),
     el("div.hint", { text:
       "One slide per category, ranking the houses by what they scored in it. Reads the same breakdown " +

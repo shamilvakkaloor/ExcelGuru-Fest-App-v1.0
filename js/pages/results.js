@@ -228,7 +228,13 @@ export default async function resultsPage(root) {
       const shown = talentLimit ? ranked.slice(0, talentLimit) : ranked;
       panel.appendChild(card(table([
         { key: "rank", label: "Rank", render: rankCell },
-        { key: "name", label: "Participant", render: r => el("span", { text: r.name, style: nameColorStyle(houseStyle, r.houseId) }) },
+        // Only the top of the board ever carries one — see the cap in
+        // rebuildPublicSnapshots(), same "only a winner has a photo" rule an
+        // event result already follows.
+        { key: "name", label: "Participant", render: r => el("span", { style: "display:inline-flex;align-items:center;gap:.5rem" }, [
+            r.photo ? el("img.result-photo", { src: r.photo, alt: "", loading: "lazy", onerror: e => e.target.remove() }) : null,
+            el("span", { text: r.name, style: nameColorStyle(houseStyle, r.houseId) })
+          ]) },
         { key: "chestNumber", label: "Chest", render: r => el("span.mono", { text: r.chestNumber || "" }) },
         { key: "houseName", label: hTerm, render: houseTag },
         { key: "total", label: "Points", num: true }

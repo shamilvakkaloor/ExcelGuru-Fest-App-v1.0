@@ -93,7 +93,8 @@ export default async function screenPage(root) {
       built.push({
         kind: "list", title: "Student talent",
         rows: board.students.slice(0, talentLimit || 8).map(s => ({
-          rank: s.rank, main: s.name, sub: s.houseName, value: (s.total ?? 0) + " pts"
+          rank: s.rank, main: s.name, sub: s.houseName, value: (s.total ?? 0) + " pts",
+          photos: s.photo ? [s.photo] : []
         }))
       });
     }

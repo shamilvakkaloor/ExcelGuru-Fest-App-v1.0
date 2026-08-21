@@ -477,6 +477,25 @@ export async function rebuildPublicSnapshots() {
     // like dense ranking anywhere else in the app.
     cfg.leaderboard.useTiebreakers === false ? [] : (cfg.leaderboard.tieBreakOrder || []));
 
+  /* Photos on the Student Talent board — same opt-in switch and roster
+   * (photoById, above) as a winner's photo on an event result, but capped
+   * hard regardless of how many places rankLimit shows: this is ONE
+   * document shared by the whole fest, not one per event, so an unbounded
+   * number of portraits here — a fest can have hundreds of scoring
+   * participants — could push the whole leaderboard past Firestore's 1 MiB
+   * ceiling and take it offline for everyone, not just fail to show a
+   * thumbnail. Ranked entries only, same "only a winner carries a photo"
+   * rule an event result already follows. */
+  const TALENT_PHOTO_CAP = 30;
+  let talentPhotoBudget = showPhotos ? TALENT_PHOTO_CAP : 0;
+  for (const r of studentRows) {
+    if (!talentPhotoBudget || !rankIsPublic(r.rank, cfg.rankLimit)) continue;
+    const src = photoById[r.id];
+    if (!src) continue;
+    r.photo = src;
+    talentPhotoBudget--;
+  }
+
   // ── Per-participant lookup cards ──────────────────────────────────
   //
   // Merged, not overwritten: the registered event list is written when a

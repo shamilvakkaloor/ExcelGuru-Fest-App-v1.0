@@ -1372,8 +1372,8 @@ button.chip.on {
    holding. .item's children are appended with no gap between them by
    design (relies on being spaced by their own margins, not by whitespace),
    so this carries its own margin on both sides rather than assuming one. */
-.slide-photo-row { display: inline-flex; margin: 0 .6rem 0 0; vertical-align: middle; }
+.slide-photo-row { display: inline-flex; margin: 0 .8rem 0 0; vertical-align: middle; }
 .slide-photo {
-  width: 54px; height: 54px; border-radius: 50%; object-fit: cover;
-  border: 2px solid var(--rail-bg); background: #1A1818; flex: 0 0 auto;
+  width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
+  border: 3px solid var(--rail-bg); background: #1A1818; flex: 0 0 auto;
 }

@@ -53,31 +53,37 @@ export default async function slideshowPage(root) {
       });
     }
     if (showTalent && board?.students?.length) {
-      // The combined board always shows — the per-category breakdown is
-      // additional, not a replacement for it.
       slides.push({
         title: "Student Talent",
         items: board.students.slice(0, talentLimit || 10).map(s => ({
-          rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts"
+          rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts",
+          photos: s.photo ? [s.photo] : []
         }))
       });
-      // I9 — one slide per category as well, when the Admin has switched
-      // it on. Dense re-ranking within each category mirrors /results'
-      // own reRank(), so a slide never shows a rank that skips a place.
-      if (board.slideshowTalentByCategory) {
-        const byCat = new Map();
-        for (const s of board.students) {
-          const key = s.categoryName || "All categories";
-          if (!byCat.has(key)) byCat.set(key, []);
-          byCat.get(key).push(s);
-        }
-        for (const [catName, list] of byCat) {
-          const ranked = reRank(list).slice(0, talentLimit || 10);
-          slides.push({
-            title: "Student Talent — " + catName,
-            items: ranked.map(s => ({ rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts" }))
-          });
-        }
+    }
+    // I9 / v9.3 — one slide per category, independent of the combined board
+    // above rather than nested inside it. It used to require "Student
+    // Talent" to also be on, so a fest that wanted category slides ONLY —
+    // no combined "Total" slide — could turn this switch on and see
+    // nothing: the whole block was skipped whenever showTalent was off.
+    // Dense re-ranking within each category mirrors /results' own
+    // reRank(), so a slide never shows a rank that skips a place.
+    if (board?.students?.length && board.slideshowTalentByCategory) {
+      const byCat = new Map();
+      for (const s of board.students) {
+        const key = s.categoryName || "All categories";
+        if (!byCat.has(key)) byCat.set(key, []);
+        byCat.get(key).push(s);
+      }
+      for (const [catName, list] of byCat) {
+        const ranked = reRank(list).slice(0, talentLimit || 10);
+        slides.push({
+          title: "Student Talent — " + catName,
+          items: ranked.map(s => ({
+            rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts",
+            photos: s.photo ? [s.photo] : []
+          }))
+        });
       }
     }
     /* House points per category — one slide each. The same
@@ -171,7 +177,7 @@ export default async function slideshowPage(root) {
           ? el("span.slide-photo-row", {}, it.photos.slice(0, 4).map((src, i) =>
               el("img.slide-photo", {
                 src, alt: "", loading: "lazy",
-                style: i ? "margin-left:-16px" : null,
+                style: i ? "margin-left:-26px" : null,
                 // A stale Drive link should read as "no photo", not as a
                 // broken-image icon on a screen an audience is watching.
                 onerror: e => e.target.remove()

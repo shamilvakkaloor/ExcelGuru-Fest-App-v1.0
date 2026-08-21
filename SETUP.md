@@ -401,8 +401,33 @@ better failure.
 
 The same switch puts winner photos everywhere a result appears in public:
 next to the medal on the projector **Slideshow** and **Big screen** slides,
-and beside the "Just published" feed on the home page — one setting covers
-all of it, so there is nothing extra to turn on.
+beside the "Just published" feed on the home page, and beside a name on the
+**Student Talent** board — one setting covers all of it, so there is
+nothing extra to turn on.
+
+The Student Talent board gets its own cap, separate from the per-event one:
+it is ONE document shared by the whole fest rather than one per event, so
+an unbounded number of portraits there is a much bigger risk — only the top
+30 ranked participants across the whole board ever carry a photo, however
+many places the rank limit above shows.
+
+**We only want the per-category Student Talent slides on the slideshow, not the combined one.**
+Settings → Public display → Slideshow: turn "Student Talent" off and leave
+"Also show Student Talent by category" on. The two are independent — one
+used to require the other to be on too, so turning off the combined slide
+silently took the category ones with it. Fixed; they now show or hide on
+their own.
+
+**What does "Rebuild public pages" actually do, and do I need it?**
+It reruns the same rebuild Publish already runs for you automatically —
+every public document (results, the leaderboard, the schedule) gets
+rebuilt from the current data. Normally you never need to press it:
+publishing an event rebuilds immediately, and most Settings changes queue
+a background rebuild a second or so after you save (a small indicator
+tracks it, and a banner appears with a one-press fix if one is ever left
+stuck — closing the tab mid-rebuild, for instance). The button is there as
+a manual fallback for that rare case, or just to force everything fresh
+right now without changing anything first.
 
 **Can different event classes award different grade points?**
 Yes. Settings → Points & grades → **Points — by class** → pick a class tab →
