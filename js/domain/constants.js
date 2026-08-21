@@ -168,6 +168,11 @@ export const DEFAULTS = {
     // How many houses the home page podium shows. Was hard-coded to 4,
     // which cut off a fest with more.
     homeHouseCards: 4,
+    // How many of the latest published events get a card in the home
+    // page's "Just published" feed. Was hard-coded to 4 there too, with no
+    // setting to change it — unlike the slideshow's own recent-results
+    // limit, which already had one. 0 shows every published event.
+    homeRecentResultsLimit: 4,
     rankArt: {},                 // { "1": dataUrl, … } — overrides the built-ins
 
     // ── v8 ──────────────────────────────────────────────────────────

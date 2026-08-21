@@ -111,9 +111,14 @@ export default async function homePage(root) {
   if (!recent.length) {
     feedBox.appendChild(empty("Nothing published yet", "Results appear here the moment organisers release them."));
   } else {
+    // Settings → Public display → Public home page. Was hard-coded to 4
+    // with no setting to change it; 0 means show every published event, the
+    // same "0 = all" convention every other limit here already follows.
+    const rawLimit = settings?.homeRecentResultsLimit;
+    const feedLimit = (rawLimit === undefined || rawLimit === null || rawLimit === "") ? 4 : Number(rawLimit);
     const latest = [...recent]
       .sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0))
-      .slice(0, 4);
+      .slice(0, Number.isFinite(feedLimit) && feedLimit > 0 ? feedLimit : recent.length);
     for (const ev of latest) {
       const winners = (ev.entries || [])
         .filter(e => !e.isAbsent && rankIsPublic(e.rank, rankLimit));

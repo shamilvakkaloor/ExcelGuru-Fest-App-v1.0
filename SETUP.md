@@ -380,6 +380,13 @@ Settings → Public display → **Public home page** → House cards on the home
 page. It was fixed at 4. Set it to your number, or 0 to show every house —
 the podium already wraps onto more rows by itself.
 
+**How many events show in the "Just published" feed on the home page?**
+Same card, "Recent events in the \"Just published\" feed" — also fixed at 4
+with no setting, same as the house cards above. 0 shows every published
+event. Unlike most other limits here this one needs no republish to take
+effect: the home page already reads every published event to build this
+feed, so this only changes how many of them it shows, not what gets read.
+
 **Can the results page show participant photos?**
 Settings → Public display → "Show participant photos beside published
 results". Off by default, because a photo is personal data and the results

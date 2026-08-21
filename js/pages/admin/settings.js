@@ -851,6 +851,13 @@ async function publicTab(panel) {
   let showResultPhotos = !!s.resultsShowPhotos;
   // ── House cards on the home page ───────────────────────────────────
   const homeCards = input({ type: "number", min: 0, max: 24, value: s.homeHouseCards ?? 4 });
+  // ── "Just published" feed on the home page ──────────────────────────
+  // Was hard-coded to the latest 4 events with no setting to change it —
+  // the same gap the slideshow's own recent-results limit had, before that
+  // one got a setting. Read straight from festSettings, not a snapshot: the
+  // page already fetches every published event to build this feed, so
+  // capping how many it shows costs nothing extra and needs no republish.
+  const homeResultsLimit = input({ type: "number", min: 0, value: s.homeRecentResultsLimit ?? 4 });
 
   // A live swatch rather than words: "dark or light" is a look, and the one
   // thing an Admin actually wants to know is what it will look like.
@@ -940,6 +947,9 @@ async function publicTab(panel) {
     field("House cards on the home page", homeCards,
       "How many houses the podium on the public home page shows. 0 shows every house. This was fixed at " +
       "4, which simply hid the rest on a fest with more."),
+    field("Recent events in the \"Just published\" feed", homeResultsLimit,
+      "How many of the latest published events get a card in that feed. 0 shows every published event. " +
+      "This was fixed at 4 too, with no setting to change it."),
   ]), "Public home page"));
 
   panel.appendChild(card(el("div", {}, [
@@ -971,6 +981,7 @@ async function publicTab(panel) {
       // Blank means "leave it at the default 4"; a typed 0 means "show all"
       // and must survive as 0.
       homeHouseCards: homeCards.value.trim() === "" ? 4 : Math.max(0, Number(homeCards.value) || 0),
+      homeRecentResultsLimit: homeResultsLimit.value.trim() === "" ? 4 : Math.max(0, Number(homeResultsLimit.value) || 0),
       heroTheme: heroSel.value === "light" ? "light" : "dark"
     });
     // These feed the snapshots, so they only reach the public on a rebuild.
