@@ -121,9 +121,12 @@ export const DEFAULTS = {
     registrationWindow: { start: null, end: null },
     blindJudgingDefault: true,
     // What a judge sees on a NON-blind event — a blind one still shows code
-    // letters only, regardless of either of these. Both default true so an
-    // upgraded fest's judges see exactly what they always saw (name, house)
-    // plus chest number now included with it, matching what changed here.
+    // letters only, regardless of any of these. All three default true so
+    // an upgraded fest's judges see exactly what they always saw (name,
+    // house) plus chest number now included with it. Turning judgeShowName
+    // off on its own gives a middle ground between fully blind and fully
+    // open: house and/or chest number visible, but no name to read off.
+    judgeShowName: true,
     judgeShowHouse: true,
     judgeShowChest: true,
     scheduleVisible: false,

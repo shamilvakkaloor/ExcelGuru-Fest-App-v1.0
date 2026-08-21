@@ -326,8 +326,10 @@ export async function writeJudgingEntries(event, regs, settings = null) {
   const cfg = settings || await getOne("config", "festSettings");
   const isDirect = effectiveResultMode(event, cfg) === "direct";
   // Settings → Fest details → Visibility. Only meaningful for a NON-blind
-  // event — a blind one never carries house or chest number here at all,
-  // whatever these say, since the blind branch below never reads them.
+  // event — a blind one never carries a name, house or chest number here
+  // at all, whatever these say, since the blind branch below never reads
+  // them.
+  const showName = cfg.judgeShowName ?? true;
   const showHouse = cfg.judgeShowHouse ?? true;
   const showChest = cfg.judgeShowChest ?? true;
   let placements = [];
@@ -380,7 +382,8 @@ export async function writeJudgingEntries(event, regs, settings = null) {
       .map(r => blind
         ? { regId: r.id, codeLetter: r.codeLetter,
             material: materialByReg[r.id]?.title || "", materialLink: materialByReg[r.id]?.link || "" }
-        : { regId: r.id, codeLetter: r.codeLetter, label: r.wholeTeam ? r.houseName : (r.participantNames || []).join(", "),
+        : { regId: r.id, codeLetter: r.codeLetter,
+            label: showName ? (r.wholeTeam ? r.houseName : (r.participantNames || []).join(", ")) : "",
             houseName: showHouse ? (r.houseName || "") : "",
             chestNumbers: showChest ? (r.chestNumbers || []) : [],
             material: materialByReg[r.id]?.title || "", materialLink: materialByReg[r.id]?.link || "" })

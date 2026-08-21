@@ -114,6 +114,7 @@ async function basicTab(panel) {
   syncAutoCat();
 
   let blind = !!s.blindJudgingDefault;
+  let judgeShowName = s.judgeShowName ?? true;
   let judgeShowHouse = s.judgeShowHouse ?? true;
   let judgeShowChest = s.judgeShowChest ?? true;
   let gradeless = !!s.gradelessDefault;
@@ -375,8 +376,11 @@ async function basicTab(panel) {
   panel.appendChild(card(el("div", {}, [
     checkbox("Blind judging on by default (judges see code letters only)", blind, v => blind = v),
     el("div.hint", { style: "margin:.2rem 0 .5rem 1.6rem", text:
-      "A judge on a blind event always sees a code letter only, whatever the two switches below say — those " +
-      "only affect a NON-blind event, deciding what a judge sees alongside the participant's name." }),
+      "A judge on a blind event always sees a code letter only, whatever the three switches below say — " +
+      "those only affect a NON-blind event, deciding what a judge sees alongside the code letter. Turning " +
+      "the name off on its own gives a middle ground: a judge sees the house and/or chest number, but no " +
+      "name to read off — not fully blind, not fully open either." }),
+    checkbox("Judges also see the participant's name on a non-blind event", judgeShowName, v => judgeShowName = v),
     checkbox("Judges also see the house on a non-blind event", judgeShowHouse, v => judgeShowHouse = v),
     checkbox("Judges also see the chest number on a non-blind event", judgeShowChest, v => judgeShowChest = v),
     checkbox("Schedule visible to the public", schedVisible, v => schedVisible = v),
@@ -578,6 +582,7 @@ async function basicTab(panel) {
       autoCategory: autoCat.value,
       autoCategoryWinner: autoCatWinner.value,
       blindJudgingDefault: blind,
+      judgeShowName,
       judgeShowHouse,
       judgeShowChest,
       gradelessDefault: gradeless,
@@ -606,6 +611,7 @@ async function basicTab(panel) {
      * number are baked in at lettering time too, so flipping either switch
      * would otherwise do nothing for an event already lettered. */
     if (resultPolicy.value !== (s.resultPolicy || "both")
+        || judgeShowName !== (s.judgeShowName ?? true)
         || judgeShowHouse !== (s.judgeShowHouse ?? true)
         || judgeShowChest !== (s.judgeShowChest ?? true)) {
       const lettered = await getAll("judgingEntries").catch(() => []);
