@@ -615,6 +615,39 @@ check("a ladder with its own grades overrides the shared table",
   resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "tier", tierId: "t1" }, V8_LADDERS, V8_GRADE).gradePoints,
   V8_TIER1.gradePoints);
 
+/* v1.0 — a CLASS ladder may carry its own grade points, the same override
+ * every other axis already had. resolvePoints() never cared which axis a
+ * ladder belonged to, so these lock that in rather than let a future
+ * "classes are special" branch quietly reintroduce the shared-only rule. */
+const V1_CLASS_OWN = { rankPoints: { 1: 10, 2: 6 }, gradePoints: { A: 50, B: 30, C: 10, Without: 0 } };
+
+check("a class ladder with its own grades overrides the shared table",
+  resolvePoints({ eventClass: "categoryIndividual" },
+    { categoryIndividual: V1_CLASS_OWN }, V8_GRADE).gradePoints,
+  V1_CLASS_OWN.gradePoints);
+
+check("a class ladder without its own grades still inherits the shared table",
+  resolvePoints({ eventClass: "categoryIndividual" },
+    { categoryIndividual: { rankPoints: { 1: 10 } } }, V8_GRADE).gradePoints,
+  V8_GRADE);
+
+// null is what the settings screen writes when the override is switched
+// OFF — omitting the key let a stale table survive Firestore's merge.
+check("a class ladder whose grades are null inherits the shared table",
+  resolvePoints({ eventClass: "categoryIndividual" },
+    { categoryIndividual: { rankPoints: { 1: 10 }, gradePoints: null } }, V8_GRADE).gradePoints,
+  V8_GRADE);
+
+check("a class grade override changes what the same mark is worth", (() => {
+  const entries = [{ regId: "r1", scores: [90], isAbsent: false }];
+  const opts = { scoreScale: 100, thresholds: { aMin: 85, bMin: 70, cMin: 50 } };
+  const own = computeResults(entries, { ...opts, rankPoints: V1_CLASS_OWN.rankPoints,
+    gradePoints: V1_CLASS_OWN.gradePoints })[0];
+  const shared = computeResults(entries, { ...opts, rankPoints: V1_CLASS_OWN.rankPoints,
+    gradePoints: V8_GRADE })[0];
+  return [own.totalPoints, shared.totalPoints];
+})(), [60, 10 + (V8_GRADE.A ?? 0)]);
+
 check("ONE SOURCE ONLY — naming Type ignores tier and stage entirely",
   resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "type", typeId: "speech", tierId: "t1", stage: "onStage" }, V8_LADDERS, V8_GRADE).rankPoints,
   V8_SPEECH.rankPoints);

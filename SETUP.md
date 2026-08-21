@@ -168,7 +168,7 @@ Work through these in order — later screens depend on earlier ones.
 |---|---|---|
 | 1 | Settings → Fest details | Grades, max judge score, registration window. Also where you rename "House" to Team or Zone if you want to, and where the optional extras live |
 | 2 | Settings → Categories | Sub-Junior, Junior, Senior, and so on. If you want categories assigned automatically, set each one's class range or date-of-birth range here |
-| 3 | Settings → Points & grades | Rank ladder for each of the four event classes, plus the shared grade points |
+| 3 | Settings → Points & grades | Rank ladder for each of the four event classes, plus grade points — shared by default, or set per class, stage, Type, Tier or category |
 | 4 | Settings → Participant limits | Caps on how many events one participant may enter. Optionally different per category — a participant is always measured against **their own** category |
 | 5 | Settings → Entry constraints | Optional. "At most N of these events" over a set you draw by hand — no cap can express that |
 | 6 | Settings → Leaderboard | Which point pools count towards the Student Talent board, plus any extra named boards |
@@ -386,6 +386,22 @@ document (there is no file storage on the free tier), so putting one against
 every entry of a large event would eventually push it past Firestore's size
 limit and take that event's results offline — a missing thumbnail is the
 better failure.
+
+**Can different event classes award different grade points?**
+Yes. Settings → Points & grades → **Points — by class** → pick a class tab →
+tick **"… uses its own grade points"**. A grade table appears for that class
+alone. Leave it unticked and the class keeps using the shared table at the
+bottom of the screen, which is what every fest starts with.
+
+The same override is available on Stage, Type, Tier and Category ladders,
+and on a single event through its custom points — so grade points can vary
+on whichever axis your fest actually varies.
+
+One thing to be clear about: an event takes its points from **one** source
+only, the one named in its "Points from" setting. A per-class grade table
+applies to events using their class ladder; an event set to take points from
+Type or Tier reads that ladder's grade table instead (or the shared one, if
+that ladder has no override of its own).
 
 **Can I set code letters myself instead of shuffling?**
 Registrations → pick the event → **Set letters manually**. Type a letter or

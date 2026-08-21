@@ -997,7 +997,12 @@ async function pointsTab(panel) {
   const classLadders = {};
   for (const c of EVENT_CLASSES) {
     const doc = await getOne("pointsConfig", c.id);
-    classLadders[c.id] = { rankPoints: { ...(doc?.rankPoints || DEFAULTS.rankPoints) } };
+    classLadders[c.id] = {
+      rankPoints: { ...(doc?.rankPoints || DEFAULTS.rankPoints) },
+      // null means "inherit the shared table" — the same shape every other
+      // axis ladder uses, and what resolvePoints() already falls back on.
+      gradePoints: doc?.gradePoints || null
+    };
   }
   const classTabs = el("div.tabs");
   const classLadderBox = el("div");
@@ -1006,27 +1011,82 @@ async function pointsTab(panel) {
   })));
   const preview = el("div.notice.notice-info");
 
+  // The grade override lives in its own box: renderLadderEditor() clears
+  // whatever container it is given, so the two cannot share one.
+  const classGradeBox = el("div");
+
   function paintClassLadder() {
     classTabs.querySelectorAll("button").forEach((b, i) =>
       b.className = EVENT_CLASSES[i].id === cls ? "active" : "");
     renderLadderEditor(classLadderBox, classLadders[cls], { allowOwnGrades: false }, updatePreview);
+    paintClassGrades();
     updatePreview();
   }
+
+  /* Per-class grade points.
+   *
+   * Same override every Stage/Type/Tier/Category ladder already offers, and
+   * the scoring engine has always honoured it for class ladders too —
+   * resolvePoints() reads `ladder.gradePoints || globalGradePoints` without
+   * caring which axis the ladder belongs to. Only this control and the save
+   * were missing, which is why a class could vary its RANK points but not
+   * its grade points.
+   *
+   * Off (null) means inherit the shared table, so nothing changes for an
+   * existing fest until someone ticks it. */
+  function paintClassGrades() {
+    classGradeBox.innerHTML = "";
+    const state = classLadders[cls];
+    const label = EVENT_CLASSES.find(c => c.id === cls).label;
+
+    // A grade added since this ladder last saved its own points reads the
+    // shared value until these are edited and saved again.
+    const readOwn = () => {
+      const out = { [WITHOUT]: 0 };
+      for (const g of gradeScale) out[g.id] = Number(ownInputs[g.id]?.value ?? gp[g.id] ?? 0) || 0;
+      return out;
+    };
+    let ownGrades = !!state.gradePoints;
+    const ownInputs = {};
+    for (const g of gradeScale) {
+      ownInputs[g.id] = input({ type: "number", value: state.gradePoints?.[g.id] ?? gp[g.id] ?? 0 });
+      ownInputs[g.id].addEventListener("input", () => {
+        if (ownGrades) { state.gradePoints = readOwn(); updatePreview(); }
+      });
+    }
+    const gradeGrid = el("div.grid.grid-3", { style: ownGrades ? "" : "display:none" },
+      gradeScale.map(g => field(`${g.label} (${g.minPercent}%+)`, ownInputs[g.id])));
+    const toggle = checkbox(label + " uses its own grade points", ownGrades, v => {
+      ownGrades = v;
+      gradeGrid.style.display = v ? "" : "none";
+      state.gradePoints = v ? readOwn() : null;
+      updatePreview();
+    });
+    classGradeBox.append(
+      el("p.hint", { text: "Leave this off to use the shared grade table below." }),
+      toggle, gradeGrid);
+  }
+
   function updatePreview() {
     const first = classLadders[cls].rankPoints[1] ?? 0;
     const top = gradeInputs[0];
     if (!top) { preview.textContent = ""; return; }
-    const g = Number(top.input.value) || 0;
+    // Show what this class would actually award: its own grade points when
+    // it has them, the shared table when it does not. A preview that always
+    // read the shared table would contradict the class sitting above it.
+    const own = classLadders[cls].gradePoints;
+    const g = own ? (Number(own[top.id]) || 0) : (Number(top.input.value) || 0);
     preview.textContent =
       `Preview — ${EVENT_CLASSES.find(c => c.id === cls).label}, 1st place, grade ${top.label}: ` +
-      `${first} rank + ${g} grade = ${first + g} points`;
+      `${first} rank + ${g} grade = ${first + g} points` +
+      (own ? "  (this class's own grade points)" : "");
   }
   gradeInputs.forEach(g => g.input.addEventListener("input", updatePreview));
 
   panel.appendChild(card(el("div", {}, [
-    el("p.hint", { text: "Every event class has its own rank ladder. This is the fallback used whenever an event's named point source has no ladder of its own." }),
-    classTabs, classLadderBox
-  ]), "Rank points — by class"));
+    el("p.hint", { text: "Every event class has its own rank ladder, and may set its own grade points too. This is the fallback used whenever an event's named point source has no ladder of its own." }),
+    classTabs, classLadderBox, classGradeBox
+  ]), "Points — by class"));
 
   // Stage / Type / Tier ladders — only shown for axes that are switched on.
   // Each may optionally define its own grade points; left off, it uses the
@@ -1102,7 +1162,10 @@ async function pointsTab(panel) {
   ]), "Grade points — shared default"));
 
   panel.appendChild(el("div.btn-row", {}, button("Save points", { class: "btn-accent", onclick: guard(async () => {
-    for (const c of EVENT_CLASSES) await put("pointsConfig", c.id, { rankPoints: classLadders[c.id].rankPoints });
+    // Through ladderPayload() like every other axis, so a class that sets
+    // its own grade points keeps them. Writing { rankPoints } alone used to
+    // drop the field on every save.
+    for (const c of EVENT_CLASSES) await put("pointsConfig", c.id, ladderPayload(classLadders[c.id]));
     if (axes.stage) {
       for (const [id, l] of Object.entries(stageLadders)) {
         await put("pointsConfig", "stage_" + id, ladderPayload(l));
@@ -1123,9 +1186,13 @@ async function pointsTab(panel) {
 }
 
 function ladderPayload(l) {
-  const out = { rankPoints: l.rankPoints };
-  if (l.gradePoints) out.gradePoints = l.gradePoints;
-  return out;
+  // gradePoints is written EVERY time, null when the ladder has no override.
+  // put() merges, so simply omitting the key left a previous override in the
+  // document — un-ticking "uses its own grade points" appeared to work and
+  // then changed nothing at finalize. Writing null clears it, and
+  // resolvePoints() already treats null as "inherit the shared table"
+  // because it tests `ladder?.gradePoints || globalGradePoints`.
+  return { rankPoints: l.rankPoints, gradePoints: l.gradePoints || null };
 }
 
 /** One ladder editor: ranks with point values, add/remove rank. Shared by

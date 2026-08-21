@@ -710,6 +710,11 @@ export const ML = {
   "Code letters are locked because this event has a result. An organiser can unfinalize it if a correction is genuinely needed.":
     "ഈ ഇവന്റിന് ഒരു ഫലം ഉള്ളതിനാൽ കോഡ് ലെറ്ററുകൾ ലോക്ക് ചെയ്തിരിക്കുന്നു. ശരിക്കും ഒരു തിരുത്തൽ വേണമെങ്കിൽ ഒരു സംഘാടകന് അത് അൺഫൈനലൈസ് ചെയ്യാം.",
 
+  "Every event class has its own rank ladder, and may set its own grade points too. This is the fallback used whenever an event's named point source has no ladder of its own.":
+    "ഓരോ ഇവന്റ് ക്ലാസിനും സ്വന്തം റാങ്ക് ലാഡർ ഉണ്ട്, സ്വന്തം ഗ്രേഡ് പോയിന്റുകളും നിശ്ചയിക്കാം. ഒരു ഇവന്റ് പേരെടുത്ത് പറഞ്ഞ പോയിന്റ് ഉറവിടത്തിന് സ്വന്തം ലാഡർ ഇല്ലാത്തപ്പോൾ ഉപയോഗിക്കുന്ന ബദലാണ് ഇത്.",
+  "Leave this off to use the shared grade table below.":
+    "താഴെയുള്ള പൊതു ഗ്രേഡ് ടേബിൾ ഉപയോഗിക്കാൻ ഇത് ഓഫ് ആയി വിടുക.",
+
   "On the top bar": "മുകളിലെ ബാറിൽ",
   "On a light page": "ഇളം നിറമുള്ള പേജിൽ",
   "On the home page": "ഹോം പേജിൽ"
