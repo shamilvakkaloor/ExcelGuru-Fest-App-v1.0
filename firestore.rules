@@ -742,18 +742,45 @@ service cloud.firestore {
 
       // A judge may write only their own score, only for an event they are
       // assigned to, and only a number inside the fest's score scale.
-      allow create, update: if !resultLocked(request.resource.data.eventId)
-                            && (isAdmin()
-                                || (isJudge()
-                                    && request.resource.data.judgeUid == request.auth.uid
-                                    && assignedToEvent(request.resource.data.eventId)
-                                    && request.resource.data.score is number
-                                    && request.resource.data.score >= 0
-                                    && request.resource.data.score <= settings().scoreScale));
+      //
+      // Admin may CREATE any judge's score freely — filling in for one who
+      // has not scored yet. Admin may not, however, UPDATE a mark that a
+      // judge actually submitted themselves: that would let a real judge's
+      // number be silently replaced, which is the one thing this rule
+      // exists to stop. enteredByAdminOverride is the marker that tells the
+      // two apart — admin.js sets it true on every write it makes,
+      // judge.js sets it false on every write it makes (never left to a
+      // merge to preserve), so it always reflects who last actually
+      // entered the number, admin-filled or judge-submitted alike. An
+      // update that touches ONLY `excluded` is let through regardless —
+      // that is the separate Freeze feature, which corrects a mark by
+      // excluding it from the average without changing the number itself,
+      // and must keep working on a genuine judge score.
+      allow create: if !resultLocked(request.resource.data.eventId)
+                    && (isAdmin() || judgeOwnScore(request.resource.data));
 
+      allow update: if !resultLocked(request.resource.data.eventId)
+                    && ((isAdmin()
+                          && (resource.data.enteredByAdminOverride == true
+                              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["excluded"])))
+                        || judgeOwnScore(request.resource.data));
+
+      // Delete follows the same line as update: deleting a judge's own
+      // submitted mark is just overwriting it with nothing, and would
+      // otherwise let a delete-then-recreate round trip through the
+      // unconditional create rule above defeat the whole point of it.
       allow delete: if !resultLocked(resource.data.eventId)
-                    && (isAdmin()
+                    && ((isAdmin() && resource.data.enteredByAdminOverride == true)
                         || (isJudge() && resource.data.judgeUid == request.auth.uid));
+    }
+
+    function judgeOwnScore(data) {
+      return isJudge()
+          && data.judgeUid == request.auth.uid
+          && assignedToEvent(data.eventId)
+          && data.score is number
+          && data.score >= 0
+          && data.score <= settings().scoreScale;
     }
 
     // I20 — a judge's one-per-event "how did this go" note, separate from

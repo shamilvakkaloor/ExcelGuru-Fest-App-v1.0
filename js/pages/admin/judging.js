@@ -179,7 +179,9 @@ export default async function judging(root) {
           ])
         : null,
       el("p.hint", { style: "margin-top:.7rem" , text:
-        "Admin can fill a missing judge's score or correct one already submitted. A blank score is never read as zero — mark the entry Absent instead." })
+        "Admin can fill a judge's missing score. Once a judge has submitted their own mark it can no longer be " +
+        "typed over directly — use \"Add a mark\" to adjust it, or Freeze to exclude it from the average. A " +
+        "blank score is never read as zero — mark the entry Absent instead." })
     ]), event.name));
 
     if (notes.length) {
@@ -386,6 +388,15 @@ export default async function judging(root) {
     function scoreInput(reg, col) {
       const key = reg.id + "|" + col.uid;
       const existing = scoreBy[key];
+      // enteredByAdminOverride is set true on every write admin.js makes and
+      // false on every write judge.js makes — see the firestore.rules scores
+      // rule this mirrors — so it always says who actually put the current
+      // number there, not just who touched the doc first. A mark a judge
+      // submitted themselves cannot be typed over from here any more; the
+      // rules would refuse the write anyway, so the box is locked before the
+      // admin gets to that surprise, with "Add a mark" / Freeze pointed to
+      // instead.
+      const judgeSubmitted = !!existing && existing.enteredByAdminOverride !== true;
       // A pending value from BEFORE this repaint wins over what is on
       // record — it is what the admin typed and has not saved yet, which
       // is exactly the thing this repaint would otherwise have erased.
@@ -394,7 +405,10 @@ export default async function judging(root) {
         type: "number", min: 0, max: scale, step: "0.01",
         value: pending !== undefined ? pending : (existing?.score ?? ""),
         style: "max-width:110px",
-        disabled: absentBy[reg.id] || locked
+        disabled: absentBy[reg.id] || locked || judgeSubmitted,
+        title: judgeSubmitted
+          ? "This judge already submitted this mark — use \"Add a mark\" to adjust it, or Freeze to exclude it."
+          : null
       });
 
       // Explicit Save, matching the judge's own page (js/pages/judge.js) —
@@ -405,10 +419,11 @@ export default async function judging(root) {
       // option here". Nothing is written until Save is pressed, same rule
       // as the judge's screen.
       const state = el("span.hint", { style: "margin:0;white-space:nowrap",
-        text: existing ? "saved" : "" });
+        text: judgeSubmitted ? "judge's mark" : (existing ? "saved" : "") });
       const saveBtn = button("Save", { class: "btn-sm btn-accent", disabled: true });
 
       const markDirty = () => {
+        if (judgeSubmitted) return;
         const changed = box.value.trim() !== String(existing?.score ?? "");
         saveBtn.disabled = !changed || locked;
         state.textContent = changed ? "unsaved" : (existing ? "saved" : "");

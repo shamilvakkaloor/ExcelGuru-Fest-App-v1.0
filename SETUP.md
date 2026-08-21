@@ -239,8 +239,13 @@ Nothing appears until it is published.
 ## Part 5 — Everyday questions
 
 **Someone's score was wrong.**
-Fix it in Judging, then Finalize again. If the event was already published,
-the public page updates automatically.
+Depends who entered it. A score Admin typed in to fill a missing judge can
+just be corrected in Judging directly. A score a judge submitted themselves
+cannot be typed over any more — Judging shows it locked, with "Add a mark"
+(joins one more value into the average, with a reason) or Freeze (excludes
+that one mark from the average without changing it) as the two ways to
+correct it instead. Either way, Finalize again once it's fixed; if the event
+was already published, the public page updates automatically.
 
 **A judge did not show up.**
 Admin types their scores in the Judging screen. It counts exactly as if the
