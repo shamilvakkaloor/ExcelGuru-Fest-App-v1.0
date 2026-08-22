@@ -214,6 +214,13 @@ turning one on mid-fest changes nothing that already happened.
    entry does not turn up, either the judge or Admin marks it **Absent** —
    never leave the score blank and never enter zero for a no-show, because
    zero is a real score that earns a grade.
+
+   In *direct* mode the dropdown has three answers, and the difference
+   matters. **"— not judged yet —"** is the starting state and blocks
+   Finalize. **"Took part — no place"** is for everyone who competed and did
+   not place, which in most events is the majority of the field — use this
+   rather than marking them Absent, which would publish that they never
+   turned up. The rest are the actual placements.
 4. **Judging** → Admin can fill in for a missing judge or correct any
    submitted score. The original value is kept for audit.
 5. **Judging** → **Finalize event**. This averages, ranks and grades. It

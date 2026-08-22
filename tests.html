@@ -717,6 +717,39 @@ check("direct mode: absence still scores nothing", (() => {
 check("direct mode blocks finalize until every entry has a placement",
   directFinalizeBlockers([{ regId: "a", placement: null }, { regId: "b", placement: 1 }]), ["a"]);
 
+// "Took part, no place" is a real answer, stored as 0. Most of the field in
+// a placement event does not place, and marking those people Absent to get
+// past Finalize would publish something untrue about them.
+check("direct mode: an explicit no-place (0) does not block finalize",
+  directFinalizeBlockers([{ regId: "a", placement: 0 }, { regId: "b", placement: 1 }]), []);
+
+check("direct mode: undefined placement still blocks, same as null",
+  directFinalizeBlockers([{ regId: "a" }, { regId: "b", placement: 0 }]), ["a"]);
+
+check("direct mode: no-place takes no rank and scores nothing", (() => {
+  const out = computeDirectResults([{ regId: "n", placement: 0, grade: "A" }],
+    { rankPoints: V8_CLASS.rankPoints, gradePoints: V8_GRADE });
+  return [out[0].rank, out[0].rankPoints];
+})(), [null, 0]);
+
+/* Firestore rejects undefined outright, so every field finalizeEvent writes
+ * has to be a real value. A direct event has no marks, so averageScore and
+ * percent are null — they were simply absent, which made finalizing any
+ * placement event fail with "Unsupported field value: undefined". */
+check("direct mode: averageScore and percent are null, never undefined", (() => {
+  const out = computeDirectResults(
+    [{ regId: "p", placement: 1 }, { regId: "q", isAbsent: true }],
+    { rankPoints: V8_CLASS.rankPoints, gradePoints: V8_GRADE });
+  return out.flatMap(r => [r.averageScore === null, r.percent === null]);
+})(), [true, true, true, true]);
+
+check("direct mode: no result row carries an undefined value", (() => {
+  const out = computeDirectResults(
+    [{ regId: "p", placement: 0 }, { regId: "q", placement: 2, grade: "B" }, { regId: "r", isAbsent: true }],
+    { rankPoints: V8_CLASS.rankPoints, gradePoints: V8_GRADE });
+  return out.every(row => Object.values(row).every(v => v !== undefined));
+})(), true);
+
 /* Per-category participant limits */
 check("per-category off behaves exactly as before",
   limitsForCategory({ overallMax: 5, perCategory: false, byCategory: {} }, "c1").overallMax, 5);

@@ -236,20 +236,44 @@ export function computeResults(entries, { scoreScale, thresholds, rankPoints, gr
  */
 export function computeDirectResults(entries, { rankPoints, gradePoints, awardsGradePoints = true }) {
   return entries.map(e => {
+    /* averageScore and percent are stated as null rather than left off.
+     * A direct event has no marks, so there is genuinely no average and no
+     * percentage — but loadEventEntries never sets either field, and the
+     * scored path adds them, so omitting them here left them `undefined`.
+     * finalizeEvent writes those keys straight into the result document,
+     * and Firestore rejects undefined outright: every attempt to finalize a
+     * placement event failed with "Unsupported field value: undefined". */
     if (e.isAbsent) {
-      return { ...e, rank: null, grade: "Absent", rankPoints: 0, gradePoints: 0, totalPoints: 0, isAbsent: true };
+      return { ...e, rank: null, grade: "Absent", averageScore: null, percent: null,
+               rankPoints: 0, gradePoints: 0, totalPoints: 0, isAbsent: true };
     }
     const rank = e.placement || null;
     const grade = awardsGradePoints ? (e.grade || null) : null;
     const rp = rank ? Number(rankPoints?.[rank] ?? 0) : 0;
     const gp = (awardsGradePoints && grade) ? Number(gradePoints?.[grade] ?? 0) : 0;
-    return { ...e, rank, grade, rankPoints: rp, gradePoints: gp, totalPoints: rp + gp, isAbsent: false };
+    return { ...e, rank, grade, averageScore: null, percent: null,
+             rankPoints: rp, gradePoints: gp, totalPoints: rp + gp, isAbsent: false };
   });
 }
 
-/** Which direct-mode entries block a Finalize: no placement AND no Absent flag. */
+/**
+ * Which direct-mode entries block a Finalize.
+ *
+ * Only an entry nobody has decided about yet. NO PLACE IS A DECISION: most
+ * of the field in a placement event does not place, and making those people
+ * Absent to get past Finalize would be a lie — absent means they never took
+ * part, and it is what the public result says about them.
+ *
+ * So `placement` carries three states, the same shape as the "a missing
+ * score is never a zero" rule scored events already follow:
+ *   null / undefined — not judged yet, and this blocks
+ *   0                — judged, took part, did not place
+ *   1, 2, 3 …        — placed
+ * `== null` is deliberate: it catches null and undefined while leaving 0
+ * alone, which `!e.placement` did not.
+ */
 export function directFinalizeBlockers(entries) {
-  return entries.filter(e => !e.isAbsent && !e.placement).map(e => e.codeLetter || e.regId);
+  return entries.filter(e => !e.isAbsent && e.placement == null).map(e => e.codeLetter || e.regId);
 }
 
 /**

@@ -328,13 +328,19 @@ export default async function judgePage(root) {
     /** Placement picker for a direct event — saves on change, no Save button
      *  needed because a dropdown has no half-typed state to protect. */
     function placementCell(r) {
-      const current = directBy[r.regId]?.placement ?? "";
-      const sel = select([{ value: "", label: "\u2014 no place \u2014" },
+      // Three states \u2014 see admin/judging.js. "Took part, no place" has to be
+      // sayable, or an event where most of the field does not place cannot
+      // be finalized without calling those people absent.
+      const raw = directBy[r.regId]?.placement;
+      const current = raw == null ? "" : String(raw);
+      const sel = select([
+        { value: "", label: "\u2014 not judged yet \u2014" },
+        { value: "0", label: "Took part \u2014 no place" },
         ...placements.map(p => ({ value: String(p.rank), label: p.label }))],
-        { value: String(current) });
+        { value: current });
       sel.disabled = absentBy[r.regId] || locked;
       const state = el("span.hint", { style: "margin:0;white-space:nowrap",
-        text: current ? "saved" : "" });
+        text: current === "" ? "" : "saved" });
 
       sel.addEventListener("change", guard(async () => {
         const val = sel.value ? Number(sel.value) : null;
@@ -349,8 +355,11 @@ export default async function judgePage(root) {
           { type: "set", path: "judgingEntries", id: eventId, data: { scoringStarted: true } }
         ]);
         directBy[r.regId] = { ...(directBy[r.regId] || {}), placement: val };
-        state.textContent = val ? "saved" : "";
-        toast(val ? "Placement saved." : "Placement cleared.");
+        // 0 is a real answer ("took part, no place"), so these test against
+        // null rather than truthiness — otherwise recording "no place" read
+        // back as though nothing had been saved at all.
+        state.textContent = val == null ? "" : "saved";
+        toast(val == null ? "Placement cleared." : "Placement saved.");
         updateProgress();
       }));
       return el("div.btn-row", {}, [sel, state]);
@@ -432,7 +441,11 @@ export default async function judgePage(root) {
     }
 
     function updateProgress() {
-      const n = entries.entries.filter(e => scoreBy[e.regId] || absentBy[e.regId]).length;
+      // Mirrors the `done` count computed on load. It counted only scores,
+      // so on a DIRECT event the badge sat at "0 of 9 done" however many
+      // placements the judge picked.
+      const n = entries.entries.filter(e =>
+        (isDirect ? directBy[e.regId]?.placement != null : scoreBy[e.regId]) || absentBy[e.regId]).length;
       if (progressBadge) {
         progressBadge.textContent = `${n} of ${entries.entries.length} done`;
         progressBadge.className = "badge " + (n === entries.entries.length ? "badge-ok" : "badge-warn");

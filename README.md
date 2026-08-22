@@ -93,7 +93,7 @@ until an Admin enables it. An existing fest upgrades with nothing altered.
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — the full data model and scoring rules
 - [`DEPLOY-CHECKLIST.md`](./DEPLOY-CHECKLIST.md) — read before upgrading a fest
   that is already running
-- [`tests.html`](./tests.html) — open in a browser; 240 checks on the scoring
+- [`tests.html`](./tests.html) — open in a browser; 245 checks on the scoring
   logic, no Firebase connection needed
 
 Stack: vanilla ES modules, Firebase SDK 11 from CDN, Firestore, Firebase Auth.

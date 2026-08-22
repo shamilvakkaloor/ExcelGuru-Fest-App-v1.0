@@ -81,9 +81,21 @@ export default async function judging(root) {
 
   async function paint() {
     const event = events.find(e => e.id === picker.value);
-    panel.innerHTML = "";
-    if (!event) return;
+    if (!event) { panel.innerHTML = ""; return; }
     if (event.id !== paintedEventId) { pendingScores.clear(); paintedEventId = event.id; }
+
+    /* Read FIRST, clear second.
+     *
+     * The panel used to be emptied here, before ten Firestore reads — so
+     * for the whole round trip the screen was blank, and every action that
+     * repaints (marking absent, saving a score, freezing a mark) flashed
+     * the page away and back. Building against live data and swapping at
+     * the end means the old table stays up until the new one is ready.
+     *
+     * Scroll position is restored for the same reason: a repaint that
+     * jumps a long entry list back to the top loses the row the organiser
+     * was working on. */
+    const scrollY = window.scrollY;
 
     const [regs, judgeAssignments, scores, flags, result, directRows, ladderDoc, overrideRows, materialRows, notes] =
       await Promise.all([
@@ -103,6 +115,12 @@ export default async function judging(root) {
         // reaches a public or House-facing screen.
         getAll("judgeEventNotes", where("eventId", "==", event.id)).catch(() => [])
       ]);
+    // Everything below appends to `panel`, so it is emptied only now that
+    // the data it will be rebuilt from has actually arrived.
+    panel.innerHTML = "";
+    // Put the view back where it was, once the new rows are laid out.
+    requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
+
     const overrideBy = Object.fromEntries(overrideRows.map(o => [o.regId, o]));
     const materialByReg = Object.fromEntries(
       materialRows.filter(m => m.status === "approved").map(m => [m.registrationId, m]));
@@ -337,10 +355,19 @@ export default async function judging(root) {
 
     /** Placement dropdown for a direct event — ladder positions, plus none. */
     function placementInput(reg) {
-      const current = directBy[reg.id]?.placement ?? "";
-      const sel = select([{ value: "", label: "— no place —" },
+      /* Three states, not two. The blank option used to be LABELLED "no
+       * place" while Finalize treated it as "not judged yet" and refused to
+       * run — so an event where six of nine entries simply did not place
+       * could not be finalized at all unless those six were marked Absent,
+       * which is a different and untrue thing to publish about them.
+       * "No place" is now its own answer, stored as 0. */
+      const raw = directBy[reg.id]?.placement;
+      const current = raw == null ? "" : String(raw);
+      const sel = select([
+        { value: "", label: "— not judged yet —" },
+        { value: "0", label: "Took part — no place" },
         ...ladderRanks.map(r => ({ value: String(r), label: ordinalLabel(r) }))],
-        { value: String(current) });
+        { value: current });
       sel.disabled = absentBy[reg.id] || locked;
       sel.addEventListener("change", guard(async () => {
         if (locked) return;
