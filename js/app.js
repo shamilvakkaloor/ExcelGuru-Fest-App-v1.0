@@ -159,7 +159,7 @@ boot().catch(err => {
        <br><br>The usual cause is config.js still holding placeholder values,
        or Firestore not being enabled yet. See SETUP.md.
      </div>
-     <p class="hint" style="text-align:center">ExcelGuru · v${"7.2.1"} · excelguru.co.in</p></div>`;
+     <p class="hint" style="text-align:center">ExcelGuru · v${APP_VERSION} · excelguru.co.in</p></div>`;
 });
 
 /** Theme toggle. Present on every page, public and projector included. */

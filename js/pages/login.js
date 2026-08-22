@@ -1,4 +1,5 @@
 import { el, field, input, select, card, notice, button, guard, toast } from "../lib/ui.js";
+import { APP_VERSION } from "../lib/shell.js";
 import { login, loginNames, session } from "../lib/session.js";
 import { homeForRole } from "../app.js";
 import { navigate } from "../lib/router.js";
@@ -49,7 +50,7 @@ export default async function loginPage(root) {
     chips, status, formBox
   ]));
   wrap.appendChild(el("div.auth-foot", {}, [
-    el("span", { text: "ExcelGuru · v" + (window.__APP_VERSION__ || "7.2") + " · " }),
+    el("span", { text: "ExcelGuru · v" + (window.__APP_VERSION__ || APP_VERSION) + " · " }),
     el("a", { href: "https://excelguru.co.in", target: "_blank", rel: "noopener", text: "excelguru.co.in" })
   ]));
 

@@ -24,7 +24,13 @@ import { getOne, getAll, where } from "./db.js";
 import { navigate, currentPath, queryParams, render } from "./router.js";
 import { getLang, setLang } from "./i18n.js";
 
-export const APP_VERSION = "9.0";
+/* The single source of truth for the version shown anywhere in the app.
+ * Matches the released download (ExcelGuru Fest App v1.2) rather than the
+ * old internal build numbering, so the version a user reads in the footer
+ * is the one they can quote when asking for help. Anything that displays a
+ * version imports this — never a literal, which is how the login footer and
+ * the boot-failure screen ended up stuck on 7.2 and 7.2.1 respectively. */
+export const APP_VERSION = "1.2";
 
 /** The product name that follows the fest's own name in the browser tab. */
 export const APP_NAME = "ExcelGuru Fest App";
