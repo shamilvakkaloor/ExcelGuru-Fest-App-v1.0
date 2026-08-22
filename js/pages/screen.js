@@ -6,7 +6,7 @@
 import { el, backButton } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { classLabel, rankIsPublic, isGroupClass } from "../domain/constants.js";
-import { gradeLabel } from "../domain/scoring.js";
+import { gradeLabel, rankLeaderboard } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { currentlyRunning } from "./home.js";
 import { darkenColor, lightenColor, nameColorStyle } from "../domain/houseColor.js";
@@ -61,7 +61,19 @@ export default async function screenPage(root) {
       });
     }
 
-    if (board?.houses?.length) {
+    /* Which slides this screen shows. Big screen used to ignore the
+     * Slideshow composition switches entirely and always show everything —
+     * so a fest that turned "Student Talent by category" on saw the extra
+     * slides on the projector Slideshow and nothing here, and one that
+     * turned a section OFF still had it appear. Both displays now read the
+     * same switches; every default is ON, so a fest that never opens those
+     * settings sees the Big screen it already had. */
+    const showHouses  = board?.slideshowShowHouses  ?? true;
+    const showTalent  = board?.slideshowShowTalent  ?? true;
+    const showResults = board?.slideshowShowResults ?? true;
+    const talentByCat = !!board?.slideshowTalentByCategory;
+
+    if (showHouses && board?.houses?.length) {
       const max = Math.max(1, ...board.houses.map(h => h.total || 0));
       built.push({
         kind: "houses", title: "House standings",
@@ -99,17 +111,42 @@ export default async function screenPage(root) {
       }
     }
 
-    if (board?.students?.length) {
+    const talentRow = s => ({
+      rank: s.rank, main: s.name, sub: s.houseName, value: (s.total ?? 0) + " pts",
+      photos: s.photo ? [s.photo] : []
+    });
+
+    if (showTalent && board?.students?.length) {
       built.push({
         kind: "list", title: "Student talent",
-        rows: board.students.slice(0, talentLimit || 8).map(s => ({
-          rank: s.rank, main: s.name, sub: s.houseName, value: (s.total ?? 0) + " pts",
-          photos: s.photo ? [s.photo] : []
-        }))
+        rows: board.students.slice(0, talentLimit || 8).map(talentRow)
       });
     }
 
-    const latest = [...results]
+    /* One slide per category, matching the projector Slideshow and the
+     * Student Talent tab on the public results page. Independent of the
+     * combined board above, so a fest can show the per-category boards
+     * without a single "everyone" slide. rankLeaderboard with no tiebreak
+     * order is the same dense re-rank those screens do, reused rather than
+     * copied so a category slide can never show a rank that skips a place
+     * while another screen shows a different one. */
+    if (talentByCat && board?.students?.length) {
+      const byCat = new Map();
+      for (const s of board.students) {
+        const key = s.categoryName || "All categories";
+        if (!byCat.has(key)) byCat.set(key, []);
+        byCat.get(key).push(s);
+      }
+      for (const [catName, list] of byCat) {
+        built.push({
+          kind: "list", title: "Student talent",
+          sub: catName,
+          rows: rankLeaderboard(list).slice(0, talentLimit || 8).map(talentRow)
+        });
+      }
+    }
+
+    const latest = (showResults ? [...results] : [])
       .sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0))
       .slice(0, 8);
     for (const ev of latest) {

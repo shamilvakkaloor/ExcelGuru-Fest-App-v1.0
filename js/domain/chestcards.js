@@ -99,11 +99,15 @@ function themeSkin() {
  * `cards` is [{ chestNumber, name, houseName, houseColor, categoryName,
  *               className, photo, events: [string] }]
  */
-export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null, background = "white" } = {}) {
+export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null,
+                                       background = "white", watermark = true } = {}) {
   const layout = LAYOUTS[perSheet] || LAYOUTS[8];
   const { cols, rows } = layout;
   const perPage = cols * rows;
   const tinted = background === "theme" || background === "house";
+  // Only a real logo can be a watermark, so the toggle and the logo have to
+  // agree before one is drawn at all.
+  const wm = watermark ? logo : null;
 
   // Cut guides matter more than decoration here — these get scissored apart.
   const css = `
@@ -114,7 +118,7 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null,
          whole feature silently degrades to white paper with white text.
          The watermark needs the same guarantee — a faint mark is exactly
          what a print engine "helpfully" drops to save ink. */
-      ${tinted || logo ? `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` : ""}
+      ${tinted || wm ? `* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }` : ""}
       .cc-sheet {
         display: grid;
         grid-template-columns: repeat(${cols}, 1fr);
@@ -133,22 +137,22 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null,
         color: #14232E;
       }
 
-      /* The fest logo, very faint, filling the card behind everything else.
-         Flattened to a single-colour silhouette rather than printed as-is:
-         a logo is usually dark lettering, which would be invisible against
-         a dark card, and the point of a watermark is that it reads the same
-         whatever colour the artwork happens to be. brightness(0) makes it
-         solid black for a white card; the dark rule below inverts that to
-         solid white. Kept faint enough to sit under the text — this is
-         texture, not a second logo. */
+      /* The fest logo, faint, filling the card behind everything else.
+         Printed as the REAL artwork — an earlier version flattened it to a
+         single-colour silhouette so it would read identically on a white or
+         a dark card, but that threw away the logo itself and printed only
+         its outline, which is not what a watermark is meant to look like.
+         Colour is kept; the opacity is what makes it a watermark. A little
+         stronger on a dark card, where a faint mark has less contrast to
+         work with than it does on white. */
       .cc-wm {
         position: absolute; left: 50%; top: 52%;
         transform: translate(-50%, -50%);
-        width: 76%; height: 62%; object-fit: contain;
-        opacity: .07; filter: brightness(0);
+        width: 78%; height: 64%; object-fit: contain;
+        opacity: .10;
         pointer-events: none;
       }
-      .cc-card.cc-dark .cc-wm { opacity: .13; filter: brightness(0) invert(1); }
+      .cc-card.cc-dark .cc-wm { opacity: .18; }
       /* Everything except the watermark is positioned, so it paints above:
          two positioned siblings with no z-index stack in document order,
          and the watermark is deliberately written first. */
@@ -204,13 +208,13 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null,
     // Pad the last sheet so the grid keeps its shape rather than stretching
     // two cards to fill eight slots.
     const filled = [...page, ...Array(perPage - page.length).fill(null)];
-    return `<div class="cc-sheet">` + filled.map(c => c ? cardHTML(c, festName, logo, background) : `<div class="cc-card"></div>`).join("") + `</div>`;
+    return `<div class="cc-sheet">` + filled.map(c => c ? cardHTML(c, festName, logo, background, wm) : `<div class="cc-card"></div>`).join("") + `</div>`;
   }).join("");
 
   return css + body;
 }
 
-function cardHTML(c, festName, logo, background = "white") {
+function cardHTML(c, festName, logo, background = "white", wm = null) {
   const events = (c.events || []).filter(Boolean);
   const skin = cardSkin(background, c.houseColor);
   // The house chip's own colour: its normal job is to identify the house,
@@ -219,7 +223,7 @@ function cardHTML(c, festName, logo, background = "white") {
   const chipColor = skin.chip || c.houseColor || null;
   return `
     <div class="cc-card${skin.dark ? " cc-dark" : ""}"${skin.dark ? ` style="background:${skin.background}"` : ""}>
-      ${logo ? `<img class="cc-wm" src="${logo}" alt="" aria-hidden="true">` : ""}
+      ${wm ? `<img class="cc-wm" src="${wm}" alt="" aria-hidden="true">` : ""}
       <div class="cc-top">
         <span class="cc-fest">${escapeHTML(festName)}</span>
         ${logo ? `<img src="${logo}" alt="">` : ""}

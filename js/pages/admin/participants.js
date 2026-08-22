@@ -477,6 +477,10 @@ function chestCardDialog(allParticipants, houses, cfg) {
       .map(p => [p.categoryId, { value: p.categoryId, label: p.categoryName || "" }])).values()]]);
   const bgSel = select(CARD_BACKGROUNDS, { value: "white" });
   let withPhotos = true;
+  // Only offered when the fest actually has a logo to print — a checkbox
+  // that cannot do anything is worse than no checkbox.
+  const festLogo = cfg.useLogo ? cfg.logoData : null;
+  let withWatermark = true;
   const count = el("div.report-count");
 
   function matching() {
@@ -503,10 +507,12 @@ function chestCardDialog(allParticipants, houses, cfg) {
       field("Card background", bgSel,
         "A dark background prints the text light to match. \"House colours\" shades each card from that " +
         "house's own colour; a house with no colour set falls back to the app theme, so a sheet never " +
-        "mixes dark and white cards. If your fest uses a logo it is also printed faintly behind the text, " +
-        "whichever background you pick. Check \"Background graphics\" is on in the print dialog — some " +
+        "mixes dark and white cards. Check \"Background graphics\" is on in the print dialog — some " +
         "browsers leave it off and would print white paper with white text."),
       checkbox("Include photos", true, v => withPhotos = v),
+      festLogo
+        ? checkbox("Fest logo faded behind the card", true, v => withWatermark = v)
+        : null,
       count
     ]),
     actions: [
@@ -551,8 +557,9 @@ function chestCardDialog(allParticipants, houses, cfg) {
             bodyHTML: chestCardHTML(cards, {
               perSheet: Number(perSheet.value) || 8,
               festName: cfg.festName || "",
-              logo: cfg.useLogo ? cfg.logoData : null,
-              background: bgSel.value
+              logo: festLogo,
+              background: bgSel.value,
+              watermark: withWatermark
             })
           });
           close(true);
