@@ -1,6 +1,7 @@
 import { el, card, button, table, toast, guard, notice, empty, badge, modal, confirmDialog, filterBar } from "../../lib/ui.js";
 import { getAll, getOne, put } from "../../lib/db.js";
-import { previewImpact, publishEvents, unpublishEvent, rebuildPublicSnapshots } from "../../domain/publish.js";
+import { previewImpact, publishEvents, unpublishEvent, rebuildPublicSnapshots,
+         SNAPSHOT_BUILD } from "../../domain/publish.js";
 import { PUBLISH_STATUS, classLabel, DEFAULTS, typeTierFilters, eventFilterKeys } from "../../domain/constants.js";
 import { is } from "../../lib/session.js";
 
@@ -12,10 +13,11 @@ export default async function publishPage(root) {
 
   async function paint() {
     panel.innerHTML = "";
-    const [events, results, categories, settings, types, tiers] = await Promise.all([
+    const [events, results, categories, settings, types, tiers, board] = await Promise.all([
       getAll("events"), getAll("results"), getAll("categories"),
       getOne("config", "festSettings").catch(() => null),
-      getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => [])
+      getAll("programTypes").catch(() => []), getAll("programTiers").catch(() => []),
+      getOne("publicLeaderboard", "main").catch(() => null)
     ]);
     const cfg = { ...DEFAULTS.festSettings, ...(settings || {}) };
     const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
@@ -67,8 +69,21 @@ export default async function publishPage(root) {
         is.admin() ? button("Rebuild public pages", { onclick: guard(async () => {
           const r = await rebuildPublicSnapshots();
           toast(`Rebuilt ${r.events} events, ${r.students} participants.`);
+          paint();
         })}) : null
-      ])
+      ]),
+      /* A snapshot written by an older build of the app than the one now
+       * loaded. Happens when a rebuild is run from a tab that was opened
+       * before a deploy: the tab still holds the previous module in memory,
+       * so the rebuild succeeds and reports success while quietly omitting
+       * whatever the newer build adds. Without this the only symptom is a
+       * feature that "does not work" on the public pages. */
+      board && (board.snapshotBuild || 0) < SNAPSHOT_BUILD
+        ? notice("warn",
+            "The public pages were last built by an older version of this app, so anything added since is " +
+            "missing from them. Reload this page first (Ctrl+Shift+R / Cmd+Shift+R), then press " +
+            "“Rebuild public pages” — rebuilding without reloading repeats the same stale build.")
+        : null
     ]), "Publishing"));
 
     if (!rows.length) { panel.appendChild(empty("No events yet")); return; }

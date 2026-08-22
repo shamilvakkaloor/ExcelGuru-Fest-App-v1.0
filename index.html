@@ -22,7 +22,21 @@
          loaded, so it cannot depend on JavaScript arriving first. -->
     <div class="boot" role="status" aria-live="polite">
       <div class="boot-inner">
-        <img class="boot-logo" src="./assets/icon-192.png" alt="" width="72" height="72">
+        <!-- The app icon, drawn inline rather than loaded as the PNG, so its
+             three bars can animate. A PNG cannot be animated piecewise, and
+             the boot screen has to move before any script has run. Keep this
+             in step with assets/icon-*.png if the icon is ever redrawn. -->
+        <svg class="boot-logo" viewBox="0 0 100 100" width="76" height="76" aria-hidden="true">
+          <rect width="100" height="100" rx="24" fill="#1A1818"/>
+          <g class="boot-logo-bars">
+            <rect class="bl b1" x="20" y="35" width="43" height="11" rx="2.5" fill="#EC3013"/>
+            <rect class="bl b2" x="20" y="51" width="33" height="11" rx="2.5" fill="#A81E06"/>
+            <rect class="bl b3" x="20" y="67" width="39" height="11" rx="2.5" fill="#EC3013"/>
+          </g>
+          <path class="boot-logo-star"
+                d="M71 14l5.4 11 12.1 1.8-8.8 8.5 2.1 12-10.8-5.7-10.8 5.7 2.1-12-8.8-8.5 12.1-1.8z"
+                fill="#ECEAE6"/>
+        </svg>
 
         <h1 class="boot-word" aria-label="ExcelGuru Fest App">
           <span>E</span><span>x</span><span>c</span><span>e</span><span>l</span><span>G</span><span>u</span><span>r</span><span>u</span>

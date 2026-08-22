@@ -345,7 +345,7 @@ function entryDisplay(r, ev, houseStyle = {}) {
         el("div", { style: "display:flex;flex:0 0 auto" }, photos.slice(0, 4).map((src, i) =>
           el("img.result-photo", {
             src, alt: "", loading: "lazy",
-            style: i ? "margin-left:-10px" : null,
+            style: i ? "margin-left:-14px" : null,
             onerror: e => e.target.remove()
           }))),
         node

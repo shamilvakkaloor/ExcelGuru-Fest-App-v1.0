@@ -177,7 +177,7 @@ export default async function slideshowPage(root) {
           ? el("span.slide-photo-row", {}, it.photos.slice(0, 4).map((src, i) =>
               el("img.slide-photo", {
                 src, alt: "", loading: "lazy",
-                style: i ? "margin-left:-26px" : null,
+                style: i ? "margin-left:-36px" : null,
                 // A stale Drive link should read as "no photo", not as a
                 // broken-image icon on a screen an audience is watching.
                 onerror: e => e.target.remove()

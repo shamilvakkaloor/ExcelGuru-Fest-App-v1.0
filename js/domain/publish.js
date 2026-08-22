@@ -13,6 +13,12 @@ import { PUBLISH_STATUS, DEFAULTS, EVENT_CLASSES, publicRankLimit, rankIsPublic,
          effectiveResultMode, houseTerm, housePluralTerm } from "./constants.js";
 import { wallClockToEpoch } from "../lib/timezone.js";
 
+/* Bumped whenever a rebuild starts writing a field the public pages need.
+ * Stamped onto publicLeaderboard as `snapshotBuild` — see the comment
+ * where it is written. Bump this, not a date: the point is only to tell
+ * "this snapshot predates the feature" from "the feature is broken". */
+export const SNAPSHOT_BUILD = 3;
+
 /** Load the four config documents every calculation needs. */
 export async function loadConfig() {
   const [settings, gradePoints, limits, leaderboard, ...ladders] = await Promise.all([
@@ -479,17 +485,24 @@ export async function rebuildPublicSnapshots() {
 
   /* Photos on the Student Talent board — same opt-in switch and roster
    * (photoById, above) as a winner's photo on an event result, but capped
-   * hard regardless of how many places rankLimit shows: this is ONE
-   * document shared by the whole fest, not one per event, so an unbounded
-   * number of portraits here — a fest can have hundreds of scoring
-   * participants — could push the whole leaderboard past Firestore's 1 MiB
-   * ceiling and take it offline for everyone, not just fail to show a
-   * thumbnail. Ranked entries only, same "only a winner carries a photo"
-   * rule an event result already follows. */
+   * hard: this is ONE document shared by the whole fest, not one per event,
+   * so an unbounded number of portraits here — a fest can have hundreds of
+   * scoring participants — could push the whole leaderboard past
+   * Firestore's 1 MiB ceiling and take it offline for everyone, not just
+   * fail to show a thumbnail.
+   *
+   * The cap is the ONLY gate. An earlier version also required
+   * rankIsPublic(r.rank, rankLimit), copying the rule an event result
+   * follows — wrong here. rankLimit answers "how many PLACES does an event
+   * publish", typically 3; a talent board is a ranked list ten or more rows
+   * deep, so that gate gave the top three rows a photo and left every row
+   * below them blank, which reads as broken rather than as a policy. Rows
+   * are already in rank order, so taking them in order means the board
+   * fills from the top and stops at the cap. */
   const TALENT_PHOTO_CAP = 30;
   let talentPhotoBudget = showPhotos ? TALENT_PHOTO_CAP : 0;
   for (const r of studentRows) {
-    if (!talentPhotoBudget || !rankIsPublic(r.rank, cfg.rankLimit)) continue;
+    if (!talentPhotoBudget) break;
     const src = photoById[r.id];
     if (!src) continue;
     r.photo = src;
@@ -596,6 +609,15 @@ export async function rebuildPublicSnapshots() {
     data: {
       festName: cfg.settings.festName,
       updatedAt: Date.now(),
+      /* Which build of this file wrote the snapshot. A rebuild is triggered
+       * from a browser tab, so a tab opened before a deploy rebuilds using
+       * the OLD module still in memory — the snapshot then silently lacks
+       * whatever the new build adds, and looks identical to "the feature is
+       * broken". Stamping the build makes the two distinguishable without
+       * guessing: compare this against SNAPSHOT_BUILD in the deployed
+       * source, and if it is behind, the tab needs a hard reload before
+       * rebuilding. */
+      snapshotBuild: SNAPSHOT_BUILD,
       config: cfg.leaderboard,
       houses: houseRows,
       championship,

@@ -135,7 +135,7 @@ export default async function homePage(root) {
           Array.isArray(w.photos) && w.photos.length
             ? el("div", { style: "display:flex;flex:0 0 auto" }, w.photos.slice(0, 3).map((src, i) =>
                 el("img.result-photo", { src, alt: "", loading: "lazy",
-                  style: i ? "margin-left:-10px" : null,
+                  style: i ? "margin-left:-14px" : null,
                   onerror: e => e.target.remove() })))
             : null,
           el("div", { style: "flex:1;min-width:0" }, [
