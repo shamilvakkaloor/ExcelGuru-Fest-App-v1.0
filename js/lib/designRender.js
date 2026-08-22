@@ -41,10 +41,20 @@ function elementStyle(e, unit, scale = 1) {
   }
 
   if (e.type === "image") {
+    /* box-sizing matters here: a border on an <img> would otherwise be added
+     * OUTSIDE the width/height the design specifies, so a photo with a frame
+     * would print larger than the box the editor drew and shift everything
+     * placed against it. */
     return base +
       `height:${u(e.h)};` +
       `border-radius:${u(e.radius || 0)};` +
-      `object-fit:cover;overflow:hidden;`;
+      // "cover" fills the frame and crops; "contain" shows the whole photo
+      // and leaves gaps. Cover stays the default — a portrait cropped to a
+      // circle is the usual want, and it is what every existing design has.
+      `object-fit:${e.fit === "contain" ? "contain" : "cover"};overflow:hidden;box-sizing:border-box;` +
+      (e.stroke && e.stroke !== "none"
+        ? `border:${unit === "px" ? Math.max(1, (e.strokeWidth || 0) * scale) + "px" : (e.strokeWidth || 0) + "mm"} solid ${e.stroke};` : "") +
+      (e.opacity !== undefined ? `opacity:${e.opacity};` : "");
   }
 
   // text
@@ -146,13 +156,24 @@ export function renderCanvas(design, { scale, selectedId, onSelect, onChange }) 
     return ev => {
       if (ev.target.classList.contains("handle")) return;
       ev.preventDefault();
+      // Selecting repaints the whole canvas, which DESTROYS `node` — every
+      // element is rebuilt from scratch. The drag then moved a detached node
+      // while the real one sat still, so dragging looked like it did nothing
+      // until some later repaint jumped the element to its new position.
+      // Resolve the live node on each move instead of trusting the captured
+      // one; it survives any number of repaints mid-drag.
       onSelect(e.id);
+      // Query the DOCUMENT, not `wrap`: after a repaint the old wrap is
+      // detached but still holds its children, so asking it would keep
+      // handing back the very node that is no longer on screen.
+      const liveNode = () => document.querySelector(`.cv-el[data-id="${e.id}"]`) || node;
       const sx = ev.clientX, sy = ev.clientY, ox = e.x, oy = e.y;
       const move = m => {
         e.x = Math.round((ox + (m.clientX - sx) / scale) * 10) / 10;
         e.y = Math.round((oy + (m.clientY - sy) / scale) * 10) / 10;
-        node.style.left = e.x * scale + "px";
-        node.style.top = e.y * scale + "px";
+        const n = liveNode();
+        n.style.left = e.x * scale + "px";
+        n.style.top = e.y * scale + "px";
       };
       const up = () => {
         document.removeEventListener("mousemove", move);
@@ -169,12 +190,18 @@ export function renderCanvas(design, { scale, selectedId, onSelect, onChange }) 
       ev.preventDefault();
       ev.stopPropagation();
       const sx = ev.clientX, sy = ev.clientY, ow = e.w, oh = e.h || 0;
+      // Same live lookup as the drag above, for the same reason.
+      // Query the DOCUMENT, not `wrap`: after a repaint the old wrap is
+      // detached but still holds its children, so asking it would keep
+      // handing back the very node that is no longer on screen.
+      const liveNode = () => document.querySelector(`.cv-el[data-id="${e.id}"]`) || node;
       const move = m => {
+        const n = liveNode();
         e.w = Math.max(5, Math.round((ow + (m.clientX - sx) / scale) * 10) / 10);
-        node.style.width = e.w * scale + "px";
+        n.style.width = e.w * scale + "px";
         if (e.type !== "text") {
           e.h = Math.max(3, Math.round((oh + (m.clientY - sy) / scale) * 10) / 10);
-          node.style.height = e.h * scale + "px";
+          n.style.height = e.h * scale + "px";
         }
       };
       const up = () => {
@@ -205,11 +232,25 @@ export function shrinkToFit(node, e, scale) {
   let pt = e.size;
   // Measured after mount; harmless before, since scrollWidth is then 0.
   requestAnimationFrame(() => {
+    /* The selected element carries its resize handle as a CHILD, and the
+     * handle sits at right:-5px — deliberately outside the box, so it can be
+     * grabbed on the corner. scrollWidth counts that overflow, so a selected
+     * element always measured about 5px wider than its box however small the
+     * text was. The loop below would then shrink the text trying to fix an
+     * overflow that has nothing to do with the text, running all the way to
+     * its guard: clicking a text element made its text tiny. Measure with
+     * the handle hidden, then put it back. */
+    const handle = node.querySelector(".handle");
+    const handleDisplay = handle ? handle.style.display : null;
+    if (handle) handle.style.display = "none";
+
     let guard = 0;
     while (node.scrollWidth > boxPx + 1 && pt > 4 && guard++ < 40) {
       pt -= Math.max(0.5, pt * 0.06);
       node.style.fontSize = (pt * (scale / MM_PER_PX_AT_96DPI) * (96 / 72)) + "px";
     }
+
+    if (handle) handle.style.display = handleDisplay;
   });
 }
 

@@ -70,27 +70,48 @@ export default async function publishPage(root) {
     }
 
     const finalized = rows.filter(r => r.status === PUBLISH_STATUS.FINALIZED);
-    const staged = rows.filter(r => r.staged && r.status === PUBLISH_STATUS.FINALIZED);
+    /* Which events are checked, held as ids rather than recomputed from a
+     * repaint. Ticking a box used to call paint(), which empties the panel
+     * and re-reads seven collections — a full screen rebuild, seen as the
+     * whole page blinking, for a change that only moves two button labels.
+     * The Set is the shared truth: the checkbox writes to it, the buttons
+     * read from it. */
+    const stagedIds = new Set(
+      rows.filter(r => r.staged && r.status === PUBLISH_STATUS.FINALIZED).map(r => r.id));
+
+    const previewBtn = button("", { onclick: guard(() => showPreview([...stagedIds])) });
+    const publishBtn = is.admin() ? button("", {
+          class: "btn-accent",
+          onclick: guard(async () => {
+            const ids = [...stagedIds];
+            if (!await confirmDialog("Publish results",
+              `Make ${ids.length} event${ids.length > 1 ? "s" : ""} public? Everyone will see them immediately.`, "Publish")) return;
+            await publishEvents(ids);
+            toast("Published.");
+            paint();
+          })
+        }) : null;
+
+    /* The only thing a tick actually changes on screen. Called by every
+     * checkbox instead of repainting the panel. */
+    function syncStagedButtons() {
+      const n = stagedIds.size;
+      previewBtn.textContent = `Preview impact (${n} checked)`;
+      previewBtn.disabled = !n;
+      if (publishBtn) {
+        publishBtn.textContent = `Publish ${n} checked`;
+        publishBtn.disabled = !n;
+      }
+    }
+    syncStagedButtons();
 
     panel.appendChild(card(el("div", {}, [
       el("p.hint", { text: is.admin()
         ? "Check the events you want to go live, preview the effect on standings, then publish. Publishing is Admin-only."
         : "You can finalize and check events for publishing. Only an Admin can make results live." }),
       el("div.btn-row", {}, [
-        button(`Preview impact (${staged.length} checked)`, {
-          disabled: !staged.length,
-          onclick: guard(() => showPreview(staged.map(s => s.id)))
-        }),
-        is.admin() ? button(`Publish ${staged.length} checked`, {
-          class: "btn-accent", disabled: !staged.length,
-          onclick: guard(async () => {
-            if (!await confirmDialog("Publish results",
-              `Make ${staged.length} event${staged.length > 1 ? "s" : ""} public? Everyone will see them immediately.`, "Publish")) return;
-            await publishEvents(staged.map(s => s.id));
-            toast("Published.");
-            paint();
-          })
-        }) : null,
+        previewBtn,
+        publishBtn,
         is.admin() ? button("Rebuild public pages", { onclick: guard(async () => {
           const r = await rebuildPublicSnapshots();
           toast(`Rebuilt ${r.events} events, ${r.students} participants.`);
@@ -161,10 +182,21 @@ export default async function publishPage(root) {
       listBox.appendChild(card(table([
       { key: "check", label: "Publish?", render: r => {
           if (r.status !== PUBLISH_STATUS.FINALIZED) return el("span.hint", { text: "—" });
-          const cb = el("input", { type: "checkbox", checked: r.staged, onchange: guard(async e => {
-            await put("results", r.id, { stagedForPublish: e.target.checked });
-            toast(e.target.checked ? "Checked to publish." : "Unchecked.");
-            paint();
+          const cb = el("input", { type: "checkbox", checked: stagedIds.has(r.id), onchange: guard(async e => {
+            const on = e.target.checked;
+            // Update the buttons first so the tick feels instant, then
+            // persist. On failure the box goes back to what the server
+            // still holds rather than silently disagreeing with it.
+            if (on) stagedIds.add(r.id); else stagedIds.delete(r.id);
+            syncStagedButtons();
+            try {
+              await put("results", r.id, { stagedForPublish: on });
+            } catch (err) {
+              if (on) stagedIds.delete(r.id); else stagedIds.add(r.id);
+              e.target.checked = !on;
+              syncStagedButtons();
+              throw err;
+            }
           })});
           return cb;
         }},

@@ -78,7 +78,9 @@ export default async function slideshowPage(root) {
       for (const [catName, list] of byCat) {
         const ranked = reRank(list).slice(0, talentLimit || 10);
         slides.push({
-          title: "Student Talent — " + catName,
+          // Matches the Big screen: the category leads, because it is what
+          // identifies the board to the room.
+          title: catName + " Student Talent",
           items: ranked.map(s => ({
             rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts",
             photos: s.photo ? [s.photo] : []

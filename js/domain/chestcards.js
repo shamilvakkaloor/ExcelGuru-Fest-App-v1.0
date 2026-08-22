@@ -28,7 +28,8 @@ export const CARDS_PER_SHEET = Object.keys(LAYOUTS).map(Number);
 export const CARD_BACKGROUNDS = [
   { value: "white", label: "White (uses least ink)" },
   { value: "theme", label: "App theme — dark red and black" },
-  { value: "house", label: "House colours — one shade per house" }
+  { value: "house", label: "House colours — dark" },
+  { value: "houseLight", label: "House colours — light (uses less ink)" }
 ];
 
 /* The app's own hero gradient, restated in print-safe terms. The screen
@@ -65,8 +66,48 @@ function scaleToDark(hex, factor) {
  * no colour set: a sheet where three houses print dark and the fourth prints
  * white looks like a fault, not a choice.
  */
+/**
+ * Mix a colour toward WHITE proportionally — the mirror of scaleToDark.
+ *
+ * Same reasoning in reverse: adding a flat amount per channel cannot
+ * guarantee a pale result for a DARK input (black + 60 is still near-black,
+ * which would print dark text on a dark card). Interpolating toward white by
+ * a ratio lands every input pale enough whatever it started as, and keeps
+ * the hue recognisable as that house's colour.
+ */
+function mixToLight(hex, amount) {
+  const h = String(hex || "").replace("#", "");
+  const full = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
+  const num = parseInt(full, 16);
+  if (Number.isNaN(num) || full.length !== 6) return null;
+  const ch = i => {
+    const v = (num >> i) & 0xff;
+    return Math.max(0, Math.min(255, Math.round(v + (255 - v) * amount)));
+  };
+  return "#" + [ch(16), ch(8), ch(0)].map(v => v.toString(16).padStart(2, "0")).join("");
+}
+
 function cardSkin(background, houseColor) {
   if (background === "theme") return themeSkin();
+  /* The pale counterpart of "house": the same house colour, tinted far
+   * enough toward white that the card keeps the normal dark ink. Wanted for
+   * the obvious practical reason — a class set of dark cards is a lot of
+   * toner — while still colour-coding each house. */
+  if (background === "houseLight") {
+    const pale = mixToLight(houseColor, 0.82);
+    const paler = mixToLight(houseColor, 0.94);
+    // No colour set: plain white, which is the right neutral here. Unlike
+    // the dark option there is no mismatch to avoid — a white card among
+    // pale tinted ones reads as "this house has no colour", not as a fault.
+    if (!pale || !paler) return { dark: false, background: "#fff", chip: null };
+    return {
+      dark: false,
+      background: `linear-gradient(140deg, ${pale} 0%, ${paler} 100%)`,
+      // The full-strength house colour still carries the chip; it has plenty
+      // of contrast against a background this pale.
+      chip: houseColor
+    };
+  }
   if (background === "house") {
     const deep = scaleToDark(houseColor, 0.34);
     const deeper = scaleToDark(houseColor, 0.16);
@@ -104,7 +145,9 @@ export function chestCardHTML(cards, { perSheet = 8, festName = "", logo = null,
   const layout = LAYOUTS[perSheet] || LAYOUTS[8];
   const { cols, rows } = layout;
   const perPage = cols * rows;
-  const tinted = background === "theme" || background === "house";
+  // Any background that is not plain white needs the print engine told to
+  // keep it — a pale tint is dropped just as readily as a dark one.
+  const tinted = background !== "white";
   // Only a real logo can be a watermark, so the toggle and the logo have to
   // agree before one is drawn at all.
   const wm = watermark ? logo : null;
@@ -222,7 +265,7 @@ function cardHTML(c, festName, logo, background = "white", wm = null) {
   // so a tinted card gives it the skin's contrasting chip colour instead.
   const chipColor = skin.chip || c.houseColor || null;
   return `
-    <div class="cc-card${skin.dark ? " cc-dark" : ""}"${skin.dark ? ` style="background:${skin.background}"` : ""}>
+    <div class="cc-card${skin.dark ? " cc-dark" : ""}"${skin.background && skin.background !== "#fff" ? ` style="background:${skin.background}"` : ""}>
       ${wm ? `<img class="cc-wm" src="${wm}" alt="" aria-hidden="true">` : ""}
       <div class="cc-top">
         <span class="cc-fest">${escapeHTML(festName)}</span>

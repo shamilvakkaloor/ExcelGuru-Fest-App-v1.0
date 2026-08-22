@@ -139,8 +139,10 @@ export default async function screenPage(root) {
       }
       for (const [catName, list] of byCat) {
         built.push({
-          kind: "list", title: "Student talent",
-          sub: catName,
+          // "Junior Student talent" rather than a title with the category
+          // demoted to a sub-line: on a hall screen the category IS the
+          // headline — it is what tells the room whose board this is.
+          kind: "list", title: catName + " Student talent",
           rows: rankLeaderboard(list).slice(0, talentLimit || 8).map(talentRow)
         });
       }

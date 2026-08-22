@@ -372,7 +372,46 @@ export default async function generator(root) {
           paintStage(); paintRight();
         }));
         right.appendChild(field("Upload image", f));
+
+        /* A rank-holder's photo is the one element on a winner poster that
+         * people actually fiddle with, and it had only a corner radius —
+         * no way to make it a circle without working out the right radius by
+         * hand, no frame, no control over cropping. */
+        right.appendChild(el("div.studio-title", { text: "Shape" }));
+        right.appendChild(el("div.btn-row", {}, [
+          button("Square", { class: "btn-sm", onclick: () => { e.radius = 0; paintStage(); paintRight(); } }),
+          button("Rounded", { class: "btn-sm", onclick: () => {
+            e.radius = Math.max(1, Math.min(e.w, e.h || e.w) * 0.12);
+            paintStage(); paintRight();
+          }}),
+          // A circle is just a radius of half the shorter side — obvious once
+          // known, tedious to work out for every photo box by hand.
+          button("Circle", { class: "btn-sm", onclick: () => {
+            e.radius = Math.min(e.w, e.h || e.w) / 2;
+            paintStage(); paintRight();
+          }})
+        ]));
         right.appendChild(num("Corner radius (mm)", "radius", 0.5));
+
+        const fit = select([
+          { value: "cover", label: "Fill the box (crops the photo)" },
+          { value: "contain", label: "Fit whole photo (may leave gaps)" }
+        ], { value: e.fit === "contain" ? "contain" : "cover" });
+        fit.addEventListener("change", () => { e.fit = fit.value; paintStage(); });
+        right.appendChild(field("Cropping", fit,
+          "Portraits are rarely the same shape as the box. “Fill” keeps the box full and trims the " +
+          "edges; “Fit” keeps the whole photo and leaves space around it."));
+
+        const istroke = el("input", { type: "color",
+          value: e.stroke && e.stroke !== "none" ? e.stroke : "#FFFFFF",
+          style: "height:34px;padding:2px" });
+        istroke.addEventListener("input", () => { e.stroke = istroke.value; paintStage(); });
+        right.appendChild(field("Frame colour", istroke));
+        right.appendChild(checkbox("No frame", !e.stroke || e.stroke === "none", v => {
+          e.stroke = v ? "none" : istroke.value; paintStage();
+        }));
+        right.appendChild(num("Frame width (mm)", "strokeWidth", 0.1));
+        right.appendChild(num("Opacity (0–1)", "opacity", 0.05));
       }
     }
 
