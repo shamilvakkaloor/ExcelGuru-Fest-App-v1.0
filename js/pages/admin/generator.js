@@ -8,7 +8,7 @@ import { el, card, field, input, select, button, toast, guard, notice, empty, ba
 import { getAll, getOne, put, patch, remove, where } from "../../lib/db.js";
 import { printDocument } from "../../lib/pdf.js";
 import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
-import { renderCanvas, renderPageHTML, previewData } from "../../lib/designRender.js";
+import { renderCanvas, renderPageHTML, previewData, ensureDesignFonts } from "../../lib/designRender.js";
 import { compressImage, photoSrc } from "../../lib/photo.js";
 import { PUBLISH_STATUS, classLabel, EVENT_CLASSES } from "../../domain/constants.js";
 import { highestRankAwarded, gradeLabel } from "../../domain/scoring.js";
@@ -121,6 +121,9 @@ export default async function generator(root) {
 
   /* ══ Editor ════════════════════════════════════════════════════ */
   function openEditor(d, id) {
+    // Load the design typefaces before the canvas paints, so what the editor
+    // shows matches what the print window will produce.
+    ensureDesignFonts();
     view = "editor";
     design = d;
     designId = id;

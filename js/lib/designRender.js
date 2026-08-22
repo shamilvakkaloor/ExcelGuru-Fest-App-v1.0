@@ -18,12 +18,42 @@ export const MM_PER_PX_AT_96DPI = 3.7795275591;
 // the print came out as unstyled left-aligned text. The editor was never
 // affected because it assigns the same string via setAttribute, which does no
 // HTML parsing. Single quotes are equally valid CSS in both paths.
+/* These names must match what the PRINT window loads (see pdf.js, which
+ * pulls Inter, Space Grotesk and JetBrains Mono from Google Fonts) — the
+ * print output is the thing being designed, so it is the authority.
+ *
+ * The app shell itself loads neither Inter nor Space Grotesk, so the EDITOR
+ * canvas used to fall back to whatever `system-ui` meant on that machine
+ * while the print came out in Inter: the editor was lying about the one
+ * thing it exists to preview. ensureDesignFonts() below loads them for the
+ * editor too, rather than changing these names — a design already saved must
+ * keep printing in the typeface it was drawn for. */
 export const FONTS = {
   serif: "'Georgia', 'Times New Roman', serif",
   sans: "'Inter', system-ui, sans-serif",
   display: "'Space Grotesk', sans-serif",
   mono: "'JetBrains Mono', monospace"
 };
+
+/**
+ * Pull the design typefaces into the MAIN document, so the editor canvas
+ * renders in the same fonts the print window will use.
+ *
+ * Injected on demand rather than added to index.html: these are needed only
+ * by the design editor, and every other page — including the public ones a
+ * spectator loads — would otherwise pay for a font request it never uses.
+ * Idempotent, so opening the editor repeatedly adds one link, not twenty.
+ */
+export function ensureDesignFonts() {
+  const ID = "design-fonts";
+  if (typeof document === "undefined" || document.getElementById(ID)) return;
+  const link = document.createElement("link");
+  link.id = ID;
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700" +
+              "&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap";
+  document.head.appendChild(link);
+}
 
 /** Common CSS for one element, in whichever unit the target needs. */
 function elementStyle(e, unit, scale = 1) {
