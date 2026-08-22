@@ -374,6 +374,10 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: .84rem;
 
 .slideshow { min-height: 100vh; background: var(--rail-bg); color: #fff; display: flex; flex-direction: column; justify-content: center; padding: 2rem; }
 .slideshow h1 { font-size: clamp(2rem, 7vw, 4rem); color: #fff; }
+/* The category / event-code line under the title. It had no rule at all,
+   so it printed at plain body size on a screen meant to be read across a
+   hall — matched to the Big screen's own sub-title instead. */
+.slide-sub { color: #A9BBD0; font-size: clamp(1.3rem, 2.6vw, 2.2rem); font-weight: 600; margin-top: .45rem; }
 .slideshow .item { font-size: clamp(1.1rem, 3vw, 1.8rem); padding: .4rem 0; border-bottom: 1px solid #26463A; }
 
 @media print {
@@ -533,7 +537,10 @@ tr.row-ours { background: #FFFAEC; }
 }
 .screen-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 2rem; }
 .screen-head h1 { color: #fff; font-size: clamp(2rem, 5.5vw, 4rem); margin: 0; }
-.screen-sub { color: #A9BBD0; font-size: clamp(.9rem, 1.6vw, 1.4rem); margin-top: .3rem; }
+/* The category / class line under a slide title. Sized to be legible from
+   the back of a hall rather than as a caption — it is the line that tells
+   the room WHICH board it is looking at. */
+.screen-sub { color: #A9BBD0; font-size: clamp(1.3rem, 2.6vw, 2.2rem); font-weight: 600; margin-top: .45rem; }
 .screen-dots { display: flex; gap: .4rem; padding-top: 1rem; flex-wrap: wrap; max-width: 40%; justify-content: flex-end; }
 .screen-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.28); }
 .screen-dots i.on { background: var(--marigold); }

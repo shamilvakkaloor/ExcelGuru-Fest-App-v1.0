@@ -9,7 +9,32 @@ export default async function publishPage(root) {
   root.appendChild(el("h1", { text: "Results" }));
   const panel = el("div");
   root.appendChild(panel);
+
+  /* Second half of the "Reload and rebuild" button below. The rebuild has
+   * to happen AFTER the reload, because the whole problem it solves is a
+   * tab running a stale module — so the click stores a flag, reloads, and
+   * this picks the flag up on the way back in, when the fresh modules are
+   * the ones doing the work. Cleared before the rebuild runs, so a failure
+   * cannot leave the page rebuilding on every load. */
+  const REBUILD_FLAG = "festRebuildAfterReload";
+  let pendingRebuild = false;
+  try {
+    pendingRebuild = sessionStorage.getItem(REBUILD_FLAG) === "1";
+    if (pendingRebuild) sessionStorage.removeItem(REBUILD_FLAG);
+  } catch (e) { /* private mode — the manual button still works */ }
+
   await paint();
+
+  if (pendingRebuild) {
+    try {
+      const r = await rebuildPublicSnapshots();
+      toast(`Rebuilt ${r.events} events, ${r.students} participants.`);
+      await paint();
+    } catch (err) {
+      console.error(err);
+      toast("Could not rebuild the public pages. " + (err?.message || ""), true);
+    }
+  }
 
   async function paint() {
     panel.innerHTML = "";
@@ -79,10 +104,18 @@ export default async function publishPage(root) {
        * whatever the newer build adds. Without this the only symptom is a
        * feature that "does not work" on the public pages. */
       board && (board.snapshotBuild || 0) < SNAPSHOT_BUILD
-        ? notice("warn",
-            "The public pages were last built by an older version of this app, so anything added since is " +
-            "missing from them. Reload this page first (Ctrl+Shift+R / Cmd+Shift+R), then press " +
-            "“Rebuild public pages” — rebuilding without reloading repeats the same stale build.")
+        ? notice("warn", el("div", {}, [
+            el("div", { text:
+              "The public pages were last built by an older version of this app, so anything added since — " +
+              "participant photos on the talent board, for one — is missing from them. Rebuilding from this " +
+              "tab alone would repeat the same stale build: the tab is what runs the rebuild, and it is " +
+              "still holding the older code. This button reloads first, then rebuilds by itself." }),
+            el("div.btn-row", { style: "margin-top:.6rem" },
+              button("Reload and rebuild", { class: "btn-accent", onclick: () => {
+                try { sessionStorage.setItem(REBUILD_FLAG, "1"); } catch (e) {}
+                location.reload();
+              }}))
+          ]))
         : null
     ]), "Publishing"));
 
