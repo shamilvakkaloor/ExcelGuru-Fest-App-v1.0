@@ -446,6 +446,13 @@ export default async function generator(root) {
     const typeName = Object.fromEntries(types.map(t => [t.id, t.name]));
     const tierName = Object.fromEntries(tiers.map(t => [t.id, t.name]));
     const catName = Object.fromEntries(categories.map(c => [c.id, c.name]));
+    // Photos for the per-placement tokens on a results poster. Uploaded
+    // image first, then an external link — the same order the rest of the
+    // app resolves a portrait in, so a participant's face is the same
+    // picture whichever screen shows it.
+    const photoById = Object.fromEntries(participants
+      .map(p => [p.id, p.photoData || p.photoURL || null])
+      .filter(([, v]) => v));
     const published = results.filter(r => r.publishStatus === PUBLISH_STATUS.PUBLISHED);
 
     /* B4 — THE CERTIFICATE POPULATION BUG.
@@ -465,12 +472,14 @@ export default async function generator(root) {
     // generating ID cards looked as though it had no option at all: the
     // right answer was "Every registered participant" all along, wearing a
     // certificate's name.
-    const mode = select([
-      { value: "registered",   label: "Every registered participant" },
-      { value: "participants", label: "Participants in published events" },
-      { value: "winners",      label: "Winners only — people who placed" },
-      { value: "eventranks",   label: "One event — every rank on one page" }
-    ]);
+    /* Only the audiences THIS design can actually produce for. The list used
+     * to offer all four for every design, so opening an ID card asked
+     * whether to print it for "winners only" — a question the design cannot
+     * answer, since it has no rank to show. Decided from the tokens the
+     * design actually uses rather than a saved kind, so it stays right for a
+     * design somebody built themselves. */
+    const modeOptions = audienceModesFor(d);
+    const mode = select(modeOptions, { value: modeOptions[0].value });
     const houseSel = select([{ value: "", label: "All houses" },
       ...houses.map(h => ({ value: h.id, label: h.name }))]);
     const catSel = select([{ value: "", label: "All categories" },
@@ -510,6 +519,11 @@ export default async function generator(root) {
       eventField.style.display = isEventRanks ? "" : "none";
     }
     mode.addEventListener("change", syncMode);
+    // Run once on open. It never was, which was harmless only while the
+    // initial mode was always "registered"; now that a design picks its own
+    // starting audience, a results poster would open showing the house and
+    // category filters it does not use and hiding the event picker it needs.
+    syncMode();
 
     modal({
       title: "Generate — " + (d.name || "design"),
@@ -517,7 +531,9 @@ export default async function generator(root) {
         el("p.hint", { text:
           `Producing “${d.name || "this design"}” — one per person for whoever you choose below. ` +
           `The design decides what is printed; this decides who gets one.` }),
-        field("Who to produce for", mode),
+        // With a single possible audience there is no choice to present —
+        // a dropdown holding one item is a question with one answer.
+        modeOptions.length > 1 ? field("Who to produce for", mode) : null,
         houseField,
         catField,
         rankField,
@@ -531,7 +547,7 @@ export default async function generator(root) {
             if (mode.value === "eventranks") {
               const res = published.find(r => r.id === eventSel.value);
               if (!res) { toast("Pick an event with published results.", true); return false; }
-              if (!printEventRanks(d, res, settings, catName)) {
+              if (!printEventRanks(d, res, settings, catName, photoById)) {
                 toast("No ranked placements for that event.", true); return false;
               }
               close(true);
@@ -672,7 +688,48 @@ function placeLabel(rank) {
  * Checked by content, not a saved `kind` field, so it still works for an
  * older saved design that predates TEMPLATE_LIST carrying kind at all. */
 function usesEventResults(design) {
-  return (design.elements || []).some(e => e.type === "text" && /\{eventResults\}/.test(e.text || ""));
+  return designUsesToken(design, /\{(eventResults|rank\d+(name|house|photo|grade))\}/);
+}
+
+/** Every token the design references, across text bodies and image sources. */
+function designUsesToken(design, re) {
+  return (design.elements || []).some(e =>
+    (e.type === "text" && re.test(e.text || "")) ||
+    (e.type === "image" && re.test(e.src || "")));
+}
+
+/**
+ * Which audiences make sense for one design.
+ *
+ * A design declares what it needs by the tokens it uses, so the question
+ * "who should this be produced for" has a different answer per design and
+ * asking the full list every time invites choosing one that cannot work:
+ *
+ *  · {eventResults} or {rankN…}  — the page IS one event, so the only
+ *    sensible run is "this one event", and the per-person options would
+ *    each produce the same page over and over.
+ *  · {rank} or {event}           — needs a placement, so it can only be
+ *    produced for people who have one. Offering "every registered
+ *    participant" here prints blank ranks for everyone who did not place.
+ *  · anything else               — participant-level only (an ID card, a
+ *    participation certificate), so everyone registered is fair game and is
+ *    the sensible default: it needs no published result at all.
+ */
+function audienceModesFor(design) {
+  if (usesEventResults(design)) {
+    return [{ value: "eventranks", label: "One event — every rank on one page" }];
+  }
+  if (designUsesToken(design, /\{(rank|event|grade)\}/)) {
+    return [
+      { value: "winners",      label: "Winners only — people who placed" },
+      { value: "participants", label: "Participants in published events" }
+    ];
+  }
+  return [
+    { value: "registered",   label: "Every registered participant" },
+    { value: "participants", label: "Participants in published events" },
+    { value: "winners",      label: "Winners only — people who placed" }
+  ];
 }
 
 /**
@@ -681,12 +738,11 @@ function usesEventResults(design) {
  * the two can never drift into building the page differently.
  * Returns false when the event has nothing ranked to show.
  */
-function printEventRanks(design, res, settings, catName) {
+function printEventRanks(design, res, settings, catName, photoById = {}) {
   const entries = (res.entries || []).filter(e => !e.isAbsent && e.rank);
   if (!entries.length) return false;
-  const lines = entries
-    .slice()
-    .sort((a, b) => a.rank - b.rank)
+  const ordered = entries.slice().sort((a, b) => a.rank - b.rank);
+  const lines = ordered
     .map(e => {
       const who = (e.participantNames && e.participantNames.length > 1)
         ? (e.houseName || "")
@@ -694,6 +750,31 @@ function printEventRanks(design, res, settings, catName) {
       const gradeSuffix = e.grade ? ` (${gradeLabel(e.grade, settings)})` : "";
       return `${placeLabel(e.rank)} — ${who}${gradeSuffix}`;
     });
+
+  /* Per-placement tokens, so a poster can lay each winner out with a photo
+   * instead of listing them as text. Keyed by the ACTUAL rank, not by
+   * position in the list: with dense ranking two entries can share 1st and
+   * the next is 2nd, so the third row of the array is not "third place".
+   * A rank nobody holds simply has no tokens, and those elements render
+   * blank rather than showing someone else's name. */
+  const rankData = {};
+  for (const e of ordered) {
+    const n = e.rank;
+    const names = (e.participantNames || []).filter(Boolean);
+    // A group entry is the team, not a list of members — the same rule the
+    // text lines above already follow.
+    const who = names.length > 1 ? (e.houseName || names.join(", ")) : (names[0] || e.houseName || "");
+    if (rankData[`rank${n}name`] === undefined) {
+      rankData[`rank${n}name`] = who;
+      rankData[`rank${n}house`] = e.houseName || "";
+      rankData[`rank${n}grade`] = e.grade ? gradeLabel(e.grade, settings) : "";
+      // Only an individual entry has one face to show; a team's "photo"
+      // would be an arbitrary member, so it is left to the silhouette.
+      const pid = names.length === 1 ? (e.participantIds || [])[0] : null;
+      if (pid && photoById[pid]) rankData[`rank${n}photo`] = photoById[pid];
+    }
+  }
+
   const html = renderPageHTML(design, {
     fest: settings?.festName || "", school: settings?.schoolName || "",
     date: new Date().toLocaleDateString(),
@@ -702,7 +783,8 @@ function printEventRanks(design, res, settings, catName) {
     // which event was picked. Looked up from the categories the caller
     // already has, same as everywhere else in this file.
     event: res.eventName, category: catName?.[res.categoryId] || "",
-    eventResults: lines.join("\n")
+    eventResults: lines.join("\n"),
+    ...rankData
   });
   printDocument({
     title: (design.name || "Event results") + " — " + res.eventName, bare: true,
@@ -821,7 +903,15 @@ function singleEventDialog(design, published, catName) {
     out.innerHTML = "";
     const term = search.value.trim().toLowerCase();
     if (!term) return;
-    const settings = await getOne("config", "festSettings");
+    // Participants come along for the ride so a results poster printed one
+    // at a time carries the same winner photos the batch run produces.
+    const [settings, people] = await Promise.all([
+      getOne("config", "festSettings"),
+      getAll("participants").catch(() => [])
+    ]);
+    const photoById = Object.fromEntries(people
+      .map(p => [p.id, p.photoData || p.photoURL || null])
+      .filter(([, v]) => v));
     const matches = published.filter(r =>
       String(r.eventCode ?? "").toLowerCase() === term ||
       String(r.eventName || "").toLowerCase().includes(term)).slice(0, 8);
@@ -837,7 +927,7 @@ function singleEventDialog(design, published, catName) {
           el("div.hint", { style: "margin:0", text: `${rankedCount} ranked placement${rankedCount === 1 ? "" : "s"}` })
         ]),
         button("Print", { class: "btn-sm btn-accent", onclick: () => {
-          if (!printEventRanks(design, res, settings, catName)) toast("No ranked placements for that event.", true);
+          if (!printEventRanks(design, res, settings, catName, photoById)) toast("No ranked placements for that event.", true);
         }})
       ]));
     }

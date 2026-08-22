@@ -27,6 +27,20 @@ export const PLACEHOLDERS = [
   { token: "{rank}",      label: "Placement" },
   { token: "{grade}",     label: "Grade" },
   { token: "{eventResults}", label: "Every placement in one event, one per line" },
+  /* Indexed per-placement tokens, for a results poster that lays each winner
+   * out properly instead of listing them as lines of text. {eventResults} is
+   * one text block, so it can never carry a photo; these can, because an
+   * image element resolves a {token} src the same way a text element
+   * resolves its own. n is the placement, so {rank1name} is the winner. */
+  { token: "{rank1name}",  label: "1st place — name" },
+  { token: "{rank1house}", label: "1st place — house" },
+  { token: "{rank1photo}", label: "1st place — photo (image element)" },
+  { token: "{rank2name}",  label: "2nd place — name" },
+  { token: "{rank2house}", label: "2nd place — house" },
+  { token: "{rank2photo}", label: "2nd place — photo (image element)" },
+  { token: "{rank3name}",  label: "3rd place — name" },
+  { token: "{rank3house}", label: "3rd place — house" },
+  { token: "{rank3photo}", label: "3rd place — photo (image element)" },
   { token: "{fest}",      label: "Fest name" },
   { token: "{school}",    label: "School name" },
   { token: "{date}",      label: "Today's date" },
@@ -158,6 +172,23 @@ function idCard() {
  * no new rendering primitive needed, just a token filled with more lines.
  */
 function eventRanksPoster() {
+  /* One row per placement: photo, then name and house beside it. Replaces a
+   * single {eventResults} text block — that could only ever be lines of
+   * text, so a results poster could not show the winners' faces, which is
+   * the thing that makes it worth putting on a wall. Three rows because
+   * three placements is the common case; a fest awarding more can add a
+   * fourth row from the placeholder list, and a row whose placement does
+   * not exist prints blank rather than wrong. */
+  const row = (n, y, accent) => [
+    el(`r${n}photo`, "image", { x: 22, y, w: 34, h: 34, src: `{rank${n}photo}`, radius: 17,
+                                fit: "cover", stroke: accent, strokeWidth: 0.8 }),
+    el(`r${n}place`, "text", { x: 64, y: y + 2, w: 120, text: placeWord(n), size: 11, font: "sans",
+                               color: accent, align: "left", weight: 700, spacing: 2 }),
+    el(`r${n}name`, "text", { x: 64, y: y + 12, w: 120, text: `{rank${n}name}`, size: 17, font: "sans",
+                              color: "#FFFFFF", align: "left", weight: 700 }),
+    el(`r${n}house`, "text", { x: 64, y: y + 25, w: 120, text: `{rank${n}house}`, size: 10, font: "sans",
+                               color: "#A9BBD0", align: "left", weight: 400 })
+  ];
   return {
     name: "Event Results — Poster",
     page: A4_PORTRAIT,
@@ -169,15 +200,37 @@ function eventRanksPoster() {
       el("event", "text", { x: 10, y: 38, w: 190, text: "{event}", size: 26, font: "sans", color: "#FFFFFF", align: "center", weight: 700 }),
       el("category", "text", { x: 15, y: 62, w: 180, text: "{category}", size: 11, font: "sans", color: "#A9BBD0", align: "center", weight: 400 }),
       el("rule", "box", { x: 75, y: 74, w: 60, h: 0.6, fill: "#F5A524", stroke: "none", strokeWidth: 0 }),
-      el("results", "text", { x: 20, y: 88, w: 170, text: "{eventResults}", size: 13, font: "sans", color: "#FFFFFF", align: "left", weight: 600, lineHeight: 2.1 }),
-      el("date_lbl", "text", { x: 15, y: 280, w: 180, text: "{school} · {date}", size: 8.5, font: "sans", color: "#7B8DA0", align: "center", weight: 400 })
+      ...row(1, 92, "#F5A524"),
+      ...row(2, 142, "#C7CDD4"),
+      ...row(3, 192, "#C98A4B"),
+      el("date_lbl", "text", { x: 15, y: 275, w: 180, text: "{school} · {date}", size: 8.5, font: "sans", color: "#7B8DA0", align: "center", weight: 400 })
     ]
   };
+}
+
+/** "First"/"Second"/… for the fixed rows a results poster lays out. */
+function placeWord(n) {
+  return ["", "FIRST PLACE", "SECOND PLACE", "THIRD PLACE", "FOURTH PLACE", "FIFTH PLACE"][n] || `PLACE ${n}`;
 }
 
 /** Same event-results board, sized 16:9 for a projector or hall screen. */
 function eventRanksScreen() {
   const { w, h } = SLIDE_16_9;
+  /* The same three placements as the poster, but side by side rather than
+   * stacked — a 16:9 slide is wide and short, so three rows down the page
+   * would leave the sides empty and crowd the bottom. Centre column sits
+   * higher: it is the winner, and a podium reads at a glance. */
+  const colW = 92;
+  const col = (n, cx, top, photo, accent) => [
+    el(`r${n}photo`, "image", { x: cx - photo / 2, y: top, w: photo, h: photo, src: `{rank${n}photo}`,
+                                radius: photo / 2, fit: "cover", stroke: accent, strokeWidth: 0.9 }),
+    el(`r${n}place`, "text", { x: cx - colW / 2, y: top + photo + 6, w: colW, text: placeWord(n), size: 11,
+                               font: "sans", color: accent, align: "center", weight: 700, spacing: 2 }),
+    el(`r${n}name`, "text", { x: cx - colW / 2, y: top + photo + 17, w: colW, text: `{rank${n}name}`, size: 16,
+                              font: "sans", color: "#FFFFFF", align: "center", weight: 700 }),
+    el(`r${n}house`, "text", { x: cx - colW / 2, y: top + photo + 30, w: colW, text: `{rank${n}house}`, size: 10,
+                               font: "sans", color: "#A9BBD0", align: "center", weight: 400 })
+  ];
   return {
     name: "Event Results — Screen (16:9)",
     page: SLIDE_16_9,
@@ -185,18 +238,48 @@ function eventRanksScreen() {
     backgroundImage: null,
     elements: [
       el("glow", "box", { x: -50, y: -50, w: 220, h: 220, fill: "#6C4BD6", stroke: "none", strokeWidth: 0, radius: 110, opacity: 0.3 }),
-      el("fest", "text", { x: 20, y: 20, w: w - 40, text: "{fest}", size: 11, font: "sans", color: "#F5A524", align: "center", weight: 700, spacing: 3 }),
-      el("event", "text", { x: 10, y: 36, w: w - 20, text: "{event}", size: 30, font: "sans", color: "#FFFFFF", align: "center", weight: 700 }),
-      el("category", "text", { x: 20, y: 58, w: w - 40, text: "{category}", size: 12, font: "sans", color: "#A9BBD0", align: "center", weight: 400 }),
-      el("rule", "box", { x: w / 2 - 30, y: 70, w: 60, h: 0.6, fill: "#F5A524", stroke: "none", strokeWidth: 0 }),
-      el("results", "text", { x: 40, y: 84, w: w - 80, text: "{eventResults}", size: 14, font: "sans", color: "#FFFFFF", align: "left", weight: 600, lineHeight: 2 }),
-      el("date_lbl", "text", { x: 20, y: h - 16, w: w - 40, text: "{school} · {date}", size: 8.5, font: "sans", color: "#7B8DA0", align: "center", weight: 400 })
+      el("fest", "text", { x: 20, y: 14, w: w - 40, text: "{fest}", size: 11, font: "sans", color: "#F5A524", align: "center", weight: 700, spacing: 3 }),
+      el("event", "text", { x: 10, y: 28, w: w - 20, text: "{event}", size: 28, font: "sans", color: "#FFFFFF", align: "center", weight: 700 }),
+      el("category", "text", { x: 20, y: 50, w: w - 40, text: "{category}", size: 12, font: "sans", color: "#A9BBD0", align: "center", weight: 400 }),
+      el("rule", "box", { x: w / 2 - 30, y: 63, w: 60, h: 0.6, fill: "#F5A524", stroke: "none", strokeWidth: 0 }),
+      ...col(2, w / 2 - 105, 88, 38, "#C7CDD4"),
+      ...col(1, w / 2,       74, 48, "#F5A524"),
+      ...col(3, w / 2 + 105, 88, 38, "#C98A4B"),
+      el("date_lbl", "text", { x: 20, y: h - 14, w: w - 40, text: "{school} · {date}", size: 8.5, font: "sans", color: "#7B8DA0", align: "center", weight: 400 })
+    ]
+  };
+}
+
+/**
+ * The same CR80 card turned upright (54 × 85.6mm) — the shape a lanyard
+ * holder actually is, so a fest handing out hanging badges does not have to
+ * rebuild the landscape one by hand. Portrait puts the photo above the name
+ * rather than beside it, which is the whole reason to turn it.
+ */
+function idCardPortrait() {
+  const w = 54, h = 85.6;
+  return {
+    name: "Participant ID Card — Portrait",
+    page: { w, h },
+    background: "#FFFFFF",
+    backgroundImage: null,
+    elements: [
+      el("band", "box", { x: 0, y: 0, w, h: 16, fill: "#241B4E", stroke: "none", strokeWidth: 0, radius: 0 }),
+      el("accent", "box", { x: 0, y: 16, w, h: 1.2, fill: "#F5A524", stroke: "none", strokeWidth: 0, radius: 0 }),
+      el("fest", "text", { x: 3, y: 3.5, w: w - 6, text: "{fest}", size: 7.5, font: "sans", color: "#FFFFFF", align: "center", weight: 700 }),
+      el("school", "text", { x: 3, y: 10, w: w - 6, text: "{school}", size: 5, font: "sans", color: "#C9BEEE", align: "center", weight: 400 }),
+      el("photo", "image", { x: (w - 26) / 2, y: 22, w: 26, h: 26, src: "{photo}", radius: 13, fit: "cover" }),
+      el("name", "text", { x: 3, y: 52, w: w - 6, text: "{name}", size: 9, font: "sans", color: "#14232E", align: "center", weight: 700, lineHeight: 1.15 }),
+      el("chest", "text", { x: 3, y: 62, w: w - 6, text: "Chest {chest}", size: 7, font: "mono", color: "#405265", align: "center", weight: 400 }),
+      el("house", "text", { x: 3, y: 69, w: w - 6, text: "{house}", size: 7, font: "sans", color: "#405265", align: "center", weight: 400 }),
+      el("catclass", "text", { x: 3, y: 75.5, w: w - 6, text: "{category} · {class}", size: 6.5, font: "sans", color: "#7B8DA0", align: "center", weight: 400 }),
+      el("border", "box", { x: 1, y: 1, w: w - 2, h: h - 2, fill: "none", stroke: "#DDE4EE", strokeWidth: 0.3, radius: 2 })
     ]
   };
 }
 
 export const TEMPLATES = {
-  classicGold, modernIndigo, withPhoto, winnerPoster, idCard,
+  classicGold, modernIndigo, withPhoto, winnerPoster, idCard, idCardPortrait,
   eventRanksPoster, eventRanksScreen
 };
 
@@ -207,7 +290,8 @@ export const TEMPLATE_LIST = [
   { id: "winnerPoster", label: "Winner Poster", kind: "poster" },
   { id: "eventRanksPoster", label: "Event Results (all ranks)",         kind: "poster" },
   { id: "eventRanksScreen", label: "Event Results (all ranks) — 16:9", kind: "poster" },
-  { id: "idCard",       label: "Participant ID Card", kind: "idcard" }
+  { id: "idCard",       label: "Participant ID Card — Landscape", kind: "idcard" },
+  { id: "idCardPortrait", label: "Participant ID Card — Portrait", kind: "idcard" }
 ];
 
 export const TEMPLATE_KIND_LABEL = {

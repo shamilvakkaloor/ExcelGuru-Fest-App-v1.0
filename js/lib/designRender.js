@@ -85,6 +85,23 @@ function elementStyle(e, unit, scale = 1) {
     `white-space:pre-wrap;`;
 }
 
+/**
+ * What an image element actually points at.
+ *
+ * `src` is either a data URL / uploaded image, or a single {token}. Any
+ * token resolves against the same data object the text elements use, so a
+ * results poster can place {rank1photo}, {rank2photo}, … exactly the way it
+ * places {rank1name} — one mechanism, not a special case per template.
+ * A token with no value falls back to the silhouette rather than a broken
+ * image: a poster for an event whose winner has no photo on file should
+ * still print.
+ */
+export function resolveImageSrc(src, data) {
+  const token = /^\{(\w+)\}$/.exec(String(src || ""));
+  if (token) return data[token[1]] || PLACEHOLDER_AVATAR;
+  return src || PLACEHOLDER_AVATAR;
+}
+
 /** Print-ready HTML for one filled page. */
 export function renderPageHTML(design, data) {
   const inner = design.elements.map(e => {
@@ -94,8 +111,7 @@ export function renderPageHTML(design, data) {
     const style = escapeHTML(elementStyle(e, "mm"));
     if (e.type === "box") return `<div style="position:absolute;${style}"></div>`;
     if (e.type === "image") {
-      const src = e.src === "{photo}" ? (data.photo || PLACEHOLDER_AVATAR) : (e.src || PLACEHOLDER_AVATAR);
-      return `<img src="${escapeHTML(src)}" style="position:absolute;${style}" alt="">`;
+      return `<img src="${escapeHTML(resolveImageSrc(e.src, data))}" style="position:absolute;${style}" alt="">`;
     }
     return `<div style="position:absolute;${style}">${escapeHTML(fillTokens(e.text, data))}</div>`;
   }).join("");
@@ -134,7 +150,10 @@ export function renderCanvas(design, { scale, selectedId, onSelect, onChange }) 
     node.setAttribute("style", "position:absolute;" + elementStyle(e, "px", scale));
 
     if (e.type === "image") {
-      node.src = e.src === "{photo}" ? PLACEHOLDER_AVATAR : (e.src || PLACEHOLDER_AVATAR);
+      // Same resolution the print path uses, against the editor's sample
+      // data — so a {rank2photo} box previews as a portrait rather than as
+      // a broken image the designer has to imagine around.
+      node.src = resolveImageSrc(e.src, previewData());
       node.alt = "";
       node.draggable = false;
     } else if (e.type === "text") {
