@@ -55,17 +55,34 @@ export function ensureDesignFonts() {
   document.head.appendChild(link);
 }
 
+/**
+ * A colour that may be written as a {token}.
+ *
+ * Only `{houseColor}` is meaningful today: it lets one design carry every
+ * house's own identity — a Red winner's poster and a Blue winner's differ by
+ * the accent bar, from a single template — which a fixed hex cannot do.
+ * Falls back to the app accent when the house has no colour set, so the bar
+ * is never invisible.
+ */
+function resolveColor(value, data, fallback = "#EC3013") {
+  const token = /^\{(\w+)\}$/.exec(String(value || ""));
+  if (!token) return value;
+  return (data && data[token[1]]) || fallback;
+}
+
 /** Common CSS for one element, in whichever unit the target needs. */
-function elementStyle(e, unit, scale = 1) {
+function elementStyle(e, unit, scale = 1, data = null) {
   const u = v => (unit === "px" ? v * scale + "px" : v + "mm");
   const base = `left:${u(e.x)};top:${u(e.y)};width:${u(e.w)};`;
 
   if (e.type === "box") {
+    const fill = resolveColor(e.fill, data);
+    const stroke = resolveColor(e.stroke, data);
     return base +
       `height:${u(e.h)};` +
-      `background:${e.fill && e.fill !== "none" ? e.fill : "transparent"};` +
-      (e.stroke && e.stroke !== "none"
-        ? `border:${unit === "px" ? Math.max(1, (e.strokeWidth || 0) * scale) + "px" : (e.strokeWidth || 0) + "mm"} solid ${e.stroke};` : "") +
+      `background:${fill && fill !== "none" ? fill : "transparent"};` +
+      (stroke && stroke !== "none"
+        ? `border:${unit === "px" ? Math.max(1, (e.strokeWidth || 0) * scale) + "px" : (e.strokeWidth || 0) + "mm"} solid ${stroke};` : "") +
       `border-radius:${u(e.radius || 0)};` +
       (e.opacity !== undefined ? `opacity:${e.opacity};` : "");
   }
@@ -75,6 +92,7 @@ function elementStyle(e, unit, scale = 1) {
      * OUTSIDE the width/height the design specifies, so a photo with a frame
      * would print larger than the box the editor drew and shift everything
      * placed against it. */
+    const stroke = resolveColor(e.stroke, data);
     return base +
       `height:${u(e.h)};` +
       `border-radius:${u(e.radius || 0)};` +
@@ -82,8 +100,8 @@ function elementStyle(e, unit, scale = 1) {
       // and leaves gaps. Cover stays the default — a portrait cropped to a
       // circle is the usual want, and it is what every existing design has.
       `object-fit:${e.fit === "contain" ? "contain" : "cover"};overflow:hidden;box-sizing:border-box;` +
-      (e.stroke && e.stroke !== "none"
-        ? `border:${unit === "px" ? Math.max(1, (e.strokeWidth || 0) * scale) + "px" : (e.strokeWidth || 0) + "mm"} solid ${e.stroke};` : "") +
+      (stroke && stroke !== "none"
+        ? `border:${unit === "px" ? Math.max(1, (e.strokeWidth || 0) * scale) + "px" : (e.strokeWidth || 0) + "mm"} solid ${stroke};` : "") +
       (e.opacity !== undefined ? `opacity:${e.opacity};` : "");
   }
 
@@ -108,10 +126,16 @@ function elementStyle(e, unit, scale = 1) {
     `font-family:${FONTS[e.font] || FONTS.sans};` +
     `font-size:${sizePx};` +
     `font-weight:${e.weight || 400};` +
-    `color:${e.color || "#000"};` +
+    `color:${resolveColor(e.color, data) || "#000"};` +
     `text-align:${e.align || "left"};` +
     `line-height:${e.lineHeight || 1.25};` +
     (e.spacing ? `letter-spacing:${e.spacing * 0.1}${unit === "px" ? "px" : "mm"};` : "") +
+    // A CSS transform, not a stored uppercase copy of the text: a {rank} or
+    // {house} token resolves to whatever case the source data actually has
+    // ("Blue", "First"), and an eyebrow label wants it shouted regardless —
+    // transforming at render time means the same design keeps working if
+    // the underlying value's case ever changes.
+    (e.uppercase ? "text-transform:uppercase;" : "") +
     `white-space:pre-wrap;`;
 }
 
@@ -138,7 +162,7 @@ export function renderPageHTML(design, data) {
     // Escaped for attribute context: a colour or font the user typed into the
     // editor must never be able to terminate the attribute the way the quoted
     // font stack above silently did.
-    const style = escapeHTML(elementStyle(e, "mm"));
+    const style = escapeHTML(elementStyle(e, "mm", 1, data));
     if (e.type === "box") return `<div style="position:absolute;${style}"></div>`;
     if (e.type === "image") {
       return `<img src="${escapeHTML(resolveImageSrc(e.src, data))}" style="position:absolute;${style}" alt="">`;
@@ -177,7 +201,9 @@ export function renderCanvas(design, { scale, selectedId, onSelect, onChange }) 
     const node = document.createElement(e.type === "image" ? "img" : "div");
     node.className = "cv-el" + (e.id === selectedId ? " selected" : "");
     node.dataset.id = e.id;
-    node.setAttribute("style", "position:absolute;" + elementStyle(e, "px", scale));
+    // Same sample data the image path below already uses, so a {houseColor}
+    // fill previews as an actual colour rather than as a broken CSS value.
+    node.setAttribute("style", "position:absolute;" + elementStyle(e, "px", scale, previewData()));
 
     if (e.type === "image") {
       // Same resolution the print path uses, against the editor's sample
@@ -309,6 +335,7 @@ export function previewData() {
     name: "Ann Mary Thomas",
     chest: "128",
     house: "Falcons",
+    houseColor: "#1E5FA8",
     category: "Junior",
     class: "9B",
     results: "Solo Song — First (A)\nGroup Dance — Second (A)\nStory Writing — Participated (B)",
@@ -318,6 +345,10 @@ export function previewData() {
     fest: window.__FEST_NAME__ || "Our Fest",
     school: "Excelguru",
     date: new Date().toLocaleDateString(),
-    photo: PLACEHOLDER_AVATAR
+    photo: PLACEHOLDER_AVATAR,
+    eventResults: "1st — Ann Mary Thomas (Falcons)\n2nd — Kabir Rathore (Ospreys)\n3rd — Devansh Iyer (Herons)",
+    rank1name: "Ann Mary Thomas", rank1house: "Falcons", rank1houseColor: "#1E5FA8", rank1photo: PLACEHOLDER_AVATAR,
+    rank2name: "Kabir Rathore",   rank2house: "Ospreys",  rank2houseColor: "#2F7A4E", rank2photo: PLACEHOLDER_AVATAR,
+    rank3name: "Devansh Iyer",    rank3house: "Herons",   rank3houseColor: "#B8860B", rank3photo: PLACEHOLDER_AVATAR
   };
 }

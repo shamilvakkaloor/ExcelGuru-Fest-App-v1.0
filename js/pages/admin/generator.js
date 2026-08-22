@@ -281,6 +281,61 @@ export default async function generator(root) {
         return field(label, i);
       };
 
+      /**
+       * A colour property that can ALSO be "{houseColor}" — a live token,
+       * not a hex, resolved per person/entry at render time (see
+       * resolveColor() in designRender.js). An <input type=color> cannot
+       * represent that: handed a token string it silently shows some
+       * fallback, and the moment a designer nudges the swatch to see what
+       * colour it is, that literal hex overwrites the token and the house
+       * binding is gone without any deliberate choice to remove it.
+       *
+       * So the token is a distinct SOURCE, chosen from a select, not
+       * something the color input has to represent. Switching to "House
+       * colour" stores the literal token string in the property; switching
+       * away restores the last real hex, which is remembered even while
+       * the token is active so a designer can flip back and forth freely.
+       */
+      const colorField = (label, key, fallbackHex, { noneLabel } = {}) => {
+        const current = e[key];
+        const isToken = current === "{houseColor}";
+        const isNone = current === "none";
+        let lastHex = (!isToken && !isNone && current) || fallbackHex;
+
+        const picker = el("input", { type: "color", value: lastHex, style: "height:34px;padding:2px" });
+        const wrap = field(label, picker);
+        picker.style.display = isToken || isNone ? "none" : "";
+
+        const source = select([
+          { value: "custom", label: "Custom colour" },
+          { value: "house", label: "House colour (per person/entry)" }
+        ], { value: isToken ? "house" : "custom" });
+        source.addEventListener("change", () => {
+          if (source.value === "house") { e[key] = "{houseColor}"; picker.style.display = "none"; }
+          else { e[key] = isNone ? lastHex : (e[key] === "{houseColor}" ? lastHex : picker.value); picker.style.display = ""; }
+          paintStage();
+        });
+        wrap.insertBefore(source, picker);
+
+        picker.addEventListener("input", () => {
+          lastHex = picker.value;
+          if (source.value !== "house") e[key] = picker.value;
+          paintStage();
+        });
+
+        if (noneLabel) {
+          const noneBox = checkbox(noneLabel, isNone, v => {
+            if (v) { e[key] = "none"; }
+            else { e[key] = source.value === "house" ? "{houseColor}" : lastHex; }
+            picker.style.display = (v || source.value === "house") ? "none" : "";
+            source.disabled = v;
+            paintStage();
+          });
+          return el("div", {}, [wrap, noneBox]);
+        }
+        return wrap;
+      };
+
       right.appendChild(el("div.btn-row", { style: "margin-bottom:.6rem" }, [
         badge(e.type), el("span.spacer", { style: "flex:1" }),
         button("Delete", { class: "btn-sm btn-danger", onclick: () => {
@@ -328,30 +383,16 @@ export default async function generator(root) {
         align.addEventListener("change", () => { e.align = align.value; paintStage(); });
         right.appendChild(field("Align", align));
 
-        const color = el("input", { type: "color", value: e.color || "#14232E", style: "height:34px;padding:2px" });
-        color.addEventListener("input", () => { e.color = color.value; paintStage(); });
-        right.appendChild(field("Colour", color));
+        right.appendChild(colorField("Colour", "color", "#14232E"));
 
         right.appendChild(num("Line height", "lineHeight", 0.05));
         right.appendChild(num("Letter spacing", "spacing", 0.5));
+        right.appendChild(checkbox("UPPERCASE", !!e.uppercase, v => { e.uppercase = v; paintStage(); }));
       }
 
       if (e.type === "box") {
-        const fill = el("input", { type: "color", value: e.fill === "none" ? "#ffffff" : (e.fill || "#6C4BD6"),
-          style: "height:34px;padding:2px" });
-        fill.addEventListener("input", () => { e.fill = fill.value; paintStage(); });
-        right.appendChild(field("Fill", fill));
-        right.appendChild(checkbox("No fill (outline only)", e.fill === "none", v => {
-          e.fill = v ? "none" : fill.value; paintStage();
-        }));
-
-        const stroke = el("input", { type: "color", value: e.stroke === "none" ? "#14232E" : (e.stroke || "#14232E"),
-          style: "height:34px;padding:2px" });
-        stroke.addEventListener("input", () => { e.stroke = stroke.value; paintStage(); });
-        right.appendChild(field("Border colour", stroke));
-        right.appendChild(checkbox("No border", e.stroke === "none", v => {
-          e.stroke = v ? "none" : stroke.value; paintStage();
-        }));
+        right.appendChild(colorField("Fill", "fill", "#6C4BD6", { noneLabel: "No fill (outline only)" }));
+        right.appendChild(colorField("Border colour", "stroke", "#14232E", { noneLabel: "No border" }));
         right.appendChild(num("Border width (mm)", "strokeWidth", 0.1));
         right.appendChild(num("Corner radius (mm)", "radius", 0.5));
         right.appendChild(num("Opacity (0–1)", "opacity", 0.05));
@@ -405,14 +446,7 @@ export default async function generator(root) {
           "Portraits are rarely the same shape as the box. “Fill” keeps the box full and trims the " +
           "edges; “Fit” keeps the whole photo and leaves space around it."));
 
-        const istroke = el("input", { type: "color",
-          value: e.stroke && e.stroke !== "none" ? e.stroke : "#FFFFFF",
-          style: "height:34px;padding:2px" });
-        istroke.addEventListener("input", () => { e.stroke = istroke.value; paintStage(); });
-        right.appendChild(field("Frame colour", istroke));
-        right.appendChild(checkbox("No frame", !e.stroke || e.stroke === "none", v => {
-          e.stroke = v ? "none" : istroke.value; paintStage();
-        }));
+        right.appendChild(colorField("Frame colour", "stroke", "#FFFFFF", { noneLabel: "No frame" }));
         right.appendChild(num("Frame width (mm)", "strokeWidth", 0.1));
         right.appendChild(num("Opacity (0–1)", "opacity", 0.05));
       }
@@ -456,6 +490,9 @@ export default async function generator(root) {
     const photoById = Object.fromEntries(participants
       .map(p => [p.id, p.photoData || p.photoURL || null])
       .filter(([, v]) => v));
+    // Same idea, for the {rankNhouseColor} tokens.
+    const houseColorById = Object.fromEntries(houses
+      .map(h => [h.id, h.color || null]).filter(([, v]) => v));
     const published = results.filter(r => r.publishStatus === PUBLISH_STATUS.PUBLISHED);
 
     /* B4 — THE CERTIFICATE POPULATION BUG.
@@ -550,7 +587,7 @@ export default async function generator(root) {
             if (mode.value === "eventranks") {
               const res = published.find(r => r.id === eventSel.value);
               if (!res) { toast("Pick an event with published results.", true); return false; }
-              if (!printEventRanks(d, res, settings, catName, photoById)) {
+              if (!printEventRanks(d, res, settings, catName, photoById, houseColorById)) {
                 toast("No ranked placements for that event.", true); return false;
               }
               close(true);
@@ -598,10 +635,11 @@ export default async function generator(root) {
 
               for (const p of list) {
                 const entries = byParticipant[p.id] || [];
+                const ph = houses.find(h => h.id === p.houseId);
                 pages.push(renderPageHTML(d, {
                   ...base,
                   name: p.name, chest: p.chestNumber ?? "",
-                  house: houses.find(h => h.id === p.houseId)?.name || "",
+                  house: ph?.name || "", houseColor: ph?.color || "",
                   category: p.categoryName || "", class: p.className || "",
                   // A plain <img src> — same as the participant list, which
                   // already displays this successfully — not a fetched data
@@ -631,7 +669,9 @@ export default async function generator(root) {
                     pages.push(renderPageHTML(d, {
                       ...base,
                       name: p.name, chest: p.chestNumber ?? "",
-                      house: e.houseName || "", category: p.categoryName || "", class: p.className || "",
+                      house: e.houseName || "",
+                      houseColor: houses.find(h => h.id === e.houseId)?.color || "",
+                      category: p.categoryName || "", class: p.className || "",
                       photo: photoSrc(p),
                       type: typeName[res.typeId] || "", tier: tierName[res.tierId] || "",
                       event: res.eventName, rank: placeLabel(e.rank), grade: e.grade ? gradeLabel(e.grade, settings) : "",
@@ -741,7 +781,7 @@ function audienceModesFor(design) {
  * the two can never drift into building the page differently.
  * Returns false when the event has nothing ranked to show.
  */
-function printEventRanks(design, res, settings, catName, photoById = {}) {
+function printEventRanks(design, res, settings, catName, photoById = {}, houseColorById = {}) {
   const entries = (res.entries || []).filter(e => !e.isAbsent && e.rank);
   if (!entries.length) return false;
   const ordered = entries.slice().sort((a, b) => a.rank - b.rank);
@@ -770,6 +810,7 @@ function printEventRanks(design, res, settings, catName, photoById = {}) {
     if (rankData[`rank${n}name`] === undefined) {
       rankData[`rank${n}name`] = who;
       rankData[`rank${n}house`] = e.houseName || "";
+      rankData[`rank${n}houseColor`] = (e.houseId && houseColorById[e.houseId]) || "";
       rankData[`rank${n}grade`] = e.grade ? gradeLabel(e.grade, settings) : "";
       // Only an individual entry has one face to show; a team's "photo"
       // would be an arbitrary member, so it is left to the silhouette.
@@ -858,6 +899,7 @@ function singleDialog(design, published, typeName, tierName, catName) {
             ...base,
             name: p.name, chest: p.chestNumber ?? "",
             house: houses.find(h => h.id === p.houseId)?.name || p.houseName || "",
+            houseColor: houses.find(h => h.id === p.houseId)?.color || "",
             category: p.categoryName || "", class: p.className || "",
             photo: photoSrc(p),
             type: first ? (typeName[first.res.typeId] || "") : "",
@@ -908,13 +950,16 @@ function singleEventDialog(design, published, catName) {
     if (!term) return;
     // Participants come along for the ride so a results poster printed one
     // at a time carries the same winner photos the batch run produces.
-    const [settings, people] = await Promise.all([
+    const [settings, people, houses] = await Promise.all([
       getOne("config", "festSettings"),
-      getAll("participants").catch(() => [])
+      getAll("participants").catch(() => []),
+      getAll("houses").catch(() => [])
     ]);
     const photoById = Object.fromEntries(people
       .map(p => [p.id, p.photoData || p.photoURL || null])
       .filter(([, v]) => v));
+    const houseColorById = Object.fromEntries(houses
+      .map(h => [h.id, h.color || null]).filter(([, v]) => v));
     const matches = published.filter(r =>
       String(r.eventCode ?? "").toLowerCase() === term ||
       String(r.eventName || "").toLowerCase().includes(term)).slice(0, 8);
@@ -930,7 +975,7 @@ function singleEventDialog(design, published, catName) {
           el("div.hint", { style: "margin:0", text: `${rankedCount} ranked placement${rankedCount === 1 ? "" : "s"}` })
         ]),
         button("Print", { class: "btn-sm btn-accent", onclick: () => {
-          if (!printEventRanks(design, res, settings, catName, photoById)) toast("No ranked placements for that event.", true);
+          if (!printEventRanks(design, res, settings, catName, photoById, houseColorById)) toast("No ranked placements for that event.", true);
         }})
       ]));
     }
