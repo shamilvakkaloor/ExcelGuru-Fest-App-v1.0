@@ -60,35 +60,48 @@ export default async function generator(root) {
         "No results are published yet. You can design freely now, but generating uses published results only."));
     }
 
-    /* Grouped theme-first, then by kind. Three complete eight-piece kits
-     * flattened into one list of 24 would be a wall of near-duplicate
-     * names; the theme is the choice being made first, so it is the
-     * heading. */
+    /* One tab per theme, each showing that theme's eight grouped by kind.
+     * Stacking all three themes down the page put 24 buttons under six
+     * headings in one card — the themes are alternatives, not a list to
+     * read through, so only the chosen one belongs on screen. Same
+     * `.tabs` markup the public results page uses, so it behaves like
+     * every other tab strip in the app. */
     const kindOrder = ["certificate", "poster", "idcard"];
-    const themeGroups = THEMES
-      .map(th => ({
-        ...th,
-        kinds: kindOrder
-          .map(kind => ({ kind, items: TEMPLATE_LIST.filter(t => t.theme === th.id && t.kind === kind) }))
-          .filter(g => g.items.length)
-      }))
-      .filter(th => th.kinds.length);
+    const availableThemes = THEMES.filter(th => TEMPLATE_LIST.some(t => t.theme === th.id));
+    let activeTheme = availableThemes[0]?.id;
+
+    const themeTabs = el("div.tabs");
+    const themePanel = el("div");
+    availableThemes.forEach(th => themeTabs.appendChild(button(th.label, {
+      class: th.id === activeTheme ? "active" : "",
+      onclick: () => { activeTheme = th.id; paintThemePanel(); }
+    })));
+
+    function paintThemePanel() {
+      themeTabs.querySelectorAll("button").forEach((b, i) =>
+        b.className = availableThemes[i].id === activeTheme ? "active" : "");
+      themePanel.innerHTML = "";
+      const th = availableThemes.find(x => x.id === activeTheme);
+      if (!th) return;
+      themePanel.appendChild(el("p.hint", { style: "margin:0 0 .7rem", text: th.blurb }));
+      for (const kind of kindOrder) {
+        const items = TEMPLATE_LIST.filter(t => t.theme === th.id && t.kind === kind);
+        if (!items.length) continue;
+        themePanel.appendChild(el("div", { style: "margin-bottom:.6rem" }, [
+          el("div.hint", { style: "margin:0 0 .25rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.72rem",
+            text: TEMPLATE_KIND_LABEL[kind] || kind }),
+          el("div.chip-row", {}, items.map(t =>
+            el("button.chip", { type: "button", text: t.label, onclick: () => openEditor(loadTemplate(t.id), null) })))
+        ]));
+      }
+    }
+    paintThemePanel();
 
     wrapper.appendChild(card(el("div", {}, [
       el("p.hint", { text: "Start from a template, arrange it on the canvas, then generate for everyone at once. " +
-        "Each theme carries the same eight pieces, so a fest can stay in one look throughout." }),
-      ...themeGroups.map(th => el("div", { style: "margin-bottom:1.1rem" }, [
-        el("div", { style: "display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap;margin-bottom:.35rem" }, [
-          el("strong", { text: th.label }),
-          el("span.hint", { style: "margin:0", text: th.blurb })
-        ]),
-        ...th.kinds.map(g => el("div", { style: "margin-bottom:.45rem" }, [
-          el("div.hint", { style: "margin:0 0 .25rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.72rem",
-            text: TEMPLATE_KIND_LABEL[g.kind] || g.kind }),
-          el("div.chip-row", {}, g.items.map(t =>
-            el("button.chip", { type: "button", text: t.label, onclick: () => openEditor(loadTemplate(t.id), null) })))
-        ]))
-      ]))
+        "Each style carries the same eight pieces, so a fest can stay in one look throughout." }),
+      themeTabs,
+      themePanel
     ]), "New design"));
 
     wrapper.appendChild(card(
