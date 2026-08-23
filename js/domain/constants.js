@@ -453,6 +453,20 @@ export function entryLabel(reg, event) {
   return (reg.participantNames || []).join(", ");
 }
 
+/**
+ * Join parallel `names`/`chestNumbers` arrays into "Name #128, Name #129" —
+ * wherever a name is shown, the chest number that actually identifies the
+ * person in a crowded hall should be right next to it. Falls back to the
+ * name alone when a chest number is missing for that slot, rather than
+ * printing a stray "#".
+ */
+export function namesWithChest(names, chestNumbers) {
+  return (names || []).map((n, i) => {
+    const c = (chestNumbers || [])[i];
+    return c ? `${n} #${c}` : n;
+  }).join(", ");
+}
+
 /* ── Entry caps per house ─────────────────────────────────────────────
  * ARCHITECTURE §5.6. Both caps apply to all four event classes. Blank max
  * means unlimited; blank min means no minimum. Minimums NEVER block — a

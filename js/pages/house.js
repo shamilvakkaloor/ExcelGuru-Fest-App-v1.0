@@ -12,7 +12,7 @@ import { REQUEST_STATUS, approveRegistrationRequest, rejectRegistrationRequest,
          decideOnBehalfConsent } from "../domain/registrationRequests.js";
 import { DEFAULTS, GENDERS, classLabel, isGroupClass, isGeneralClass, eventLabel,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, entryCompletion,
-         typeTierFilters, eventFilterKeys, entryLabel,
+         typeTierFilters, eventFilterKeys, entryLabel, namesWithChest,
          eventCategoryIds, eventAcceptsCategory } from "../domain/constants.js";
 import { compareChest, allocateChest, takenChestNumbers, readChestCounter,
          raiseChestCounter, chestSortKey } from "../domain/chest.js";
@@ -296,7 +296,7 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
           `event. Withdraw one below to register someone else instead.`),
         el("div", {}, myEntries.map(r => el("div.slot-row", {}, [
           el("div.body", { text: entryLabel(r, event) +
-            (!r.wholeTeam ? " — " + (r.participantNames || []).join(", ") : "") }),
+            (!r.wholeTeam ? " — " + namesWithChest(r.participantNames, r.chestNumbers) : "") }),
           button("Withdraw", { class: "btn-sm btn-danger", onclick: guard(async () => {
             if (!await confirmDialog("Withdraw entry", `Withdraw ${entryLabel(r, event)} from ${event.name}?`, "Withdraw")) return;
             await withdrawEntry({ registration: r, event, limits });
@@ -452,10 +452,10 @@ function entryDialog(event, house, people, settings, limits, catName, used, refr
 // than disappearing.
 function entryCell(r, event) {
   if (r.wholeTeam) return el("span.hint", { text: "Whole team" });
-  if (!isGroupClass(event?.eventClass || r.eventClass)) return (r.participantNames || []).join(", ");
+  if (!isGroupClass(event?.eventClass || r.eventClass)) return namesWithChest(r.participantNames, r.chestNumbers);
   return el("div", {}, [
     el("div", { text: entryLabel(r, event) }),
-    el("div.hint", { style: "margin:0", text: (r.participantNames || []).join(", ") })
+    el("div.hint", { style: "margin:0", text: namesWithChest(r.participantNames, r.chestNumbers) })
   ]);
 }
 
@@ -572,7 +572,7 @@ async function entriesTab(panel, house, refresh) {
       button("Download CSV", { class: "btn-sm", onclick: () => downloadText(house.name + "-entries.csv", toCSV([
         { label: "Event", key: "label" }, { label: "Code letter", key: "codeLetter" },
         { label: "Entry", value: r => entryLabel(r, byId[r.eventId]) },
-        { label: "Participants", value: r => r.wholeTeam ? "Whole team" : (r.participantNames || []).join(" / ") }
+        { label: "Participants", value: r => r.wholeTeam ? "Whole team" : namesWithChest(r.participantNames, r.chestNumbers) }
       ], rows)) })));
   }
 }
@@ -822,7 +822,7 @@ async function houseResultsTab(panel, house) {
         el("div", { text: r.eventName }),
         r.eventCode ? el("div.hint", { style: "margin:0", text: r.eventCode }) : null
       ])},
-    { key: "names", label: "Entry", render: r => (r.names || []).join(", ") },
+    { key: "names", label: "Entry", render: r => namesWithChest(r.names, r.chestNumbers) },
     { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger")
         : (r.rank ? el("span.mono", { text: "#" + r.rank }) : el("span.hint", { text: "—" })) },
     { key: "grade", label: "Grade", render: r => r.grade ? badge(gradeLabel(r.grade, settings)) : "—" },

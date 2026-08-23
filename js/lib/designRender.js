@@ -329,6 +329,121 @@ export function shrinkToFit(node, e, scale) {
   });
 }
 
+function arrayBufferToBase64(buf) {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  // String.fromCharCode(...bytes) blows the call stack on a large font
+  // file — chunked to stay well under any engine's argument-count limit.
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  return btoa(binary);
+}
+
+let embeddedFontsCSSPromise = null;
+/**
+ * The design typefaces as a self-contained @font-face stylesheet, font
+ * files inlined as base64 data URIs — fetched and cached once per page
+ * load, since every export reuses the exact same three families.
+ *
+ * A plain `@import url('https://fonts.googleapis...')`, or even a `<link>`,
+ * was tried first and does load — but Chrome then treats the canvas the
+ * SVG gets drawn onto as tainted (a cross-origin sub-resource was pulled in
+ * to render it, the same rule that blocks reading pixels off a photo
+ * pasted in as a bare cross-origin link) and toBlob() throws for every
+ * design, not just ones with a photo. Google's font CSS and files both
+ * already send permissive CORS headers — that's what makes fetching and
+ * inlining them here possible at all — so pre-fetching and embedding them
+ * as data: URIs (same-origin by definition) is what avoids the taint
+ * rather than the cache alone.
+ */
+async function embeddedFontsCSS() {
+  if (embeddedFontsCSSPromise) return embeddedFontsCSSPromise;
+  embeddedFontsCSSPromise = (async () => {
+    try {
+      const cssUrl = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700" +
+        "&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap";
+      let cssText = await (await fetch(cssUrl)).text();
+      const urls = [...new Set([...cssText.matchAll(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/g)].map(m => m[1]))];
+      for (const url of urls) {
+        const buf = await (await fetch(url)).arrayBuffer();
+        cssText = cssText.split(url).join(`data:font/woff2;base64,${arrayBufferToBase64(buf)}`);
+      }
+      return cssText;
+    } catch {
+      // Offline, or Google Fonts unreachable — the export still works, it
+      // just falls back to whichever system font each element's stack
+      // names next (see FONTS above), same as any other missing web font.
+      return "";
+    }
+  })();
+  return embeddedFontsCSSPromise;
+}
+
+/**
+ * Rasterise one filled page to a PNG Blob — "save as image" alongside the
+ * existing PDF/print path.
+ *
+ * Reuses renderPageHTML() verbatim (same markup that already matches print,
+ * one source of truth) and rasterises it via the standard SVG
+ * foreignObject → canvas trick, so no third-party screenshot library is
+ * needed. One real difference from the print path: this SVG is parsed as
+ * strict XML, not HTML, and HTML tolerates an unclosed `<img>` (it's a void
+ * element) where XML does not — so the `<img>` tags renderPageHTML emits
+ * are self-closed here before embedding.
+ *
+ * `scale` is a supersampling factor: the SVG is given its true 96dpi size as
+ * its viewBox but a `scale`× larger pixel size, so the browser rasterises
+ * the foreignObject content at that higher resolution instead of a blurry
+ * 1:1 copy.
+ *
+ * A participant photo pasted in as an external link (not uploaded — see the
+ * B10 comment in pdf.js) taints the canvas and makes toBlob() throw; the
+ * print path never hits this because printing a page is not the same as
+ * reading its pixels back. Left to the caller to catch and explain, since
+ * this module has no toast/UI dependency.
+ */
+export async function designPageToImageBlob(design, data, { scale = 3 } = {}) {
+  const fontCSS = await embeddedFontsCSS();
+
+  const pageHTML = renderPageHTML(design, data).replace(/<img\b([^>]*)>/g, "<img$1/>");
+  const wPx = Math.round(design.page.w * MM_PER_PX_AT_96DPI);
+  const hPx = Math.round(design.page.h * MM_PER_PX_AT_96DPI);
+  const outW = Math.max(1, Math.round(wPx * scale));
+  const outH = Math.max(1, Math.round(hPx * scale));
+
+  // This SVG is parsed as strict XML (see the img self-close above), and a
+  // <style> element is ordinary parsed content there, not CDATA — a raw "&"
+  // anywhere in the font CSS (a query string, a comment) reads as the start
+  // of an entity reference and fails the whole parse. CDATA is the standard
+  // XML escape hatch for exactly this.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${wPx} ${hPx}">` +
+    `<foreignObject width="${wPx}" height="${hPx}">` +
+    `<div xmlns="http://www.w3.org/1999/xhtml"><style><![CDATA[${fontCSS}]]></style>${pageHTML}</div>` +
+    `</foreignObject></svg>`;
+
+  // A blob: URL here taints the canvas the moment a foreignObject-bearing
+  // SVG is drawn from it — Chrome does this unconditionally, independent of
+  // anything the SVG actually contains (confirmed against a plain "Hello"
+  // div with no external resources at all). A data: URI does not trip the
+  // same rule, so that's the source this Image loads from, not a Blob.
+  const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("Could not rasterise this design."));
+    im.src = svgUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = outW; canvas.height = outH;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, outW, outH);
+  ctx.drawImage(img, 0, 0, outW, outH);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("Could not rasterise this design.");
+  return blob;
+}
+
 /** Sample values so the editor shows something realistic, never raw tokens. */
 export function previewData() {
   return {

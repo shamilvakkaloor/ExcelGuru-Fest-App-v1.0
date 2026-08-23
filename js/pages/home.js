@@ -6,7 +6,7 @@ import { el, card, badge, button, empty, loading } from "../lib/ui.js";
 import { getOne, getAll, where } from "../lib/db.js";
 import { topbar, homeForRole } from "../app.js";
 import { session } from "../lib/session.js";
-import { classLabel, rankIsPublic, houseTerm, housePluralTerm } from "../domain/constants.js";
+import { classLabel, rankIsPublic, houseTerm, housePluralTerm, namesWithChest } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { darkenColor, lightenColor, nameColorStyle } from "../domain/houseColor.js";
@@ -117,7 +117,10 @@ export default async function homePage(root) {
     const rawLimit = settings?.homeRecentResultsLimit;
     const feedLimit = (rawLimit === undefined || rawLimit === null || rawLimit === "") ? 4 : Number(rawLimit);
     const latest = [...recent]
-      .sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0))
+      // publishedAt is when the snapshot was last rebuilt (moves on every
+      // settings change); publishedAtMs is the real publish moment and is
+      // what "Just published" needs to sort by.
+      .sort((a, b) => (b.publishedAtMs || b.publishedAt || 0) - (a.publishedAtMs || a.publishedAt || 0))
       .slice(0, Number.isFinite(feedLimit) && feedLimit > 0 ? feedLimit : recent.length);
     for (const ev of latest) {
       const winners = (ev.entries || [])
@@ -139,7 +142,7 @@ export default async function homePage(root) {
                   onerror: e => e.target.remove() })))
             : null,
           el("div", { style: "flex:1;min-width:0" }, [
-            el("div", { text: (w.names || []).join(", "), style: nameColorStyle(board?.houseStyle, w.houseId) }),
+            el("div", { text: namesWithChest(w.names, w.chestNumbers), style: nameColorStyle(board?.houseStyle, w.houseId) }),
             el("div.hint", { style: "margin:0", text: w.houseName || "" })
           ]),
           badge(w.grade ? gradeLabel(w.grade, settings) : "")

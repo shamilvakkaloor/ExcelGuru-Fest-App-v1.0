@@ -5,7 +5,7 @@
 // likely to eat the daily read allowance.
 import { el, backButton } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
-import { classLabel, rankIsPublic, isGroupClass } from "../domain/constants.js";
+import { classLabel, rankIsPublic, isGroupClass, namesWithChest } from "../domain/constants.js";
 import { gradeLabel, rankLeaderboard } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { currentlyRunning } from "./home.js";
@@ -112,7 +112,8 @@ export default async function screenPage(root) {
     }
 
     const talentRow = s => ({
-      rank: s.rank, main: s.name, sub: s.houseName, value: (s.total ?? 0) + " pts",
+      rank: s.rank, main: s.chestNumber ? `${s.name} #${s.chestNumber}` : s.name,
+      sub: s.houseName, value: (s.total ?? 0) + " pts",
       photos: s.photo ? [s.photo] : []
     });
 
@@ -149,7 +150,10 @@ export default async function screenPage(root) {
     }
 
     const latest = (showResults ? [...results] : [])
-      .sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0))
+      // publishedAt is the last-rebuild time, not the real publish moment —
+      // see the matching comment in domain/publish.js. Sort by
+      // publishedAtMs so the board shows the actually-latest events.
+      .sort((a, b) => (b.publishedAtMs || b.publishedAt || 0) - (a.publishedAtMs || a.publishedAt || 0))
       .slice(0, 8);
     for (const ev of latest) {
       const top = (ev.entries || []).filter(e => !e.isAbsent && rankIsPublic(e.rank, rankLimit));
@@ -165,7 +169,7 @@ export default async function screenPage(root) {
         // means "team" here, the same check results.js's entryDisplay uses.
         rows: top.map(e => ({
           rank: e.rank,
-          main: (isGroupClass(ev.eventClass) && e.teamLabel) ? e.teamLabel : (e.names || []).join(", "),
+          main: (isGroupClass(ev.eventClass) && e.teamLabel) ? e.teamLabel : namesWithChest(e.names, e.chestNumbers),
           sub: e.houseName,
           value: e.grade ? gradeLabel(e.grade, settings) : "",
           nameColor: nameColorStyle(houseStyle, e.houseId),

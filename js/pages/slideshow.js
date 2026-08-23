@@ -3,7 +3,7 @@
 import { el, backButton } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
-import { rankIsPublic, isGroupClass } from "../domain/constants.js";
+import { rankIsPublic, isGroupClass, namesWithChest } from "../domain/constants.js";
 
 export default async function slideshowPage(root) {
   const stage = el("div.slideshow");
@@ -56,7 +56,7 @@ export default async function slideshowPage(root) {
       slides.push({
         title: "Student Talent",
         items: board.students.slice(0, talentLimit || 10).map(s => ({
-          rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts",
+          rank: s.rank, main: s.chestNumber ? `${s.name} #${s.chestNumber}` : s.name, sub: s.houseName, value: s.total + " pts",
           photos: s.photo ? [s.photo] : []
         }))
       });
@@ -82,7 +82,7 @@ export default async function slideshowPage(root) {
           // identifies the board to the room.
           title: catName + " Student Talent",
           items: ranked.map(s => ({
-            rank: s.rank, main: s.name, sub: s.houseName, value: s.total + " pts",
+            rank: s.rank, main: s.chestNumber ? `${s.name} #${s.chestNumber}` : s.name, sub: s.houseName, value: s.total + " pts",
             photos: s.photo ? [s.photo] : []
           }))
         });
@@ -130,7 +130,13 @@ export default async function slideshowPage(root) {
       }
     }
 
-    const recent = showResults ? (recentLimit ? events.slice(-recentLimit) : events) : [];
+    // getAll() has no guaranteed order, and publishedAt is only the
+    // last-rebuild time (see domain/publish.js) — sort by the real publish
+    // moment so "recent" actually means recent, oldest-of-the-window first
+    // so the deck plays forward into the latest result.
+    const byPublishTime = [...events].sort((a, b) =>
+      (a.publishedAtMs || a.publishedAt || 0) - (b.publishedAtMs || b.publishedAt || 0));
+    const recent = showResults ? (recentLimit ? byPublishTime.slice(-recentLimit) : byPublishTime) : [];
     for (const ev of recent) {
       const top = (ev.entries || []).filter(e => !e.isAbsent && rankIsPublic(e.rank, rankLimit));
       if (!top.length) continue;
@@ -145,7 +151,7 @@ export default async function slideshowPage(root) {
             // event (domain/constants.js teamName()), so this must check
             // isGroupClass before trusting it, or an individual winner's
             // own name never shows.
-            main: (isGroupClass(ev.eventClass) && e.teamLabel) ? e.teamLabel : (e.names || []).join(", "),
+            main: (isGroupClass(ev.eventClass) && e.teamLabel) ? e.teamLabel : namesWithChest(e.names, e.chestNumbers),
             sub: e.houseName,
             crest: est.logoData || null,
             color: est.useAsNameColor ? est.color : null,

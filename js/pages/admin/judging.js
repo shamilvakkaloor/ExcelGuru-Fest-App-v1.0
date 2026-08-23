@@ -5,7 +5,7 @@ import { finalizeEvent, computeEventResult, unfinalizeEvent } from "../../domain
 import { averageOf, gradeFor, resolvePoints, gradeScaleFrom, gradeLabel } from "../../domain/scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, classLabel, eventLabel, EVENT_CLASSES,
          isGeneralClass, typeTierFilters, eventFilterKeys, effectiveResultMode,
-         entryLabel, isGroupClass as isGroupCls } from "../../domain/constants.js";
+         entryLabel, isGroupClass as isGroupCls, namesWithChest } from "../../domain/constants.js";
 import { session } from "../../lib/session.js";
 
 export default async function judging(root) {
@@ -231,9 +231,9 @@ export default async function judging(root) {
             ? el("div", {}, [
                 el("div", { text: entryLabel(r, event) }),
                 r.wholeTeam ? null
-                  : el("div.hint", { style: "margin:0", text: (r.participantNames || []).join(", ") })
+                  : el("div.hint", { style: "margin:0", text: namesWithChest(r.participantNames, r.chestNumbers) })
               ])
-            : (r.participantNames || []).join(", ") + " · " + r.houseName }
+            : namesWithChest(r.participantNames, r.chestNumbers) + " · " + r.houseName }
     ];
 
     if (event.materialsEnabled) {
@@ -574,8 +574,16 @@ function showComputed(panel, data, trigger, isPreview = false, settings = null, 
     table([
       { key: "rank", label: "Rank", render: r => r.isAbsent ? badge("Absent", "badge-danger") : el("span.rank-medal", { text: "#" + r.rank }) },
       { key: "codeLetter", label: "Code", render: r => el("span.mono", { text: r.codeLetter }) },
-      { key: "names", label: "Entry", render: r => (event ? entryLabel({ ...r, eventClass: event.eventClass }, event) : null)
-          || el("span.hint", { text: r.houseName || "Whole team" }) },
+      { key: "names", label: "Entry", render: r => {
+          // Same label entryLabel() would build, but with chest numbers
+          // folded into the individual case — a team name has no single
+          // chest number to show, so that branch is left alone.
+          if (!r.wholeTeam && !isGroupCls(r.eventClass || event?.eventClass) && r.participantNames?.length) {
+            return namesWithChest(r.participantNames, r.chestNumbers);
+          }
+          return (event ? entryLabel({ ...r, eventClass: event.eventClass }, event) : null)
+            || el("span.hint", { text: r.houseName || "Whole team" });
+        } },
       { key: "houseName", label: "House" },
       { key: "averageScore", label: "Average", num: true, render: r =>
           r.averageScore === null || r.averageScore === undefined

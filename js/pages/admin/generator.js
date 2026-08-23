@@ -6,9 +6,9 @@
 // arrange on screen is exactly what prints.
 import { el, card, field, input, select, button, toast, guard, notice, empty, badge, modal, confirmDialog, loading, checkbox, hint } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, where } from "../../lib/db.js";
-import { printDocument } from "../../lib/pdf.js";
+import { printDocument, downloadBlob } from "../../lib/pdf.js";
 import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
-import { renderCanvas, renderPageHTML, previewData, ensureDesignFonts } from "../../lib/designRender.js";
+import { renderCanvas, renderPageHTML, previewData, ensureDesignFonts, designPageToImageBlob } from "../../lib/designRender.js";
 import { compressImage, photoSrc } from "../../lib/photo.js";
 import { PUBLISH_STATUS, classLabel, EVENT_CLASSES } from "../../domain/constants.js";
 import { highestRankAwarded, gradeLabel } from "../../domain/scoring.js";
@@ -722,6 +722,27 @@ export default async function generator(root) {
   }
 }
 
+/**
+ * Rasterise one filled page and hand it to the browser as a PNG download —
+ * the "save as image" counterpart to printDocument()'s PDF path, for the
+ * two single-item flows (one certificate, one event poster) where a lone
+ * image file is actually useful. Bulk generation stays PDF-only: a batch
+ * run is already hundreds of pages, and a PNG per page has nowhere sane to
+ * go without a zip step this app doesn't carry.
+ */
+const saveAsImage = guard(async (design, data, filename) => {
+  let blob;
+  try {
+    blob = await designPageToImageBlob(design, data);
+  } catch (err) {
+    console.error("saveAsImage", err);
+    toast("Couldn't save this as an image — it may use a photo pasted in as a link rather than " +
+      "uploaded, which browsers block from image export. Printing to PDF still works.", true);
+    return;
+  }
+  downloadBlob(filename, blob);
+});
+
 function placeLabel(rank) {
   return { 1: "First", 2: "Second", 3: "Third" }[rank] || (rank + "th");
 }
@@ -776,14 +797,15 @@ function audienceModesFor(design) {
 }
 
 /**
- * Build and print the "every rank on one page" design for one event.
- * Shared by the batch Generate flow and the single-event search below, so
- * the two can never drift into building the page differently.
- * Returns false when the event has nothing ranked to show.
+ * Build the token data for the "every rank on one page" design for one
+ * event. Shared by the batch Generate flow, the single-event print, and
+ * single-event "save as image" below, so none of the three can drift into
+ * building the page differently. Returns null when the event has nothing
+ * ranked to show.
  */
-function printEventRanks(design, res, settings, catName, photoById = {}, houseColorById = {}) {
+function eventRanksData(design, res, settings, catName, photoById = {}, houseColorById = {}) {
   const entries = (res.entries || []).filter(e => !e.isAbsent && e.rank);
-  if (!entries.length) return false;
+  if (!entries.length) return null;
   const ordered = entries.slice().sort((a, b) => a.rank - b.rank);
   const lines = ordered
     .map(e => {
@@ -819,7 +841,7 @@ function printEventRanks(design, res, settings, catName, photoById = {}, houseCo
     }
   }
 
-  const html = renderPageHTML(design, {
+  return {
     fest: settings?.festName || "", school: settings?.schoolName || "",
     date: new Date().toLocaleDateString(),
     // B25 — res.categoryName was never a field on a `results` document
@@ -829,7 +851,17 @@ function printEventRanks(design, res, settings, catName, photoById = {}, houseCo
     event: res.eventName, category: catName?.[res.categoryId] || "",
     eventResults: lines.join("\n"),
     ...rankData
-  });
+  };
+}
+
+/**
+ * Print the "every rank on one page" design for one event. Returns false
+ * when the event has nothing ranked to show.
+ */
+function printEventRanks(design, res, settings, catName, photoById = {}, houseColorById = {}) {
+  const data = eventRanksData(design, res, settings, catName, photoById, houseColorById);
+  if (!data) return false;
+  const html = renderPageHTML(design, data);
   printDocument({
     title: (design.name || "Event results") + " — " + res.eventName, bare: true,
     landscape: design.page.w > design.page.h,
@@ -889,13 +921,13 @@ function singleDialog(design, published, typeName, tierName, catName) {
           el("div.hint", { style: "margin:0", text:
             `${p.houseName || ""} · ${p.categoryName || ""} · ${entries.length} published result${entries.length === 1 ? "" : "s"}` })
         ]),
-        button("Print", { class: "btn-sm btn-accent", onclick: guard(async () => {
+        (() => {
           const base = {
             fest: settings?.festName || "", school: settings?.schoolName || "",
             date: new Date().toLocaleDateString()
           };
           const first = entries[0];
-          const html = renderPageHTML(design, {
+          const tokenData = {
             ...base,
             name: p.name, chest: p.chestNumber ?? "",
             house: houses.find(h => h.id === p.houseId)?.name || p.houseName || "",
@@ -910,14 +942,21 @@ function singleDialog(design, published, typeName, tierName, catName) {
             results: entries.map(({ res, e }) =>
               `${res.eventName} — ${e.isAbsent ? "Absent" : (e.rank ? placeLabel(e.rank) : "Participated")}` +
               (e.grade && !e.isAbsent ? ` (${gradeLabel(e.grade, settings)})` : "")).join("\n")
-          });
-          printDocument({
-            title: p.name, bare: true, landscape: design.page.w > design.page.h,
-            bodyHTML: `<style>.design-page{position:relative;overflow:hidden;}
-              @page{size:${design.page.w}mm ${design.page.h}mm;margin:0;}
-              body{margin:0;}</style>` + html
-          });
-        })})
+          };
+          return el("div", { style: "display:flex;gap:.4rem" }, [
+            button("Print", { class: "btn-sm btn-accent", onclick: guard(async () => {
+              const html = renderPageHTML(design, tokenData);
+              printDocument({
+                title: p.name, bare: true, landscape: design.page.w > design.page.h,
+                bodyHTML: `<style>.design-page{position:relative;overflow:hidden;}
+                  @page{size:${design.page.w}mm ${design.page.h}mm;margin:0;}
+                  body{margin:0;}</style>` + html
+              });
+            })}),
+            button("Save as image", { class: "btn-sm",
+              onclick: () => saveAsImage(design, tokenData, `${design.name || "Certificate"} - ${p.name}.png`) })
+          ]);
+        })()
       ]));
     }
   });
@@ -974,9 +1013,16 @@ function singleEventDialog(design, published, catName) {
             el("span.mono", { text: res.eventCode || "" })]),
           el("div.hint", { style: "margin:0", text: `${rankedCount} ranked placement${rankedCount === 1 ? "" : "s"}` })
         ]),
-        button("Print", { class: "btn-sm btn-accent", onclick: () => {
-          if (!printEventRanks(design, res, settings, catName, photoById, houseColorById)) toast("No ranked placements for that event.", true);
-        }})
+        el("div", { style: "display:flex;gap:.4rem" }, [
+          button("Print", { class: "btn-sm btn-accent", onclick: () => {
+            if (!printEventRanks(design, res, settings, catName, photoById, houseColorById)) toast("No ranked placements for that event.", true);
+          }}),
+          button("Save as image", { class: "btn-sm", onclick: () => {
+            const data = eventRanksData(design, res, settings, catName, photoById, houseColorById);
+            if (!data) { toast("No ranked placements for that event.", true); return; }
+            saveAsImage(design, data, `${design.name || "Event results"} - ${res.eventName}.png`);
+          }})
+        ])
       ]));
     }
   });

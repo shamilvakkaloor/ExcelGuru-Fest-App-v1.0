@@ -4,7 +4,7 @@
 import { el, card, table, empty, badge, button, notice, filterBar, hint } from "../lib/ui.js";
 import { getOne, getAll } from "../lib/db.js";
 import { topbar } from "../app.js";
-import { POOL_LABEL, classLabel, EVENT_CLASSES, rankIsPublic, isGroupClass } from "../domain/constants.js";
+import { POOL_LABEL, classLabel, EVENT_CLASSES, rankIsPublic, isGroupClass, namesWithChest } from "../domain/constants.js";
 import { gradeLabel } from "../domain/scoring.js";
 import { rankNode, hasMedal } from "../lib/ranks.js";
 import { nameColorStyle } from "../domain/houseColor.js";
@@ -129,10 +129,15 @@ export default async function resultsPage(root) {
 
   function houseTag(row) {
     const st = houseStyle[row.id] || houseStyle[row.houseId] || {};
+    // houseName first: a house row (paintHouses) has no houseName field, so
+    // this still falls through to `name` there — but a PARTICIPANT row
+    // (Student talent, a custom board) has both, and `name` on that row is
+    // the participant's own name, not their house. Checking `name` first
+    // showed a student's own name in their own House column.
     return el("span.house-tag", {}, [
       st.logoData ? el("img.house-crest-sm", { src: st.logoData, alt: "" })
         : st.color ? el("i.house-dot", { style: "background:" + st.color }) : null,
-      el("span", { text: row.name || row.houseName || "" })
+      el("span", { text: row.houseName || row.name || "" })
     ]);
   }
 
@@ -311,7 +316,7 @@ export default async function resultsPage(root) {
           exportRow(slug(ev.eventName), full,
             [{ label: "Rank", key: "rank" },
              { label: "Team", value: r => r.teamLabel || "" },
-             { label: "Participant", value: r => (r.names || []).join(", ") },
+             { label: "Participant", value: r => namesWithChest(r.names, r.chestNumbers) },
              { label: hTerm, key: "houseName" }, { label: "Grade", value: r => gradeLabel(r.grade, board) }, { label: "Points", key: "totalPoints" }])));
       }
     }
@@ -353,12 +358,12 @@ function entryDisplay(r, ev, houseStyle = {}) {
     : node;
 
   if (!isGroupClass(ev.eventClass) || !r.teamLabel) {
-    return withPhotos(el("span", { text: (r.names || []).join(", "), style: nameStyle }));
+    return withPhotos(el("span", { text: namesWithChest(r.names, r.chestNumbers), style: nameStyle }));
   }
   if (r.wholeTeam) return withPhotos(el("span", { text: r.teamLabel, style: nameStyle }));
   return withPhotos(el("div", {}, [
     el("div", { text: r.teamLabel, style: nameStyle }),
-    el("div.hint", { style: "margin:0", text: (r.names || []).join(", ") })
+    el("div.hint", { style: "margin:0", text: namesWithChest(r.names, r.chestNumbers) })
   ]));
 }
 

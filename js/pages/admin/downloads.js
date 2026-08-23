@@ -5,7 +5,7 @@ import { toCSV, downloadText } from "../../lib/csv.js";
 import { downloadXLSX, S } from "../../lib/xlsx.js";
 import { printDocument, htmlTable, escapeHTML } from "../../lib/pdf.js";
 import { shortfalls, limitsForCategory } from "../../domain/limits.js";
-import { DEFAULTS, classLabel, eventCategoryLabel, PUBLISH_STATUS } from "../../domain/constants.js";
+import { DEFAULTS, classLabel, eventCategoryLabel, PUBLISH_STATUS, namesWithChest } from "../../domain/constants.js";
 import { is } from "../../lib/session.js";
 import { compareChest } from "../../domain/chest.js";
 import { flattenResults, winnersList, gradeList, rankGradeList, nonRankHolders,
@@ -101,7 +101,7 @@ async function resultsData() {
         status: r.publishStatus,
         rank: e.isAbsent ? "" : e.rank,
         team: e.teamLabel || "",
-        names: (e.participantNames || []).join(" / "),
+        names: namesWithChest(e.participantNames, e.chestNumbers),
         house: e.houseName, grade: e.grade ? gradeLabel(e.grade, settings) : "",
         percent: e.percent === null ? "" : e.percent.toFixed(2),
         points: e.totalPoints
