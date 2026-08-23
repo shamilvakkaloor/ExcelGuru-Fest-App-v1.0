@@ -7,7 +7,7 @@
 import { el, card, field, input, select, button, toast, guard, notice, empty, badge, modal, confirmDialog, loading, checkbox, hint } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, where } from "../../lib/db.js";
 import { printDocument, downloadBlob } from "../../lib/pdf.js";
-import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
+import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, THEMES, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
 import { renderCanvas, renderPageHTML, previewData, ensureDesignFonts, designPageToImageBlob } from "../../lib/designRender.js";
 import { compressImage, photoSrc } from "../../lib/photo.js";
 import { PUBLISH_STATUS, classLabel, EVENT_CLASSES } from "../../domain/constants.js";
@@ -60,18 +60,34 @@ export default async function generator(root) {
         "No results are published yet. You can design freely now, but generating uses published results only."));
     }
 
+    /* Grouped theme-first, then by kind. Three complete eight-piece kits
+     * flattened into one list of 24 would be a wall of near-duplicate
+     * names; the theme is the choice being made first, so it is the
+     * heading. */
     const kindOrder = ["certificate", "poster", "idcard"];
-    const kindGroups = kindOrder
-      .map(kind => ({ kind, items: TEMPLATE_LIST.filter(t => t.kind === kind) }))
-      .filter(g => g.items.length);
+    const themeGroups = THEMES
+      .map(th => ({
+        ...th,
+        kinds: kindOrder
+          .map(kind => ({ kind, items: TEMPLATE_LIST.filter(t => t.theme === th.id && t.kind === kind) }))
+          .filter(g => g.items.length)
+      }))
+      .filter(th => th.kinds.length);
 
     wrapper.appendChild(card(el("div", {}, [
-      el("p.hint", { text: "Start from a template, arrange it on the canvas, then generate for everyone at once." }),
-      ...kindGroups.map(g => el("div", { style: "margin-bottom:.9rem" }, [
-        el("div.hint", { style: "margin:0 0 .3rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em",
-          text: TEMPLATE_KIND_LABEL[g.kind] || g.kind }),
-        el("div.chip-row", {}, g.items.map(t =>
-          el("button.chip", { type: "button", text: t.label, onclick: () => openEditor(loadTemplate(t.id), null) })))
+      el("p.hint", { text: "Start from a template, arrange it on the canvas, then generate for everyone at once. " +
+        "Each theme carries the same eight pieces, so a fest can stay in one look throughout." }),
+      ...themeGroups.map(th => el("div", { style: "margin-bottom:1.1rem" }, [
+        el("div", { style: "display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap;margin-bottom:.35rem" }, [
+          el("strong", { text: th.label }),
+          el("span.hint", { style: "margin:0", text: th.blurb })
+        ]),
+        ...th.kinds.map(g => el("div", { style: "margin-bottom:.45rem" }, [
+          el("div.hint", { style: "margin:0 0 .25rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.72rem",
+            text: TEMPLATE_KIND_LABEL[g.kind] || g.kind }),
+          el("div.chip-row", {}, g.items.map(t =>
+            el("button.chip", { type: "button", text: t.label, onclick: () => openEditor(loadTemplate(t.id), null) })))
+        ]))
       ]))
     ]), "New design"));
 
@@ -654,7 +670,13 @@ export default async function generator(root) {
                   results: entries.map(e =>
                     `${e.eventName} — ${e.isAbsent ? "Absent" : (e.rank ? placeLabel(e.rank) : "Participated")}` +
                     (e.grade && !e.isAbsent ? ` (${e.grade})` : "")).join("\n"),
-                  event: entries[0]?.eventName || "", rank: "", grade: ""
+                  event: entries[0]?.eventName || "", rank: "", grade: "",
+                  // The best single placement across everything they entered
+                  // — a Bold Grid certificate leads with this as one giant
+                  // digit. Blank for someone with no placement at all,
+                  // same "no value, no fake zero" rule the rest of the app
+                  // follows.
+                  bestRank: bestRankOf(entries)
                 }));
               }
             } else {
@@ -675,6 +697,10 @@ export default async function generator(root) {
                       photo: photoSrc(p),
                       type: typeName[res.typeId] || "", tier: tierName[res.tierId] || "",
                       event: res.eventName, rank: placeLabel(e.rank), grade: e.grade ? gradeLabel(e.grade, settings) : "",
+                      // The raw placement number, not the word — Bold Grid's
+                      // winner poster sets it as a single huge digit rather
+                      // than printing "FIRST" at that size.
+                      rankNum: e.rank,
                       results: `${res.eventName} — ${placeLabel(e.rank)}`
                     }));
                   }
@@ -742,6 +768,12 @@ const saveAsImage = guard(async (design, data, filename) => {
   }
   downloadBlob(filename, blob);
 });
+
+/** The lowest (best) rank across a set of entries, or "" if none placed. */
+function bestRankOf(entries) {
+  const ranks = (entries || []).filter(e => e.rank && !e.isAbsent).map(e => e.rank);
+  return ranks.length ? Math.min(...ranks) : "";
+}
 
 function placeLabel(rank) {
   return { 1: "First", 2: "Second", 3: "Third" }[rank] || (rank + "th");
@@ -834,12 +866,38 @@ function eventRanksData(design, res, settings, catName, photoById = {}, houseCol
       rankData[`rank${n}house`] = e.houseName || "";
       rankData[`rank${n}houseColor`] = (e.houseId && houseColorById[e.houseId]) || "";
       rankData[`rank${n}grade`] = e.grade ? gradeLabel(e.grade, settings) : "";
-      // Only an individual entry has one face to show; a team's "photo"
-      // would be an arbitrary member, so it is left to the silhouette.
+      // The app has no timing/scoring unit finer than points, so Bold
+      // Grid's results table shows points where its own source design
+      // showed a race time — the nearest thing this fest actually tracks.
+      rankData[`rank${n}points`] = e.totalPoints ?? "";
+      // Only an individual entry has one face — or one chest number — to
+      // show; a team's would be an arbitrary member's, so both are left
+      // blank for a group placement.
       const pid = names.length === 1 ? (e.participantIds || [])[0] : null;
       if (pid && photoById[pid]) rankData[`rank${n}photo`] = photoById[pid];
+      if (names.length === 1) rankData[`rank${n}chest`] = (e.chestNumbers || [])[0] || "";
     }
   }
+
+  // How many points each house took from THIS event specifically — not the
+  // house's fest-wide total. A group entry's totalPoints already carries
+  // the house's share exactly once (see CLAUDE.md's group-points rule), so
+  // summing every entry's totalPoints per house is the whole computation.
+  const houseTotals = {};
+  for (const e of (res.entries || [])) {
+    if (!e.houseId) continue;
+    const h = (houseTotals[e.houseId] ??= { name: e.houseName || "", total: 0, color: houseColorById[e.houseId] || "" });
+    h.total += Number(e.totalPoints || 0);
+  }
+  const houseData = {};
+  Object.values(houseTotals)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 4)
+    .forEach((h, i) => {
+      houseData[`house${i + 1}name`] = h.name;
+      houseData[`house${i + 1}points`] = h.total;
+      houseData[`house${i + 1}color`] = h.color;
+    });
 
   return {
     fest: settings?.festName || "", school: settings?.schoolName || "",
@@ -850,7 +908,8 @@ function eventRanksData(design, res, settings, catName, photoById = {}, houseCol
     // already has, same as everywhere else in this file.
     event: res.eventName, category: catName?.[res.categoryId] || "",
     eventResults: lines.join("\n"),
-    ...rankData
+    ...rankData,
+    ...houseData
   };
 }
 
@@ -938,10 +997,12 @@ function singleDialog(design, published, typeName, tierName, catName) {
             tier: first ? (tierName[first.res.tierId] || "") : "",
             event: first?.res.eventName || "",
             rank: first?.e.rank ? placeLabel(first.e.rank) : "",
+            rankNum: first?.e.rank || "",
             grade: first?.e.grade ? gradeLabel(first.e.grade, settings) : "",
             results: entries.map(({ res, e }) =>
               `${res.eventName} — ${e.isAbsent ? "Absent" : (e.rank ? placeLabel(e.rank) : "Participated")}` +
-              (e.grade && !e.isAbsent ? ` (${gradeLabel(e.grade, settings)})` : "")).join("\n")
+              (e.grade && !e.isAbsent ? ` (${gradeLabel(e.grade, settings)})` : "")).join("\n"),
+            bestRank: bestRankOf(entries.map(({ e }) => e))
           };
           return el("div", { style: "display:flex;gap:.4rem" }, [
             button("Print", { class: "btn-sm btn-accent", onclick: guard(async () => {

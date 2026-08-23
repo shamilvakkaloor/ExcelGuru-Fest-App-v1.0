@@ -114,6 +114,17 @@ js/pages/              One module per screen; admin screens under pages/admin/
   layouts as arrays of millimetre-positioned elements; `lib/designRender.js`
   renders the same data to both the editor canvas and the print output. Add
   a template by adding a function there, not by writing HTML.
+  - 24 built-ins: three themes (Modern, Classic, Bold Grid) × the same eight
+    pieces. A new one needs a function, a `TEMPLATES` entry and a
+    `TEMPLATE_LIST` row carrying both `theme` and `kind`.
+  - Letter-spacing goes through `sp(em, sizePt)`. The engine's `spacing` is
+    absolute (tenths of a mm) but every design source states it in `em`,
+    which is relative to that element's own size — convert at the source so
+    the number in the file is the design's real value.
+  - Text is shrunk to fit **in the editor only** (`shrinkToFit`), so an
+    element whose text is meant to bleed off the page needs a box wider than
+    the text, positioned so the page's own `overflow:hidden` does the
+    cropping. Otherwise the editor silently disagrees with the print.
 - **Chest numbers can come from a house range** (`domain/chest.js`), falling
   back to the shared counter when a house has no range.
 - **Judging is Admin-only** — enforced in `firestore.rules` on the `scores`
