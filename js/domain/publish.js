@@ -10,7 +10,8 @@ import { computeResults, computeDirectResults, finalizeBlockers, directFinalizeB
          resolvePoints, ladderKey, aggregate, studentScore, rankLeaderboard,
          tallyBoard, gradeScaleFrom, championshipStandings, categoryBreakdown } from "./scoring.js";
 import { PUBLISH_STATUS, DEFAULTS, EVENT_CLASSES, publicRankLimit, rankIsPublic,
-         effectiveResultMode, houseTerm, housePluralTerm } from "./constants.js";
+         effectiveResultMode, houseTerm, housePluralTerm,
+         eventCategoryIds, eventCategoryLabel } from "./constants.js";
 import { wallClockToEpoch } from "../lib/timezone.js";
 
 /* Bumped whenever a rebuild starts writing a field the public pages need.
@@ -227,6 +228,10 @@ export async function finalizeEvent(eventId) {
     eventCode: event.code || "",
     eventClass: event.eventClass,
     categoryId: event.categoryId || null,
+    /* The whole set, so a published result can name every category it was
+     * open to. categoryId above is only the first of them and is kept for
+     * anything written before mixed events existed. */
+    categoryIds: eventCategoryIds(event),
     // v8 — which ladder actually decided these points, and whether the
     // event's named source was missing and had to fall back. Surfaced on
     // the Results screen rather than silently swallowed.
@@ -402,7 +407,14 @@ export async function rebuildPublicSnapshots() {
         eventName: res.eventName || ev?.name || "",
         eventCode: res.eventCode || ev?.code || "",
         eventClass: res.eventClass || ev?.eventClass || "",
-        categoryName: catName[res.categoryId] || "",
+        /* "Junior and Senior" for a mixed event, so the public page names
+         * every category that competed rather than just the first. */
+        categoryName: eventCategoryLabel(
+          { eventClass: res.eventClass || ev?.eventClass,
+            categoryId: res.categoryId,
+            categoryIds: res.categoryIds?.length ? res.categoryIds : eventCategoryIds(ev) },
+          catName),
+        categoryIds: res.categoryIds?.length ? res.categoryIds : eventCategoryIds(ev),
         // v8 — denormalised so public pages filter on Type/Tier with no
         // extra reads, exactly as categoryName already does.
         typeName: typeName[res.typeId ?? ev?.typeId] || "",
@@ -818,8 +830,9 @@ export async function rebuildScheduleSnapshot() {
       type: s.type, order: s.order,
       title: s.type === "break" ? (s.title || "Break") : (ev?.name || "—"),
       code: s.type === "event" ? (ev?.code || "") : "",
-      categoryName: ev ? (ev.categoryId ? (catName[ev.categoryId] || "") : "General") : "",
+      categoryName: ev ? eventCategoryLabel(ev, catName) : "",
       categoryId: ev?.categoryId || null,
+      categoryIds: ev ? eventCategoryIds(ev) : [],
       typeName: typeName[ev?.typeId] || "",
       tierName: tierName[ev?.tierId] || "",
       stage: ev ? (ev.stage === "onStage" ? "On stage" : "Off stage") : "",

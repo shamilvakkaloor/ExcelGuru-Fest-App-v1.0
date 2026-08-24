@@ -3,7 +3,7 @@ import { getAll, getOne, add, patch, remove, nextCounter, raiseCounter, batchWri
 import { EVENT_CLASSES, STAGES, classLabel, isGroupClass, isGeneralClass,
          eventCategoryLabel, maxEntriesFor, minEntriesFor, DEFAULTS,
          POINTS_FROM, RESULT_MODES, typeTierFilters, eventFilterKeys,
-         eventCategoryIds, isMixedCategory } from "../../domain/constants.js";
+         eventCategoryIds, isMixedCategory, eventCategoryExportLabel } from "../../domain/constants.js";
 import { parseCSVObjects, readFile, toCSV, downloadText } from "../../lib/csv.js";
 import { renderLadderEditor } from "./settings.js";
 import { gradeScaleFrom, WITHOUT } from "../../domain/scoring.js";
@@ -56,7 +56,10 @@ export default async function events(root) {
         { label: "code", key: "code" },
         { label: "name", key: "name" },
         { label: "eventClass", key: "eventClass" },
-        { label: "category", value: r => eventCategoryLabel(r, catName) },
+        // "+"-joined, because the importer splits this column on "+" to
+        // rebuild a mixed event. The display label reads "Kids and Sub
+        // Junior"; this one has to stay machine-splittable.
+        { label: "category", value: r => eventCategoryExportLabel(r, catName) },
         { label: "stage", value: r => r.stage === "onStage" ? "onStage" : "offStage" },
         // v8 — these were missing, so exporting and re-importing silently
         // stripped every Type/Tier and points setting on every event.
@@ -179,7 +182,9 @@ async function eventDialog(existing, categories, settings, classification, refre
    * Limits are unaffected: each participant is always measured against
    * their OWN category, exactly as for a General event.
    */
-  let mixedOn = eventCategoryIds(existing).length > 1;
+  const wasMixed = eventCategoryIds(existing).length > 1;
+  const mixedAllowed = !!settings?.mixedCategory || wasMixed;
+  let mixedOn = wasMixed;
   const mixedPicked = new Set(eventCategoryIds(existing));
   const mixedBox = el("div.chip-row");
   function paintMixed() {
@@ -205,9 +210,11 @@ async function eventDialog(existing, categories, settings, classification, refre
   });
   function syncMixed() {
     const general = isGeneralClass(cls.value);
-    mixedToggle.style.display = general ? "none" : "";
-    mixedField.style.display = (!general && mixedOn) ? "" : "none";
-    catField.style.display = (!general && !mixedOn) ? "" : "none";
+    // Hidden entirely when the fest has not enabled mixed events — an
+    // option that cannot be used is a question that should not be asked.
+    mixedToggle.style.display = (general || !mixedAllowed) ? "none" : "";
+    mixedField.style.display = (!general && mixedAllowed && mixedOn) ? "" : "none";
+    catField.style.display = (!general && !(mixedAllowed && mixedOn)) ? "" : "none";
   }
   const stage = select(STAGES, { value: existing?.stage || "onStage" });
   const perEntry = input({ type: "number", min: 1, value: existing?.maxParticipantsPerEntry || 1 });
@@ -248,7 +255,8 @@ async function eventDialog(existing, categories, settings, classification, refre
     (o.value === "stage"    && axes.stage) ||
     (o.value === "type"     && axes.type && useTypeTier) ||
     (o.value === "tier"     && axes.tier && useTypeTier) ||
-    (o.value === "category" && axes.category));
+    (o.value === "category" && axes.category) ||
+    (o.value === "mixed"    && axes.mixed && mixedAllowed));
   const pointsFrom = select(pointsOptions, { value: existing?.pointsFrom || "class" });
 
   const classBox = el("fieldset", {}, [
@@ -321,13 +329,18 @@ async function eventDialog(existing, categories, settings, classification, refre
     if (v === "tier")  msg = tierSel.value ? "Uses the ladder for this Tier." : "No Tier is set, so this event will fall back to its class ladder.";
     if (v === "category") msg = (mixedOn ? mixedPicked.size : cat.value)
       ? "Uses the ladder for this event's category." + (mixedOn && mixedPicked.size > 1
-          ? " A mixed event reads the ladder for the first category picked above." : "")
+          ? " A mixed event has no single category, so this reads the FIRST one picked above —" +
+            " pick “Mixed category” instead if that is not what you want."
+          : "")
       : "No category is set, so this event will fall back to its class ladder.";
+    if (v === "mixed") msg = (mixedOn && mixedPicked.size > 1)
+      ? "Uses the one shared ladder for mixed-category events."
+      : "This event is not open to more than one category, so it will fall back to its class ladder.";
     if (v === "custom") msg = "Uses only the ladder set below — no fallback.";
     pointsWarn.textContent = msg;
     customFieldset.style.display = v === "custom" ? "" : "none";
   }
-  [pointsFrom, typeSel, tierSel, stage, cat].forEach(n => n.addEventListener("change", syncPoints));
+  [pointsFrom, typeSel, tierSel, stage, cat, cls].forEach(n => n.addEventListener("change", syncPoints));
 
   /* ── v8 — gradeless and direct results ────────────────────────────
    * Two independent switches, both defaulting to v7 behaviour.
@@ -498,7 +511,7 @@ async function eventDialog(existing, categories, settings, classification, refre
             toast("The minimum entries per house cannot be above the maximum.", true);
             return false;
           }
-          const useMixed = mixedOn && !isGeneralClass(cls.value);
+          const useMixed = mixedAllowed && mixedOn && !isGeneralClass(cls.value);
           if (useMixed && mixedPicked.size < 2) {
             toast("Pick at least two categories, or turn off “Open to more than one category”.", true);
             return false;

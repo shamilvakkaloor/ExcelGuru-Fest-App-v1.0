@@ -87,6 +87,10 @@ export const POINTS_FROM = [
   { value: "type",     label: "Type" },
   { value: "tier",     label: "Tier" },
   { value: "category", label: "Category" },
+  /* Only ever offered on a mixed event — a single-category event has no
+   * "mixed" ladder to read. One ladder covers every mixed event, rather
+   * than one per combination of categories. */
+  { value: "mixed",    label: "Mixed category" },
   { value: "custom",   label: "Custom for this event" }
 ];
 
@@ -179,7 +183,12 @@ export const DEFAULTS = {
     // Each switch turns on POINTS for that axis. Off by default, so an
     // event's pointsFrom stays "class" everywhere and scoring is
     // unchanged from v7 until an Admin deliberately opts in.
-    pointsAxes: { stage: false, type: false, tier: false, category: false },
+    pointsAxes: { stage: false, type: false, tier: false, category: false, mixed: false },
+    /* Mixed-category events are off until a fest asks for them. An event
+     * open to several categories at once changes how points, limits and
+     * the public results read, so it is a decision a fest makes once
+     * rather than something every event form offers by default. */
+    mixedCategory: false,
     useTypeTier: false,          // shows Type/Tier as filters even with no points
     useTiebreakers: true,        // off hides the tiebreaker order entirely
     hasDeleteGuard: false,       // set once guard/deleteGuard exists
@@ -407,7 +416,55 @@ export function eventCategoryLabel(event, catName) {
   if (!ids.length) return event.categoryName || "—";
   const names = ids.map(id => catName?.[id]).filter(Boolean);
   if (!names.length) return event.categoryName || "—";
+  return joinCategoryNames(names);
+}
+
+/**
+ * The category column as the CSV writes it: "Kids + Sub Junior".
+ *
+ * Deliberately NOT the display label. The importer splits this column on
+ * "+" to rebuild a mixed event, so the separator is a data format and has
+ * to stay stable and unambiguous — a category could legitimately have the
+ * word "and" in its own name, which would make an "and"-joined column
+ * impossible to split back apart. Humans get eventCategoryLabel(); the
+ * round trip gets this.
+ */
+export function eventCategoryExportLabel(event, catName) {
+  if (!event) return "";
+  if (isGeneralClass(event.eventClass)) return "";
+  const names = eventCategoryIds(event).map(id => catName?.[id]).filter(Boolean);
   return names.join(" + ");
+}
+
+/**
+ * "Junior and Senior" — the way a results sheet would say it out loud.
+ *
+ * A mixed event is announced as one event open to several categories, so
+ * the label reads as a sentence rather than a formula: two names joined
+ * with "and", three or more with commas and a final "and".
+ */
+export function joinCategoryNames(names) {
+  const list = (names || []).filter(Boolean);
+  if (list.length <= 1) return list[0] || "";
+  if (list.length === 2) return list[0] + " and " + list[1];
+  return list.slice(0, -1).join(", ") + " and " + list[list.length - 1];
+}
+
+/**
+ * The category a single ENTRY should be counted under.
+ *
+ * For an ordinary event that is just the event's own category. For a mixed
+ * event the entry belongs to whichever category the participant is in —
+ * a Junior entering a Junior+Senior event is still a Junior, and their
+ * points belong in the Junior column. `entryCategoryId` has been recorded
+ * on every registration since v9 (see domain/registration.js); older
+ * entries have none, so those fall back to the event's own category
+ * rather than vanishing from the breakdown.
+ */
+export function entryCategoryOf(event, entry) {
+  if (isGeneralClass(event?.eventClass)) return null;
+  if (isMixedCategory(event) && entry?.entryCategoryId) return entry.entryCategoryId;
+  return event?.categoryId || eventCategoryIds(event)[0] || null;
 }
 
 /** Code letters A…Z, then AA, AB… so an event is never capped at 26 entries. */

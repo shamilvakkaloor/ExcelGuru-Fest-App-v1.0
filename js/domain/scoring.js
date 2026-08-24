@@ -1,6 +1,13 @@
 // Pure functions — no Firestore, no DOM. This is the part of the system
 // that must be right, so it is deliberately isolated and independently
 // testable (open tests.html in a browser to run the checks).
+//
+// The one import is domain/constants.js, which is equally pure and has no
+// imports of its own — so this file stays runnable on its own. The rule
+// for "which category does this entry count under" lives there because
+// registration, publishing and the breakdown all have to agree on it, and
+// a second copy here is exactly how two answers start to disagree.
+import { entryCategoryOf, eventCategoryIds } from "./constants.js";
 
 /* ══ Grades ══════════════════════════════════════════════════════════
  *
@@ -94,9 +101,11 @@ export function ladderKey(pointsFrom, event) {
   if (pointsFrom === "stage")    return "stage_" + (event.stage || "onStage");
   if (pointsFrom === "type")     return "type_" + (event.typeId || "");
   if (pointsFrom === "tier")     return "tier_" + (event.tierId || "");
-  // v9.2 — a mixed-category event's categoryId is already the FIRST of its
-  // categoryIds (see events.js), so this reads the same ladder a
-  // single-category event with that category would.
+  // A mixed event has no single category ladder to read — its categoryId is
+  // only the FIRST of its categoryIds, kept for back-compat, so reading it
+  // here would quietly price a Junior+Senior event as if it were Junior.
+  // "mixed" is the source such an event should use instead.
+  if (pointsFrom === "mixed")    return "mixed";
   if (pointsFrom === "category") return "category_" + (event.categoryId || "");
   return event.eventClass;                      // "class" — the default
 }
@@ -381,9 +390,15 @@ export function categoryBreakdown(events, resultDocs, houses, categories) {
   for (const res of resultDocs) {
     const ev = eventById[res.id];
     if (!ev || ev.excludeFromTotals) continue;
-    const key = ev.categoryId || "__general";
     for (const entry of res.entries || []) {
       if (!entry.houseId || !byHouse[entry.houseId]) continue;
+      /* Per ENTRY, not per event. A mixed Junior+Senior event's categoryId
+       * is only the first of its categories, so keying the whole event by
+       * it put every Senior's points in the Junior column. Each entry is
+       * counted under the category its own participant is in, which is
+       * both truthful and still reconciles with the house total — no
+       * points are counted twice and none are dropped. */
+      const key = entryCategoryOf(ev, entry) || "__general";
       const pts = Number(entry.totalPoints || 0);
       const row = byHouse[entry.houseId];
       row.byCategory[key] = (row.byCategory[key] || 0) + pts;
@@ -452,7 +467,13 @@ export function championshipStandings({ events, houses, participants, housePoint
     let total = 0;
     for (const ev of events || []) {
       if (ev.excludeFromTotals) continue;
-      const eligible = isGeneral(ev) || (ev.categoryId && eligibleCategories[h.id]?.has(ev.categoryId));
+      /* ANY of the event's categories, not just the first. A house with
+       * only Senior participants can genuinely win a Junior+Senior event,
+       * so counting only categoryId (the first) called that house
+       * ineligible and shrank the denominator its percentage is measured
+       * against — quietly flattering it. */
+      const cats = eventCategoryIds(ev);
+      const eligible = isGeneral(ev) || cats.some(id => eligibleCategories[h.id]?.has(id));
       if (eligible) total += bestPossible[ev.id] || 0;
     }
     maxEarnable[h.id] = total;
@@ -553,10 +574,20 @@ export function boardMatchesEvent(board, event) {
   // An explicit event list, when present, is the whole rule — ticking
   // events by hand means "exactly these", not "these as well as the axes".
   if (board.eventIds?.length) return board.eventIds.map(String).includes(String(event.id));
+  // A mixed event matches a category filter if ANY of its categories is
+  // selected — a "Junior" board should include a Junior+Senior event,
+  // because Juniors really did compete in it.
+  const hasAnyCategory = arr => {
+    if (!arr?.length) return true;
+    const want = arr.map(String);
+    const ids = eventCategoryIds(event);
+    if (!ids.length) return want.includes("");        // General, or unset
+    return ids.some(id => want.includes(String(id)));
+  };
   return has(board.stages, event.stage)
       && has(board.typeIds, event.typeId ?? "")
       && has(board.tierIds, event.tierId ?? "")
-      && has(board.categoryIds, event.categoryId ?? "")
+      && hasAnyCategory(board.categoryIds)
       && has(board.classIds, event.eventClass);
 }
 

@@ -33,7 +33,8 @@ import { overlaps, findClashes, describeClashes } from "./js/domain/clashes.js";
 import { codeLetterAt, entryCap, maxEntriesFor, minEntriesFor, entryCompletion,
          rankCountFromLadder, publicRankLimit, rankIsPublic, GENDERS,
          eventCategoryIds, eventAcceptsCategory, isMixedCategory,
-         eventCategoryLabel, eventFilterKeys, eventLabel } from "./js/domain/constants.js";
+         eventCategoryLabel, eventFilterKeys, eventLabel,
+         entryCategoryOf, joinCategoryNames, eventCategoryExportLabel } from "./js/domain/constants.js";
 import { derivePattern, incrementLetters, nextChestValue, chestSortKey, compareChest,
          matchesSeed, nextSeededValue, rangeClash, rangeOwner, overlappingRanges,
          ownershipError, allocateChest, normalizeChest } from "./js/domain/chest.js";
@@ -331,6 +332,115 @@ check("an excluded event is left off a custom leaderboard",
     [out.leaders.jun.houseId, out.rows[0].id], ["red", "red"]);
   check("blue trails overall despite winning Senior", blue.total, 12);
 })();
+
+
+/* ══ Mixed-category events ═══════════════════════════════════════════
+ * One event open to several categories at once. It stays ONE event with
+ * ONE combined ranking; what changes is that every downstream question
+ * ("which category do these points belong to?", "could this house have
+ * won it?") must consider ALL its categories, not just the first.
+ */
+(() => {
+  const mixed  = { id: "m1", eventClass: "categoryIndividual", categoryId: "jun", categoryIds: ["jun", "sen"] };
+  const single = { id: "s1", eventClass: "categoryIndividual", categoryId: "jun" };
+  const general = { id: "g1", eventClass: "generalGroup", categoryId: null };
+  const catName = { jun: "Junior", sen: "Senior", kid: "Kids" };
+
+  check("a mixed event names every category it is open to",
+    eventCategoryIds(mixed), ["jun", "sen"]);
+  check("a single-category event is not mixed", isMixedCategory(single), false);
+  check("two or more categories makes it mixed", isMixedCategory(mixed), true);
+
+  check("two categories read as a sentence", joinCategoryNames(["Junior", "Senior"]), "Junior and Senior");
+  check("three categories use commas and a final and",
+    joinCategoryNames(["Kids", "Junior", "Senior"]), "Kids, Junior and Senior");
+  check("a mixed event is labelled with every category",
+    eventCategoryLabel(mixed, catName), "Junior and Senior");
+  check("a single-category event keeps its plain label",
+    eventCategoryLabel(single, catName), "Junior");
+
+  // An entry belongs to the category its own participant is in.
+  check("a Senior in a mixed event counts as Senior, not the event's first category",
+    entryCategoryOf(mixed, { entryCategoryId: "sen" }), "sen");
+  check("a Junior in the same mixed event counts as Junior",
+    entryCategoryOf(mixed, { entryCategoryId: "jun" }), "jun");
+  check("an older entry with no recorded category falls back to the event's",
+    entryCategoryOf(mixed, {}), "jun");
+  check("an ordinary event ignores the entry and uses its own category",
+    entryCategoryOf(single, { entryCategoryId: "sen" }), "jun");
+  check("a general event has no category at all", entryCategoryOf(general, { entryCategoryId: "sen" }), null);
+})();
+
+(() => {
+  /* The bug this fixes: a Junior+Senior event's points all landed in the
+   * Junior column, because the event was keyed by its first category. */
+  const events = [
+    { id: "m1", eventClass: "categoryIndividual", categoryId: "jun", categoryIds: ["jun", "sen"] }
+  ];
+  const results = [{ id: "m1", entries: [
+    { houseId: "red", totalPoints: 10, entryCategoryId: "jun" },
+    { houseId: "red", totalPoints: 8,  entryCategoryId: "sen" },
+    { houseId: "blue", totalPoints: 6, entryCategoryId: "sen" }
+  ]}];
+  const houses = [{ id: "red", name: "Red" }, { id: "blue", name: "Blue" }];
+  const cats = [{ id: "jun", name: "Junior" }, { id: "sen", name: "Senior" }];
+  const out = categoryBreakdown(events, results, houses, cats);
+  const red = out.rows.find(r => r.id === "red");
+
+  check("a mixed event's points split by each entry's own category",
+    [red.byCategory.jun, red.byCategory.sen], [10, 8]);
+  check("a mixed event's points still reconcile with the house total",
+    red.byCategory.jun + red.byCategory.sen, red.total);
+  check("no points are counted twice across the categories", red.total, 18);
+  check("the Senior column names the right leader",
+    out.leaders.sen.houseId, "red");
+})();
+
+(() => {
+  /* Championship denominator: a Senior-only house can genuinely win a
+   * Junior+Senior event, so it must count towards what that house could
+   * have earned. */
+  const events = [
+    { id: "m1", eventClass: "categoryIndividual", categoryId: "jun", categoryIds: ["jun", "sen"] }
+  ];
+  const ladders = { categoryIndividual: { rankPoints: { 1: 10 } } };
+  const participants = [
+    { id: "p1", houseId: "seniorHouse", categoryId: "sen" },
+    { id: "p2", houseId: "juniorHouse", categoryId: "jun" }
+  ];
+  const houses = [{ id: "seniorHouse", name: "S" }, { id: "juniorHouse", name: "J" }];
+  const out = championshipStandings({
+    events, ladders, participants, houses,
+    housePoints: { seniorHouse: 10, juniorHouse: 0 }, gradePoints: {}
+  });
+  const senior = out.find(r => r.id === "seniorHouse");
+  check("a Senior-only house counts a Junior+Senior event as earnable",
+    senior.maxEarnable, 10);
+  check("and so reaches 100% rather than being flattered by a smaller denominator",
+    senior.percent, 100);
+})();
+
+(() => {
+  /* A "Junior" custom board should include a Junior+Senior event. */
+  const mixed = { id: "m1", eventClass: "categoryIndividual", categoryId: "jun", categoryIds: ["jun", "sen"] };
+  check("a category board includes a mixed event that contains that category",
+    boardMatchesEvent({ categoryIds: ["sen"] }, mixed), true);
+  check("a category board still excludes a mixed event that does not",
+    boardMatchesEvent({ categoryIds: ["kid"] }, mixed), false);
+  check("an unfiltered board still takes everything",
+    boardMatchesEvent({}, mixed), true);
+})();
+
+check("a mixed event reads the one shared mixed ladder",
+  ladderKey("mixed", { categoryId: "jun", categoryIds: ["jun", "sen"] }), "mixed");
+check("a mixed-sourced event uses the mixed ladder, not its class",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "mixed" },
+    { categoryIndividual: { rankPoints: { 1: 5 } }, mixed: { rankPoints: { 1: 30, 2: 20 } } }, {}).rankPoints,
+  { 1: 30, 2: 20 });
+check("a mixed-sourced event with no mixed ladder falls back to its class",
+  resolvePoints({ eventClass: "categoryIndividual", pointsFrom: "mixed" },
+    { categoryIndividual: { rankPoints: { 1: 5 } } }, {}).source,
+  "class");
 
 /* Championship by percentage — v9 */
 (() => {
@@ -1053,12 +1163,20 @@ check("a general event accepts anyone",
   eventAcceptsCategory(V9_GENERAL, "whatever"), true);
 
 check("a mixed event's label names both categories",
-  eventCategoryLabel(V9_MIXED, V9_CATNAME), "Kids + Sub Junior");
+  eventCategoryLabel(V9_MIXED, V9_CATNAME), "Kids and Sub Junior");
 
-// The label is what the CSV export writes, so this is also the round-trip
-// format the importer has to be able to read back.
 check("a mixed event's category survives into its full display label",
-  eventLabel(V9_MIXED, V9_CATNAME), "12 · Handwriting (Kids + Sub Junior)");
+  eventLabel(V9_MIXED, V9_CATNAME), "12 · Handwriting (Kids and Sub Junior)");
+
+// The CSV column is a DATA format, not the display label: the importer
+// splits it on "+" to rebuild the event, so it must stay splittable even
+// though humans now read "Kids and Sub Junior".
+check("the CSV category column stays +-joined so it can be read back",
+  eventCategoryExportLabel(V9_MIXED, V9_CATNAME), "Kids + Sub Junior");
+check("a single-category event exports just its category name",
+  eventCategoryExportLabel(V9_SINGLE, V9_CATNAME), "Junior");
+check("a general event exports a blank category column",
+  eventCategoryExportLabel(V9_GENERAL, V9_CATNAME), "");
 
 check("a mixed event is filterable under EVERY category it is open to",
   eventFilterKeys(V9_MIXED).filterCategory, ["k", "sj"]);

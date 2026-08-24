@@ -5,7 +5,9 @@
 // is the one thing the staged publish workflow exists to prevent.
 //
 // All of these are pure given their inputs, so the filtering rules are
-// testable without a browser.
+// testable without a browser. The one import is domain/constants.js, which
+// is equally pure and imports nothing itself.
+import { entryCategoryOf } from "./constants.js";
 
 /** Flatten published results into one row per participant per event. */
 export function flattenResults(results, { events = [], categories = [], houses = [] } = {}) {
@@ -28,9 +30,14 @@ export function flattenResults(results, { events = [], categories = [], houses =
           eventName: res.eventName || ev.name || "",
           eventCode: res.eventCode || ev.code || "",
           eventClass: res.eventClass || ev.eventClass || "",
-          categoryId: res.categoryId ?? ev.categoryId ?? null,
-          categoryName: (res.categoryId ?? ev.categoryId)
-            ? (catName[res.categoryId ?? ev.categoryId] || "") : "General",
+          /* A report row is one ENTRY, so it is filed under the category
+           * that entry's participant is in. For an ordinary event that is
+           * simply the event's category; for a mixed one it means a Junior
+           * competing in a Junior+Senior event is reported as Junior,
+           * which is what filtering by category has to mean to be useful. */
+          categoryId: entryCategoryOf(ev, e) ?? res.categoryId ?? null,
+          categoryName: (entryCategoryOf(ev, e) ?? res.categoryId)
+            ? (catName[entryCategoryOf(ev, e) ?? res.categoryId] || "") : "General",
           typeId: res.typeId ?? ev.typeId ?? null,
           tierId: res.tierId ?? ev.tierId ?? null,
           stage: ev.stage || "",

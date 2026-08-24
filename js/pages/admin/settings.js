@@ -641,9 +641,31 @@ async function basicTab(panel) {
 /* ── Categories ────────────────────────────────────────────────────── */
 async function categoriesTab(panel) {
   const rows = (await getAll("categories")).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const s = { ...DEFAULTS.festSettings, ...((await getOne("config", "festSettings")) || {}) };
 
   const name = input({ placeholder: "e.g. Sub-Junior" });
   const order = input({ type: "number", value: rows.length + 1, style: "max-width:110px" });
+
+  /* The gate for mixed-category events. Off by default: one event open to
+   * several categories changes how points are attributed, how the
+   * championship denominator is worked out and how results read publicly,
+   * so it is a fest-level decision made once rather than a checkbox on
+   * every event form. */
+  panel.appendChild(card(el("div", {}, [
+    checkbox("Allow events open to more than one category", !!s.mixedCategory, guard(async v => {
+      await patch("config", "festSettings", { mixedCategory: v });
+      toast(v ? "Mixed-category events enabled." : "Mixed-category events disabled.");
+      categoriesTab(clearPanel(panel));
+    })),
+    el("p.hint", { text:
+      "Lets one event be open to several categories at once — “Essay Writing, Junior and Senior”. " +
+      "It stays one event with one combined ranking: the categories widen who may enter, they do " +
+      "not split the result. Each entry still counts towards its own participant's category for " +
+      "points and entry limits." }),
+    !s.mixedCategory ? null : notice("info",
+      "Existing mixed events keep working if you turn this off — it only decides whether the " +
+      "option is offered when adding or editing an event.")
+  ]), "Mixed-category events"));
 
   panel.appendChild(card(el("div", {}, [
     el("p.hint", { text: "Age or grade groupings. Category events belong to exactly one; general events are open to all." }),
@@ -1032,6 +1054,14 @@ async function pointsTab(panel) {
     checkbox("Award points by Tier", axes.tier, v => { axes.tier = v; paintAxisTabs(); },
       { disabled: !s.useTypeTier }),
     checkbox("Award points by Category", axes.category, v => { axes.category = v; paintAxisTabs(); }),
+    /* One ladder for every mixed event, not one per combination of
+     * categories — a Junior+Senior event and a Kids+Sub Junior event are
+     * both "a mixed event" as far as what it is worth. */
+    checkbox("Award points by Mixed category", axes.mixed, v => { axes.mixed = v; paintAxisTabs(); },
+      { disabled: !s.mixedCategory }),
+    !s.mixedCategory
+      ? el("p.hint", { text: "Turn on mixed-category events first, on the Categories tab." })
+      : null,
     notice("info",
       "These switches decide which axes CAN carry points. Nothing changes for an existing " +
       "event until you also set its \u201CPoints from\u201D on the Events screen — at a time, " +
@@ -1158,6 +1188,11 @@ async function pointsTab(panel) {
     const doc = await getOne("pointsConfig", "tier_" + t.id);
     tierLadders[t.id] = { rankPoints: { ...(doc?.rankPoints || DEFAULTS.rankPoints) }, gradePoints: doc?.gradePoints || null };
   }
+  const mixedLadderDoc = await getOne("pointsConfig", "mixed");
+  const mixedLadders = {
+    mixed: { rankPoints: { ...(mixedLadderDoc?.rankPoints || DEFAULTS.rankPoints) },
+             gradePoints: mixedLadderDoc?.gradePoints || null }
+  };
   const categoryLadders = {};
   for (const c of categories) {
     const doc = await getOne("pointsConfig", "category_" + c.id);
@@ -1194,6 +1229,10 @@ async function pointsTab(panel) {
           categories.map(c => ({ id: c.id, label: c.name })), categoryLadders, gp, gradeScale));
       }
     }
+    if (axes.mixed && s.mixedCategory) {
+      axisBox.appendChild(axisLadderCard("Rank points — Mixed category",
+        [{ id: "mixed", label: "Any mixed-category event" }], mixedLadders, gp, gradeScale));
+    }
   }
 
   panel.appendChild(card(el("div", {}, [
@@ -1221,6 +1260,7 @@ async function pointsTab(panel) {
     if (axes.type) for (const [id, l] of Object.entries(typeLadders)) await put("pointsConfig", "type_" + id, ladderPayload(l));
     if (axes.tier) for (const [id, l] of Object.entries(tierLadders)) await put("pointsConfig", "tier_" + id, ladderPayload(l));
     if (axes.category) for (const [id, l] of Object.entries(categoryLadders)) await put("pointsConfig", "category_" + id, ladderPayload(l));
+    if (axes.mixed) await put("pointsConfig", "mixed", ladderPayload(mixedLadders.mixed));
 
     await put("config", "gradePoints", readGradePoints());
     await patch("config", "festSettings", { pointsAxes: axes });
