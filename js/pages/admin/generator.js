@@ -8,7 +8,7 @@ import { el, card, field, input, select, button, toast, guard, notice, empty, ba
 import { getAll, getOne, put, patch, remove, where } from "../../lib/db.js";
 import { printDocument, downloadBlob } from "../../lib/pdf.js";
 import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, THEMES, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
-import { renderCanvas, renderPageHTML, previewData, ensureDesignFonts, designPageToImageBlob } from "../../lib/designRender.js";
+import { renderCanvas, renderPageHTML, previewData, ensureDesignFonts, designPageToImageBlob, prepareDesignImages } from "../../lib/designRender.js";
 import { compressImage, photoSrc } from "../../lib/photo.js";
 import { PUBLISH_STATUS, classLabel, EVENT_CLASSES } from "../../domain/constants.js";
 import { highestRankAwarded, gradeLabel } from "../../domain/scoring.js";
@@ -797,29 +797,60 @@ export default async function generator(root) {
  * run is already hundreds of pages, and a PNG per page has nowhere sane to
  * go without a zip step this app doesn't carry.
  */
+/**
+ * Save one filled page as a PNG.
+ *
+ * A photo that lives at an external link can be DISPLAYED but not READ:
+ * the browser deliberately refuses to hand a page the pixels of an image
+ * whose host did not opt in with CORS headers, and the photo hosts in
+ * play (Google's CDN, and whatever a pasted link points at) do not.
+ * Printing is unaffected, because a print window only ever displays.
+ *
+ * So this asks BEFORE producing the file rather than apologising after —
+ * being handed a finished poster with silhouettes where the winners
+ * should be, at several megabytes, is worse than being asked.
+ */
 const saveAsImage = guard(async (design, data, filename) => {
-  let blob;
-  let missing = [];
+  let prepared;
   try {
-    blob = await designPageToImageBlob(design, data, {
-      onMissingImages: keys => { missing = keys; }
-    });
+    prepared = await prepareDesignImages(design, data);
+  } catch (err) {
+    console.error("saveAsImage/prepare", err);
+    toast("Couldn't prepare this for saving. Printing to PDF still works.", true);
+    return;
+  }
+
+  if (prepared.failed.length) {
+    const n = prepared.failed.length;
+    const ok = await modal({
+      title: "Some photos cannot go into an image",
+      body: el("div", {}, [
+        el("p", { text:
+          `${n} photo${n === 1 ? "" : "s"} on this page ${n === 1 ? "is" : "are"} a pasted-in link rather than ` +
+          `an uploaded image. A browser will show a linked photo but will not let the page read it back, so ` +
+          `${n === 1 ? "it" : "they"} cannot be written into a PNG. The silhouette is used instead.` }),
+        notice("info", "Print keeps the photos — choose Generate, then “Save as PDF” in the print window."),
+        el("p.hint", { text:
+          "To fix it for good, upload the photo on the participant rather than linking to it. " +
+          "An uploaded photo is stored with the fest and works everywhere." })
+      ]),
+      actions: [
+        { label: "Cancel" },
+        { label: "Save with silhouettes", kind: "accent", onClick: () => true }
+      ]
+    }).promise.then(v => v === true);
+    if (!ok) return;
+  }
+
+  let blob;
+  try {
+    blob = await designPageToImageBlob(design, data, { prepared });
   } catch (err) {
     console.error("saveAsImage", err);
     toast("Couldn't save this as an image. Printing to PDF still works.", true);
     return;
   }
   downloadBlob(filename, blob);
-  /* Say so rather than handing over a poster with blank holes where the
-   * faces should be. A photo pasted in as an external link can only be
-   * embedded if its host allows a cross-origin read, and Google's photo
-   * CDN does not — so the honest advice is to upload the photo instead,
-   * or use Print, which is not subject to this at all. */
-  if (missing.length) {
-    toast(`Saved, but ${missing.length} photo${missing.length === 1 ? "" : "s"} could not be embedded — ` +
-      `${missing.length === 1 ? "it is" : "they are"} pasted-in links rather than uploaded images. ` +
-      `Upload the photo on the participant, or use Print for a PDF instead.`, true);
-  }
 });
 
 /**

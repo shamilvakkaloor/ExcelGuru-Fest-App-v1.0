@@ -431,6 +431,10 @@ async function toDataUri(url) {
  * read. Anything that cannot be read is REPORTED rather than quietly
  * dropped, because a silently faceless poster is the bug being fixed.
  */
+export async function prepareDesignImages(design, data) {
+  return inlineImages(design, data || {});
+}
+
 async function inlineImages(design, data) {
   const out = { ...data };
   const failed = [];
@@ -495,9 +499,12 @@ async function inlineImages(design, data) {
  * reading its pixels back. Left to the caller to catch and explain, since
  * this module has no toast/UI dependency.
  */
-export async function designPageToImageBlob(design, data, { scale = 3, onMissingImages } = {}) {
+export async function designPageToImageBlob(design, data, { scale = 3, onMissingImages, prepared } = {}) {
   const fontCSS = await embeddedFontsCSS();
-  const inlined = await inlineImages(design, data || {});
+  // `prepared` lets a caller inline first, inspect what could not be
+  // embedded and ask the user about it, then render without paying for
+  // every fetch a second time.
+  const inlined = prepared || await inlineImages(design, data || {});
   if (inlined.failed.length && typeof onMissingImages === "function") {
     onMissingImages(inlined.failed);
   }
