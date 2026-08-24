@@ -136,6 +136,16 @@ function elementStyle(e, unit, scale = 1, data = null) {
     // transforming at render time means the same design keeps working if
     // the underlying value's case ever changes.
     (e.uppercase ? "text-transform:uppercase;" : "") +
+    /* Gradient-filled type: the glyphs become a window onto a background
+     * gradient. `color` above stays a real solid colour and is the
+     * fallback — only -webkit-text-fill-color hides it, and that property
+     * is only ever honoured by an engine that also honours
+     * background-clip:text, so a browser that cannot do this shows solid
+     * type rather than nothing. */
+    (e.gradient
+      ? `background:${e.gradient};-webkit-background-clip:text;background-clip:text;` +
+        `-webkit-text-fill-color:transparent;`
+      : "") +
     `white-space:pre-wrap;`;
 }
 

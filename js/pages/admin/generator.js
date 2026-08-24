@@ -4,7 +4,7 @@
 // mutates plain numbers and strings. Saved designs live in
 // designs/{id} and are reused at generation time, which is why what you
 // arrange on screen is exactly what prints.
-import { el, card, field, input, select, button, toast, guard, notice, empty, badge, modal, confirmDialog, loading, checkbox, hint } from "../../lib/ui.js";
+import { el, card, field, input, select, button, toast, guard, notice, empty, badge, modal, confirmDialog, loading, checkbox, hint, photoPicker } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, where } from "../../lib/db.js";
 import { printDocument, downloadBlob } from "../../lib/pdf.js";
 import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, THEMES, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
@@ -501,6 +501,13 @@ export default async function generator(root) {
 
   /* ══ Generation ════════════════════════════════════════════════ */
   async function generateDialog(d) {
+    // An announcement is written, not generated — it needs none of the
+    // roster, results or ladder reads below, and goes up before any of
+    // them exist.
+    if (isAnnouncement(d)) {
+      announceDialog(d, await getOne("config", "festSettings").catch(() => null));
+      return;
+    }
     const [participants, houses, results, settings, categories, types, tiers] = await Promise.all([
       getAll("participants"), getAll("houses"), getAll("results"),
       getOne("config", "festSettings"), getAll("categories"),
@@ -636,10 +643,7 @@ export default async function generator(root) {
               }
             }
 
-            const base = {
-              fest: settings?.festName || "", school: settings?.schoolName || "",
-              date: new Date().toLocaleDateString()
-            };
+            const base = festBase(settings);
             const pages = [];
 
             const wantRank = r => !picked.size || picked.has(r);
@@ -782,6 +786,107 @@ const saveAsImage = guard(async (design, data, filename) => {
   downloadBlob(filename, blob);
 });
 
+/**
+ * Fill in and print ONE announcement poster.
+ *
+ * Every other design in the app is generated — the data already exists and
+ * the only question is who to produce for. An announcement is the opposite:
+ * it goes up before the event, so nothing it shows has been recorded yet
+ * and all of it is typed. Hence a form rather than a filter, and one page
+ * rather than a batch.
+ */
+function announceDialog(design, settings) {
+  const base = festBase(settings);
+  const slots = guestSlotCount(design);
+  const inputs = {};
+
+  for (const f of ANNOUNCE_FIELDS) {
+    // Prefill from Settings where the fest already knows the answer, so the
+    // common case is confirming rather than typing.
+    const prefill = f.key === "title" ? base.fest
+      : f.key === "subtitle" ? base.subtitle
+      : f.key === "motto" ? base.motto : "";
+    inputs[f.key] = input({ value: prefill, placeholder: f.placeholder || "" });
+  }
+
+  const guestPickers = [];
+  for (let n = 1; n <= slots; n++) {
+    const nameI = input({ placeholder: "Name" });
+    const roleI = input({ placeholder: "Role" });
+    const pick = photoPicker({});
+    guestPickers.push({ n, nameI, roleI, pick });
+  }
+
+  const fieldsUsed = k => designUsesToken(design, new RegExp("\\{" + k + "\\}"));
+
+  modal({
+    title: "One poster — " + (design.name || "announcement"),
+    body: el("div", {}, [
+      el("p.hint", { text:
+        "An announcement goes up before the event, so there is nothing to generate it from — " +
+        "fill in what it should say. Anything left blank simply prints empty." }),
+      ...ANNOUNCE_FIELDS.filter(f => fieldsUsed(f.key))
+        .map(f => field(f.label, inputs[f.key], f.hint)),
+      slots
+        ? el("div", {}, [
+            el("div.hint", { style: "margin:.8rem 0 .3rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.72rem",
+              text: `Guests (${slots} slot${slots === 1 ? "" : "s"})` }),
+            ...guestPickers.map(g => el("div", {
+              style: "display:flex;gap:.5rem;align-items:flex-start;padding:.4rem 0;border-top:1px solid var(--line)"
+            }, [
+              el("div", { style: "flex:0 0 auto" }, g.pick.node),
+              el("div", { style: "flex:1;min-width:0;display:flex;flex-direction:column;gap:.3rem" }, [g.nameI, g.roleI])
+            ]))
+          ])
+        : null
+    ]),
+    actions: [
+      { label: "Cancel" },
+      { label: "Print", kind: "accent", closes: false, busyLabel: "Building…", onClick: guard(async close => {
+          const data = { ...base };
+          for (const f of ANNOUNCE_FIELDS) data[f.key] = inputs[f.key].value.trim();
+          if (!data.title) data.title = base.fest;
+          for (const g of guestPickers) {
+            data[`name${g.n}`] = g.nameI.value.trim();
+            data[`role${g.n}`] = g.roleI.value.trim();
+            const v = g.pick.getValue();
+            const src = v.photoData || v.photoURL || "";
+            if (src) data[`photo${g.n}`] = src;
+          }
+          const html = renderPageHTML(design, data);
+          printDocument({
+            title: data.title || "Announcement", bare: true,
+            landscape: design.page.w > design.page.h,
+            bodyHTML: `<style>.design-page{position:relative;overflow:hidden;}
+              @page{size:${design.page.w}mm ${design.page.h}mm;margin:0;}
+              body{margin:0;}</style>` + html
+          });
+          close(true);
+        })
+      }
+    ]
+  });
+}
+
+/**
+ * The fest-level tokens every design gets, whatever it is producing.
+ *
+ * {subtitle} and {logo} come straight from Settings; {motto} has no field
+ * of its own yet, so it resolves blank and the one design that uses it
+ * (Announcement's ribbon-edge certificate) can simply have its own words
+ * typed into that element in the editor.
+ */
+function festBase(settings) {
+  return {
+    fest: settings?.festName || "",
+    school: settings?.schoolName || "",
+    subtitle: settings?.subtitle || "",
+    motto: settings?.motto || "",
+    logo: settings?.logoData || "",
+    date: new Date().toLocaleDateString()
+  };
+}
+
 /** The lowest (best) rank across a set of entries, or "" if none placed. */
 function bestRankOf(entries) {
   const ranks = (entries || []).filter(e => e.rank && !e.isAbsent).map(e => e.rank);
@@ -807,6 +912,43 @@ function designUsesToken(design, re) {
     (e.type === "image" && re.test(e.src || "")));
 }
 
+/** The fields an announcement poster asks for, in the order they are shown. */
+const ANNOUNCE_FIELDS = [
+  { key: "title",       label: "Title",            hint: "Defaults to the fest name." },
+  { key: "subtitle",    label: "Subtitle",         placeholder: "Annual Fest" },
+  { key: "season",      label: "Season / edition", placeholder: "Season '26" },
+  { key: "motto",       label: "Motto",            placeholder: "Knowledge · Discipline · Service" },
+  { key: "when",        label: "Date and time",    placeholder: "14 February 2026 · 9:00 AM" },
+  { key: "venue",       label: "Venue",            placeholder: "School Ground" },
+  { key: "guestsLabel", label: "Heading over the guests", placeholder: "Chief Guests" }
+];
+
+/**
+ * True for a poster that is written rather than generated.
+ *
+ * An announcement goes up BEFORE the event, so there is no result, no
+ * placement and no registered participant to build it from — every one of
+ * these tokens is typed in. That makes it the one design in the kit with
+ * no "audience" at all: it produces exactly one page.
+ */
+function isAnnouncement(design) {
+  /* Deliberately NOT {subtitle} or {motto}: the fest already has a
+   * subtitle in Settings, and one certificate in this kit runs the school
+   * motto down its ribbon edge — both are ordinary fest data that any
+   * design may use, so treating either as an announcement signal turned a
+   * certificate into a one-off poster. */
+  return designUsesToken(design, /\{(title|when|venue|season|guestsLabel|name[1-4]|role[1-4]|photo[1-4])\}/);
+}
+
+/** How many guest slots the design actually has, so the form asks for no more. */
+function guestSlotCount(design) {
+  for (let n = 4; n >= 1; n--) {
+    const re = new RegExp("\\{(name|role|photo)" + n + "\\}");
+    if (designUsesToken(design, re)) return n;
+  }
+  return 0;
+}
+
 /**
  * Which audiences make sense for one design.
  *
@@ -825,6 +967,11 @@ function designUsesToken(design, re) {
  *    the sensible default: it needs no published result at all.
  */
 function audienceModesFor(design) {
+  // Checked first: an announcement also carries {photoN}, which the rankN
+  // test below would otherwise read as a results poster.
+  if (isAnnouncement(design)) {
+    return [{ value: "announce", label: "One poster — fill in the details" }];
+  }
   if (usesEventResults(design)) {
     return [{ value: "eventranks", label: "One event — every rank on one page" }];
   }
@@ -913,8 +1060,7 @@ function eventRanksData(design, res, settings, catName, photoById = {}, houseCol
     });
 
   return {
-    fest: settings?.festName || "", school: settings?.schoolName || "",
-    date: new Date().toLocaleDateString(),
+    ...festBase(settings),
     // B25 — res.categoryName was never a field on a `results` document
     // (only categoryId is); this always rendered blank regardless of
     // which event was picked. Looked up from the categories the caller
@@ -957,6 +1103,12 @@ function printEventRanks(design, res, settings, catName, photoById = {}, houseCo
  * their behalf.
  */
 function singleDialog(design, published, typeName, tierName, catName) {
+  // An announcement has no participant and no event to search for — "print
+  // one" and "generate" are the same act for it, so both land on the form.
+  if (isAnnouncement(design)) {
+    getOne("config", "festSettings").catch(() => null).then(s => announceDialog(design, s));
+    return;
+  }
   if (usesEventResults(design)) { singleEventDialog(design, published, catName); return; }
 
   const search = input({ placeholder: "Chest number or name", autocomplete: "off" });
@@ -994,10 +1146,7 @@ function singleDialog(design, published, typeName, tierName, catName) {
             `${p.houseName || ""} · ${p.categoryName || ""} · ${entries.length} published result${entries.length === 1 ? "" : "s"}` })
         ]),
         (() => {
-          const base = {
-            fest: settings?.festName || "", school: settings?.schoolName || "",
-            date: new Date().toLocaleDateString()
-          };
+          const base = festBase(settings);
           const first = entries[0];
           const tokenData = {
             ...base,

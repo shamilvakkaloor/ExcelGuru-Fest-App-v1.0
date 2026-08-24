@@ -98,10 +98,45 @@ export const PLACEHOLDERS = [
   // ("1" rather than "First"), for a design that sets it as one huge
   // numeral rather than running text.
   { token: "{rankNum}",   label: "Placement as a digit, not a word" },
+  // 4th and 5th place. eventRanksData() keys rankData by the ACTUAL rank,
+  // so these have always been produced — they just had no entry here.
+  { token: "{rank4name}",  label: "4th place — name" },
+  { token: "{rank4house}", label: "4th place — house" },
+  { token: "{rank4points}", label: "4th place — points" },
+  { token: "{rank5name}",  label: "5th place — name" },
+  { token: "{rank5house}", label: "5th place — house" },
+  { token: "{rank5points}", label: "5th place — points" },
+  { token: "{rank4chest}", label: "4th place — chest number" },
+  { token: "{rank5chest}", label: "5th place — chest number" },
   { token: "{fest}",      label: "Fest name" },
   { token: "{school}",    label: "School name" },
   { token: "{date}",      label: "Today's date" },
-  { token: "{photo}",     label: "Participant photo (image element)" }
+  { token: "{photo}",     label: "Participant photo (image element)" },
+  { token: "{logo}",      label: "Fest logo (image element)" },
+  /* ── Announcement posters ────────────────────────────────────────
+   * Everything below is typed in when the poster is produced rather than
+   * read from fest data: an announcement goes up BEFORE the event, so
+   * there are no results, no registered participant and no published
+   * anything to draw on. See the "One poster" mode in admin/generator.js. */
+  { token: "{title}",     label: "Poster title (announcement)" },
+  { token: "{subtitle}",  label: "Poster subtitle (announcement)" },
+  { token: "{season}",    label: "Season / edition line (announcement)" },
+  { token: "{motto}",     label: "School motto (announcement)" },
+  { token: "{when}",      label: "Date and time line (announcement)" },
+  { token: "{venue}",     label: "Venue (announcement)" },
+  { token: "{guestsLabel}", label: "Heading over the guest row (announcement)" },
+  { token: "{name1}",     label: "Guest 1 — name" },
+  { token: "{role1}",     label: "Guest 1 — role" },
+  { token: "{photo1}",    label: "Guest 1 — photo (image element)" },
+  { token: "{name2}",     label: "Guest 2 — name" },
+  { token: "{role2}",     label: "Guest 2 — role" },
+  { token: "{photo2}",    label: "Guest 2 — photo (image element)" },
+  { token: "{name3}",     label: "Guest 3 — name" },
+  { token: "{role3}",     label: "Guest 3 — role" },
+  { token: "{photo3}",    label: "Guest 3 — photo (image element)" },
+  { token: "{name4}",     label: "Guest 4 — name" },
+  { token: "{role4}",     label: "Guest 4 — role" },
+  { token: "{photo4}",    label: "Guest 4 — photo (image element)" }
 ];
 
 const el = (id, type, props) => ({ id, type, ...props });
@@ -1181,6 +1216,920 @@ function boldIdCardPortrait() {
   };
 }
 
+/* ====================== HERITAGE ====================== */
+/** Jaali frame, ribbon title, crest breaking the border. */
+function heritageGrandPlate() {
+  return {
+    name: "Grand Plate",
+    page: A4,
+    background: "radial-gradient(70% 55% at 50% 100%, #F4EAD2 0%, rgba(244,234,210,0) 62%), linear-gradient(170deg, #FFFDF6 0%, #FBF7EC 58%, #F3EAD6 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 6, y: 6, w: 285, h: 198, fill: "repeating-linear-gradient(45deg,rgba(242,169,59,.6) 0 1.1px,rgba(242,169,59,0) 1.1px 6px), repeating-linear-gradient(-45deg,rgba(242,169,59,.6) 0 1.1px,rgba(242,169,59,0) 1.1px 6px), linear-gradient(150deg,#2E45B8 0%,#1F2A6E 55%,#141B4D 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 12, y: 12, w: 273, h: 186, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 12.7, y: 12.7, w: 271.6, h: 184.6, fill: "linear-gradient(170deg,#FFFDF6 0%,#FBF7EC 60%,#F5EDDC 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b3", "box", { x: 16, y: 16, w: 265, h: 178, fill: "none", stroke: "#DCC98F", strokeWidth: 0.3 }),
+      el("b4", "box", { x: 132, y: 2, w: 33, h: 33, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 16.5 }),
+      el("b5", "box", { x: 135, y: 5, w: 27, h: 27, fill: "repeating-conic-gradient(from 0deg,rgba(242,169,59,.55) 0deg 9deg,rgba(20,27,77,0) 9deg 24deg), linear-gradient(150deg,#2E45B8,#141B4D)", stroke: "none", strokeWidth: 0, radius: 13.5 }),
+      el("b6", "box", { x: 141.5, y: 11.5, w: 14, h: 14, fill: "none", stroke: "#F5E2A6", strokeWidth: 0.5, radius: 7 }),
+      el("t7", "text", { x: 135, y: 15, w: 27, text: "EG", size: 11, font: "serif", color: "#F5E2A6", align: "center", weight: 400 }),
+      el("t8", "text", { x: 16, y: 42, w: 265, text: "{school}", size: 8, font: "mono", color: "#826411", align: "center", weight: 400, spacing: sp(0.3, 8) }),
+      el("b9", "box", { x: 78, y: 56, w: 141, h: 14, fill: "linear-gradient(180deg,#C1152F 0%,#A50F27 60%,#7C0A1D 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b10", "box", { x: 70, y: 59, w: 8, h: 8, fill: "#680817", stroke: "none", strokeWidth: 0 }),
+      el("b11", "box", { x: 219, y: 59, w: 8, h: 8, fill: "#680817", stroke: "none", strokeWidth: 0 }),
+      el("b12", "box", { x: 78, y: 56, w: 141, h: 0.5, fill: "rgba(245,226,166,.75)", stroke: "none", strokeWidth: 0 }),
+      el("b13", "box", { x: 78, y: 69.5, w: 141, h: 0.5, fill: "rgba(0,0,0,.25)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 78, y: 60, w: 141, text: "CERTIFICATE OF MERIT", size: 14, font: "serif", color: "#FBF7EC", align: "center", weight: 400, spacing: sp(0.24, 14) }),
+      el("t15", "text", { x: 16, y: 80, w: 265, text: "THIS IS TO CERTIFY THAT", size: 7.5, font: "mono", color: "#1F2A6E", align: "center", weight: 400, spacing: sp(0.3, 7.5) }),
+      el("t16", "text", { x: 48, y: 88, w: 201, text: "{name}", size: 36, font: "serif", color: "#101538", align: "center", weight: 400, lineHeight: 1.12 }),
+      el("b17", "box", { x: 68, y: 112, w: 161, h: 0.4, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b18", "box", { x: 146.6, y: 110.6, w: 3.8, h: 3.8, fill: "#A50F27", stroke: "none", strokeWidth: 0, radius: 1.9 }),
+      el("b19", "box", { x: 72.8, y: 110.9, w: 3.2, h: 3.2, fill: "#E8862B", stroke: "none", strokeWidth: 0, radius: 1.6 }),
+      el("b20", "box", { x: 220, y: 110.9, w: 3.2, h: 3.2, fill: "#E8862B", stroke: "none", strokeWidth: 0, radius: 1.6 }),
+      el("b21", "box", { x: 118.5, y: 118, w: 60, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t22", "text", { x: 16, y: 122, w: 265, text: "{house} \u00b7 Chest {chest} \u00b7 {category}", size: 8, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.2, 8) }),
+      el("t23", "text", { x: 16, y: 134, w: 265, text: "has been awarded distinction in the following events", size: 10.5, font: "serif", color: "#6E6258", align: "center", weight: 400 }),
+      el("t24", "text", { x: 58, y: 143, w: 181, text: "{results}", size: 11.5, font: "serif", color: "#3A322C", align: "center", weight: 400, lineHeight: 1.72 }),
+      el("b25", "box", { x: 130, y: 172, w: 37, h: 0.3, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b26", "box", { x: 136, y: 176, w: 25, h: 25, fill: "linear-gradient(140deg,#C1152F,#7C0A1D)", stroke: "none", strokeWidth: 0, radius: 12.5 }),
+      el("b27", "box", { x: 139, y: 179, w: 19, h: 19, fill: "none", stroke: "rgba(245,226,166,.8)", strokeWidth: 0.4, radius: 9.5 }),
+      el("t28", "text", { x: 136, y: 184, w: 25, text: "SEAL", size: 5.5, font: "mono", color: "#F5E2A6", align: "center", weight: 400, spacing: sp(0.16, 5.5) }),
+      el("b29", "box", { x: 32, y: 182, w: 66, h: 0.4, fill: "#141B4D", stroke: "none", strokeWidth: 0 }),
+      el("t30", "text", { x: 32, y: 184, w: 66, text: "FEST CONVENOR", size: 7, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.2, 7) }),
+      el("b31", "box", { x: 199, y: 182, w: 66, h: 0.4, fill: "#141B4D", stroke: "none", strokeWidth: 0 }),
+      el("t32", "text", { x: 199, y: 184, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.2, 7) }),
+      el("t33", "text", { x: 32, y: 191, w: 66, text: "{fest}", size: 9.5, font: "serif", color: "#1F2A6E", align: "center", weight: 400, spacing: sp(0.18, 9.5) }),
+      el("t34", "text", { x: 199, y: 191, w: 66, text: "{date}", size: 9.5, font: "serif", color: "#1F2A6E", align: "center", weight: 400, spacing: sp(0.18, 9.5) })
+    ]
+  };
+}
+
+/** Gold colonnade head over an emerald plate, citation indented. */
+function heritageEmerald() {
+  return {
+    name: "Emerald Plate",
+    page: A4,
+    background: "linear-gradient(190deg,#FFFDF6 0%,#FBF7EC 60%,#F2EBDA 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 297, h: 52, fill: "repeating-linear-gradient(135deg,rgba(242,169,59,.55) 0 2px,rgba(242,169,59,0) 2px 9px), linear-gradient(160deg,#14A06A 0%,#0F7A52 58%,#0A5638 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 52, w: 297, h: 1.6, fill: "linear-gradient(90deg,#C9A227,#F5E2A6 50%,#C9A227)", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 0, y: 55, w: 297, h: 0.4, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b3", "box", { x: 20, y: 0, w: 0.5, h: 52, fill: "rgba(245,226,166,.45)", stroke: "none", strokeWidth: 0 }),
+      el("b4", "box", { x: 277, y: 0, w: 0.5, h: 52, fill: "rgba(245,226,166,.45)", stroke: "none", strokeWidth: 0 }),
+      el("b5", "box", { x: 139.5, y: 9, w: 18, h: 18, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 9 }),
+      el("b6", "box", { x: 142.5, y: 12, w: 12, h: 12, fill: "repeating-conic-gradient(from 0deg,#F2A93B 0deg 11deg,#0A5638 11deg 30deg)", stroke: "none", strokeWidth: 0, radius: 6 }),
+      el("t7", "text", { x: 20, y: 31, w: 257, text: "CERTIFICATE OF PARTICIPATION", size: 15, font: "serif", color: "#FBF7EC", align: "center", weight: 400, spacing: sp(0.26, 15) }),
+      el("t8", "text", { x: 20, y: 42, w: 257, text: "{school} \u00b7 {fest}", size: 7.5, font: "mono", color: "rgba(245,226,166,.9)", align: "center", weight: 400, spacing: sp(0.28, 7.5) }),
+      el("t9", "text", { x: 16, y: 70, w: 265, text: "PRESENTED TO", size: 7.5, font: "mono", color: "#0F7A52", align: "center", weight: 400, spacing: sp(0.3, 7.5) }),
+      el("t10", "text", { x: 48, y: 78, w: 201, text: "{name}", size: 34, font: "serif", color: "#101538", align: "center", weight: 400, lineHeight: 1.12 }),
+      el("b11", "box", { x: 88, y: 102, w: 121, h: 0.4, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b12", "box", { x: 118.5, y: 108, w: 60, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t13", "text", { x: 16, y: 112, w: 265, text: "{house} \u00b7 Chest {chest} \u00b7 {category}", size: 8, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.2, 8) }),
+      el("b14", "box", { x: 74, y: 128, w: 1, h: 44, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("t15", "text", { x: 84, y: 128, w: 150, text: "{results}", size: 11.5, font: "serif", color: "#3A322C", align: "left", weight: 400, lineHeight: 1.78 }),
+      el("b16", "box", { x: 16, y: 180, w: 265, h: 0.4, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("t17", "text", { x: 20, y: 186, w: 100, text: "{date}", size: 9.5, font: "serif", color: "#0F7A52", align: "left", weight: 400, spacing: sp(0.14, 9.5) }),
+      el("b18", "box", { x: 199, y: 184, w: 66, h: 0.4, fill: "#0A5638", stroke: "none", strokeWidth: 0 }),
+      el("t19", "text", { x: 199, y: 186, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.2, 7) })
+    ]
+  };
+}
+
+/** Oval cartouche on the centre axis. */
+function heritageWithPhoto() {
+  return {
+    name: "With Photo",
+    page: A4,
+    background: "radial-gradient(60% 50% at 50% 26%, rgba(46,69,184,.10) 0%, rgba(46,69,184,0) 64%), linear-gradient(160deg,#FFFDF6 0%,#FBF7EC 60%,#F3EBD9 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 8, y: 8, w: 281, h: 194, fill: "repeating-linear-gradient(45deg,rgba(242,169,59,.6) 0 1.1px,rgba(242,169,59,0) 1.1px 7px), repeating-linear-gradient(-45deg,rgba(242,169,59,.6) 0 1.1px,rgba(242,169,59,0) 1.1px 7px), #1F2A6E", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 11.5, y: 11.5, w: 274, h: 187, fill: "linear-gradient(160deg,#FFFDF6 0%,#FBF7EC 62%,#F5EEDD 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 15, y: 15, w: 267, h: 180, fill: "none", stroke: "#DCC98F", strokeWidth: 0.3 }),
+      el("t3", "text", { x: 15, y: 24, w: 267, text: "{school}", size: 7.5, font: "mono", color: "#826411", align: "center", weight: 400, spacing: sp(0.3, 7.5) }),
+      el("b4", "box", { x: 98, y: 32, w: 101, h: 0.4, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b5", "box", { x: 124, y: 40, w: 49, h: 61, fill: "linear-gradient(150deg,#F5E2A6,#C9A227 58%,#826411)", stroke: "none", strokeWidth: 0, radius: 30.5 }),
+      el("b6", "box", { x: 126.5, y: 42.5, w: 44, h: 56, fill: "#1F2A6E", stroke: "none", strokeWidth: 0, radius: 28 }),
+      el("b7", "box", { x: 128.5, y: 44.5, w: 40, h: 52, fill: "#E4DACB", stroke: "none", strokeWidth: 0, radius: 26 }),
+      el("t8", "text", { x: 15, y: 108, w: 267, text: "CERTIFICATE OF PARTICIPATION", size: 7.5, font: "mono", color: "#1F2A6E", align: "center", weight: 400, spacing: sp(0.3, 7.5) }),
+      el("t9", "text", { x: 48, y: 116, w: 201, text: "{name}", size: 33, font: "serif", color: "#101538", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("b10", "box", { x: 88, y: 139, w: 121, h: 0.4, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b11", "box", { x: 118.5, y: 144, w: 60, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t12", "text", { x: 15, y: 148, w: 267, text: "{house} \u00b7 Chest {chest} \u00b7 {category}", size: 8, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.2, 8) }),
+      el("t13", "text", { x: 58, y: 160, w: 181, text: "{results}", size: 11, font: "serif", color: "#3A322C", align: "center", weight: 400, lineHeight: 1.6 }),
+      el("b14", "box", { x: 22, y: 184, w: 66, h: 0.4, fill: "#141B4D", stroke: "none", strokeWidth: 0 }),
+      el("t15", "text", { x: 22, y: 186, w: 66, text: "FEST CONVENOR", size: 7, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.2, 7) }),
+      el("t16", "text", { x: 15, y: 186, w: 267, text: "{fest}", size: 9.5, font: "serif", color: "#1F2A6E", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("b17", "box", { x: 209, y: 184, w: 66, h: 0.4, fill: "#141B4D", stroke: "none", strokeWidth: 0 }),
+      el("t18", "text", { x: 209, y: 186, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.2, 7) })
+    ]
+  };
+}
+
+/** Temple arch with a kalash finial and a ribbon nameplate. */
+function heritageWinner() {
+  return {
+    name: "Winner Poster",
+    page: A4_PORTRAIT,
+    background: "radial-gradient(70% 40% at 50% 26%, rgba(46,69,184,.55) 0%, rgba(46,69,184,0) 66%), radial-gradient(80% 40% at 50% 100%, rgba(15,122,82,.42) 0%, rgba(15,122,82,0) 70%), linear-gradient(184deg,#141B4D 0%,#101538 38%,#0E1330 66%,#0A5638 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 10, y: 10, w: 190, h: 277, fill: "repeating-linear-gradient(45deg,rgba(242,169,59,.55) 0 1.1px,rgba(242,169,59,0) 1.1px 7px), repeating-linear-gradient(-45deg,rgba(242,169,59,.55) 0 1.1px,rgba(242,169,59,0) 1.1px 7px), rgba(201,162,39,.12)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 13, y: 13, w: 184, h: 271, fill: "radial-gradient(70% 40% at 50% 24%, rgba(46,69,184,.5) 0%, rgba(46,69,184,0) 66%), linear-gradient(184deg,#1A2360 0%,#101538 42%,#0B0F26 70%,#0B4B33 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 96, y: 18, w: 18, h: 18, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 9 }),
+      el("b3", "box", { x: 99, y: 21, w: 12, h: 12, fill: "#101538", stroke: "none", strokeWidth: 0, radius: 6 }),
+      el("t4", "text", { x: 20, y: 42, w: 170, text: "{fest} \u00b7 {school}", size: 8.5, font: "mono", color: "rgba(245,226,166,.8)", align: "center", weight: 400, spacing: sp(0.3, 8.5) }),
+      el("b5", "box", { x: 104.2, y: 49, w: 1.6, h: 4, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b6", "box", { x: 102, y: 52.4, w: 6, h: 6, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 3 }),
+      el("b7", "box", { x: 54, y: 58, w: 102, h: 118, fill: "linear-gradient(150deg,#F5E2A6,#C9A227 56%,#826411)", stroke: "none", strokeWidth: 0 }),
+      el("b8", "box", { x: 57, y: 61, w: 96, h: 115, fill: "#101538", stroke: "none", strokeWidth: 0 }),
+      el("b9", "box", { x: 60, y: 64, w: 90, h: 112, fill: "#E4DACB", stroke: "none", strokeWidth: 0 }),
+      el("b10", "box", { x: 32, y: 186, w: 146, h: 16, fill: "linear-gradient(180deg,#C1152F 0%,#A50F27 60%,#7C0A1D 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b11", "box", { x: 24, y: 190, w: 8, h: 9, fill: "#680817", stroke: "none", strokeWidth: 0 }),
+      el("b12", "box", { x: 178, y: 190, w: 8, h: 9, fill: "#680817", stroke: "none", strokeWidth: 0 }),
+      el("b13", "box", { x: 32, y: 186, w: 146, h: 0.5, fill: "rgba(245,226,166,.7)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 32, y: 191, w: 146, text: "FIRST PLACE", size: 16, font: "serif", color: "#FBF7EC", align: "center", weight: 400, spacing: sp(0.22, 16) }),
+      el("t15", "text", { x: 16, y: 212, w: 178, text: "{name}", size: 30, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("b16", "box", { x: 70, y: 248, w: 70, h: 0.4, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("t17", "text", { x: 16, y: 254, w: 178, text: "{event}", size: 12.5, font: "serif", color: "rgba(245,240,228,.9)", align: "center", weight: 400 }),
+      el("b18", "box", { x: 85, y: 266, w: 40, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t19", "text", { x: 16, y: 270, w: 178, text: "{house} \u00b7 Chest {chest}", size: 8, font: "mono", color: "rgba(245,240,228,.66)", align: "center", weight: 400, spacing: sp(0.2, 8) }),
+      el("t20", "text", { x: 16, y: 281, w: 178, text: "{date}", size: 7, font: "mono", color: "rgba(245,240,228,.5)", align: "center", weight: 400, spacing: sp(0.18, 7) })
+    ]
+  };
+}
+
+/** A gold stem down the page, each placement in its own arch. */
+function heritageRanksPoster() {
+  return {
+    name: "Event Results (all ranks)",
+    page: A4_PORTRAIT,
+    background: "radial-gradient(80% 24% at 50% 0%, rgba(201,162,39,.24) 0%, rgba(201,162,39,0) 70%), linear-gradient(180deg,#FFFDF6 0%,#FBF7EC 44%,#F2EBDA 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 210, h: 58, fill: "repeating-linear-gradient(135deg,rgba(242,169,59,.5) 0 2px,rgba(242,169,59,0) 2px 9px), linear-gradient(160deg,#2E45B8 0%,#1F2A6E 58%,#141B4D 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 58, w: 210, h: 1.6, fill: "linear-gradient(90deg,#C9A227,#F5E2A6 50%,#C9A227)", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 96, y: 9, w: 18, h: 18, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 9 }),
+      el("b3", "box", { x: 99, y: 12, w: 12, h: 12, fill: "repeating-conic-gradient(from 0deg,#F2A93B 0deg 11deg,#141B4D 11deg 30deg)", stroke: "none", strokeWidth: 0, radius: 6 }),
+      el("t4", "text", { x: 16, y: 31, w: 178, text: "{event}", size: 22, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("t5", "text", { x: 16, y: 47, w: 178, text: "{category} \u00b7 FINAL RESULT", size: 8, font: "mono", color: "rgba(245,226,166,.9)", align: "center", weight: 400, spacing: sp(0.28, 8) }),
+      el("b6", "box", { x: 39.5, y: 76, w: 1, h: 150, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("b7", "box", { x: 30, y: 76, w: 20, h: 20, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 10 }),
+      el("t8", "text", { x: 30, y: 80.5, w: 20, text: "I", size: 13, font: "serif", color: "#141B4D", align: "center", weight: 400 }),
+      el("b9", "box", { x: 157, y: 78, w: 26, h: 32, fill: "linear-gradient(150deg,#F5E2A6,#C9A227 58%,#826411)", stroke: "none", strokeWidth: 0 }),
+      el("img10", "image", { x: 158.2, y: 79.2, w: 23.6, h: 29.6, src: "{rank1photo}", fit: "cover" }),
+      el("t11", "text", { x: 58, y: 76, w: 88, text: "{rank1name}", size: 20, font: "serif", color: "#101538", align: "left", weight: 400, lineHeight: 1.12 }),
+      el("b12", "box", { x: 58, y: 89, w: 16, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t13", "text", { x: 58, y: 92, w: 88, text: "{rank1house} \u00b7 Chest {rank1chest}", size: 8, font: "mono", color: "#5E5348", align: "left", weight: 400, spacing: sp(0.18, 8) }),
+      el("b14", "box", { x: 58, y: 100, w: 88, h: 0.3, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("b15", "box", { x: 31.5, y: 112, w: 17, h: 17, fill: "linear-gradient(140deg,#E9E4DA,#A9A29A)", stroke: "none", strokeWidth: 0, radius: 8.5 }),
+      el("t16", "text", { x: 31.5, y: 115.6, w: 17, text: "II", size: 11, font: "serif", color: "#3A322C", align: "center", weight: 400 }),
+      el("b17", "box", { x: 158, y: 113, w: 24, h: 29, fill: "linear-gradient(150deg,#E9E4DA,#A9A29A)", stroke: "none", strokeWidth: 0 }),
+      el("img18", "image", { x: 159, y: 114, w: 22.4, h: 27.4, src: "{rank2photo}", fit: "cover" }),
+      el("t19", "text", { x: 58, y: 112, w: 88, text: "{rank2name}", size: 17, font: "serif", color: "#101538", align: "left", weight: 400, lineHeight: 1.12 }),
+      el("b20", "box", { x: 58, y: 123, w: 16, h: 1.4, fill: "#2F7A4E", stroke: "none", strokeWidth: 0 }),
+      el("t21", "text", { x: 58, y: 126, w: 88, text: "{rank2house} \u00b7 Chest {rank2chest}", size: 8, font: "mono", color: "#5E5348", align: "left", weight: 400, spacing: sp(0.18, 8) }),
+      el("b22", "box", { x: 58, y: 134, w: 88, h: 0.3, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("b23", "box", { x: 31.5, y: 146, w: 17, h: 17, fill: "linear-gradient(140deg,#E2B584,#A0632C)", stroke: "none", strokeWidth: 0, radius: 8.5 }),
+      el("t24", "text", { x: 31.5, y: 149.6, w: 17, text: "III", size: 11, font: "serif", color: "#141B4D", align: "center", weight: 400 }),
+      el("b25", "box", { x: 158, y: 145, w: 24, h: 29, fill: "linear-gradient(150deg,#E2B584,#A0632C)", stroke: "none", strokeWidth: 0 }),
+      el("img26", "image", { x: 159, y: 146, w: 22.4, h: 27.4, src: "{rank3photo}", fit: "cover" }),
+      el("t27", "text", { x: 58, y: 146, w: 88, text: "{rank3name}", size: 17, font: "serif", color: "#101538", align: "left", weight: 400, lineHeight: 1.12 }),
+      el("b28", "box", { x: 58, y: 157, w: 16, h: 1.4, fill: "#B8860B", stroke: "none", strokeWidth: 0 }),
+      el("t29", "text", { x: 58, y: 160, w: 88, text: "{rank3house} \u00b7 Chest {rank3chest}", size: 8, font: "mono", color: "#5E5348", align: "left", weight: 400, spacing: sp(0.18, 8) }),
+      el("b30", "box", { x: 58, y: 168, w: 88, h: 0.3, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("b31", "box", { x: 34.5, y: 180, w: 11, h: 11, fill: "#FBF7EC", stroke: "#DCC98F", strokeWidth: 0.4, radius: 5.5 }),
+      el("t32", "text", { x: 34.5, y: 182.4, w: 11, text: "IV", size: 8.5, font: "serif", color: "#6E6258", align: "center", weight: 400 }),
+      el("t33", "text", { x: 58, y: 180, w: 136, text: "{rank4name}", size: 13, font: "serif", color: "#3A322C", align: "left", weight: 400 }),
+      el("t34", "text", { x: 58, y: 188, w: 136, text: "{rank4house}", size: 7.5, font: "mono", color: "#6E6258", align: "left", weight: 400, spacing: sp(0.16, 7.5) }),
+      el("b35", "box", { x: 58, y: 195, w: 136, h: 0.3, fill: "#EBE2CE", stroke: "none", strokeWidth: 0 }),
+      el("b36", "box", { x: 34.5, y: 205, w: 11, h: 11, fill: "#FBF7EC", stroke: "#DCC98F", strokeWidth: 0.4, radius: 5.5 }),
+      el("t37", "text", { x: 34.5, y: 207.4, w: 11, text: "V", size: 8.5, font: "serif", color: "#6E6258", align: "center", weight: 400 }),
+      el("t38", "text", { x: 58, y: 205, w: 136, text: "{rank5name}", size: 13, font: "serif", color: "#3A322C", align: "left", weight: 400 }),
+      el("t39", "text", { x: 58, y: 213, w: 136, text: "{rank1house} \u00b7 {rank5points} S", size: 7.5, font: "mono", color: "#6E6258", align: "left", weight: 400, spacing: sp(0.16, 7.5) }),
+      el("b40", "box", { x: 16, y: 234, w: 178, h: 0.4, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("t41", "text", { x: 16, y: 242, w: 178, text: "HOUSE POINTS FROM THIS EVENT", size: 7.5, font: "mono", color: "#1F2A6E", align: "center", weight: 400, spacing: sp(0.26, 7.5) }),
+      el("t42", "text", { x: 24, y: 252, w: 36, text: "10", size: 19, font: "serif", color: "#1F2A6E", align: "center", weight: 400 }),
+      el("t43", "text", { x: 24, y: 264, w: 36, text: "{rank1house}", size: 6.5, font: "mono", color: "#6E6258", align: "center", weight: 400, spacing: sp(0.14, 6.5) }),
+      el("t44", "text", { x: 66, y: 252, w: 36, text: "7", size: 19, font: "serif", color: "#3A322C", align: "center", weight: 400 }),
+      el("t45", "text", { x: 66, y: 264, w: 36, text: "{rank2house}", size: 6.5, font: "mono", color: "#6E6258", align: "center", weight: 400, spacing: sp(0.14, 6.5) }),
+      el("t46", "text", { x: 108, y: 252, w: 36, text: "5", size: 19, font: "serif", color: "#3A322C", align: "center", weight: 400 }),
+      el("t47", "text", { x: 108, y: 264, w: 36, text: "{rank3house}", size: 6.5, font: "mono", color: "#6E6258", align: "center", weight: 400, spacing: sp(0.14, 6.5) }),
+      el("t48", "text", { x: 150, y: 252, w: 36, text: "3", size: 19, font: "serif", color: "#3A322C", align: "center", weight: 400 }),
+      el("t49", "text", { x: 150, y: 264, w: 36, text: "{house4name}", size: 6.5, font: "mono", color: "#6E6258", align: "center", weight: 400, spacing: sp(0.14, 6.5) }),
+      el("b50", "box", { x: 60, y: 250, w: 0.3, h: 24, fill: "#EBE2CE", stroke: "none", strokeWidth: 0 }),
+      el("b51", "box", { x: 102, y: 250, w: 0.3, h: 24, fill: "#EBE2CE", stroke: "none", strokeWidth: 0 }),
+      el("b52", "box", { x: 144, y: 250, w: 0.3, h: 24, fill: "#EBE2CE", stroke: "none", strokeWidth: 0 }),
+      el("b53", "box", { x: 16, y: 280, w: 178, h: 0.4, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("t54", "text", { x: 16, y: 284, w: 178, text: "{school} \u00b7 {date}", size: 7, font: "mono", color: "#6E6258", align: "center", weight: 400, spacing: sp(0.2, 7) })
+    ]
+  };
+}
+
+/** A triptych of temple arches — winner centre, taller. */
+function heritageRanksScreen() {
+  return {
+    name: "Event Results (all ranks) \u2014 16:9",
+    page: SLIDE_16_9,
+    background: "radial-gradient(45% 65% at 50% 44%, rgba(201,162,39,.20) 0%, rgba(201,162,39,0) 70%), radial-gradient(70% 90% at 0% 0%, rgba(46,69,184,.5) 0%, rgba(46,69,184,0) 64%), radial-gradient(70% 90% at 100% 100%, rgba(15,122,82,.44) 0%, rgba(15,122,82,0) 66%), linear-gradient(155deg,#141B4D 0%,#131A44 42%,#1A1224 68%,#0A5638 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 338.67, h: 2, fill: "linear-gradient(90deg,#C9A227,#F5E2A6 50%,#C9A227)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 16, y: 11, w: 14, h: 14, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 7 }),
+      el("b2", "box", { x: 19, y: 14, w: 8, h: 8, fill: "#131A44", stroke: "none", strokeWidth: 0, radius: 4 }),
+      el("t3", "text", { x: 36, y: 12, w: 200, text: "{fest} \u00b7 FINAL RESULT", size: 9.5, font: "mono", color: "rgba(245,226,166,.82)", align: "left", weight: 400, spacing: sp(0.26, 9.5) }),
+      el("t4", "text", { x: 16, y: 22, w: 306, text: "{event}", size: 26, font: "serif", color: "#FFFFFF", align: "left", weight: 400, lineHeight: 1.06 }),
+      el("t5", "text", { x: 16, y: 26, w: 306, text: "{category}", size: 11, font: "mono", color: "#E8C766", align: "right", weight: 400, spacing: sp(0.2, 11) }),
+      el("b6", "box", { x: 16, y: 42, w: 306, h: 0.5, fill: "rgba(201,162,39,.6)", stroke: "none", strokeWidth: 0 }),
+      el("b7", "box", { x: 168.5, y: 44, w: 1.4, h: 3, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b8", "box", { x: 166.7, y: 46.6, w: 5, h: 5, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 2.5 }),
+      el("b9", "box", { x: 126.3, y: 50, w: 86, h: 82, fill: "linear-gradient(150deg,#F5E2A6,#C9A227 56%,#826411)", stroke: "none", strokeWidth: 0 }),
+      el("b10", "box", { x: 129.3, y: 53, w: 80, h: 79, fill: "#101538", stroke: "none", strokeWidth: 0 }),
+      el("img11", "image", { x: 132.3, y: 56, w: 74, h: 76, src: "{rank1photo}", fit: "cover" }),
+      el("b12", "box", { x: 139.3, y: 136, w: 60, h: 10, fill: "linear-gradient(180deg,#C1152F,#7C0A1D)", stroke: "none", strokeWidth: 0 }),
+      el("t13", "text", { x: 139.3, y: 138, w: 60, text: "FIRST", size: 11, font: "serif", color: "#FBF7EC", align: "center", weight: 400, spacing: sp(0.16, 11) }),
+      el("t14", "text", { x: 119.3, y: 150, w: 100, text: "{rank1name}", size: 20, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.12 }),
+      el("t15", "text", { x: 119.3, y: 164, w: 100, text: "{rank1house} \u00b7 {rank1points} S", size: 10, font: "mono", color: "rgba(245,240,228,.72)", align: "center", weight: 400, spacing: sp(0.16, 10) }),
+      el("b16", "box", { x: 64.7, y: 60.5, w: 1.2, h: 2.5, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b17", "box", { x: 63.3, y: 62.6, w: 4, h: 4, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 2 }),
+      el("b18", "box", { x: 36.3, y: 66, w: 58, h: 58, fill: "linear-gradient(150deg,#E9E4DA,#8F8880)", stroke: "none", strokeWidth: 0 }),
+      el("b19", "box", { x: 38.8, y: 68.5, w: 53, h: 55.5, fill: "#101538", stroke: "none", strokeWidth: 0 }),
+      el("img20", "image", { x: 41.3, y: 71, w: 48, h: 53, src: "{rank2photo}", fit: "cover" }),
+      el("b21", "box", { x: 40.3, y: 128, w: 50, h: 8, fill: "#3E3A44", stroke: "none", strokeWidth: 0 }),
+      el("t22", "text", { x: 40.3, y: 129.6, w: 50, text: "SECOND", size: 9.5, font: "serif", color: "#E9E4DA", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("t23", "text", { x: 25.3, y: 140, w: 80, text: "{rank2name}", size: 17, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.12 }),
+      el("t24", "text", { x: 25.3, y: 152, w: 80, text: "{rank2house} \u00b7 {rank2points} S", size: 9.5, font: "mono", color: "rgba(245,240,228,.68)", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("b25", "box", { x: 272.7, y: 60.5, w: 1.2, h: 2.5, fill: "#C9A227", stroke: "none", strokeWidth: 0 }),
+      el("b26", "box", { x: 271.3, y: 62.6, w: 4, h: 4, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 2 }),
+      el("b27", "box", { x: 244.3, y: 66, w: 58, h: 58, fill: "linear-gradient(150deg,#E2B584,#8F5726)", stroke: "none", strokeWidth: 0 }),
+      el("b28", "box", { x: 246.8, y: 68.5, w: 53, h: 55.5, fill: "#101538", stroke: "none", strokeWidth: 0 }),
+      el("img29", "image", { x: 249.3, y: 71, w: 48, h: 53, src: "{rank3photo}", fit: "cover" }),
+      el("b30", "box", { x: 248.3, y: 128, w: 50, h: 8, fill: "#4A3524", stroke: "none", strokeWidth: 0 }),
+      el("t31", "text", { x: 248.3, y: 129.6, w: 50, text: "THIRD", size: 9.5, font: "serif", color: "#E2B584", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("t32", "text", { x: 233.3, y: 140, w: 80, text: "{rank3name}", size: 17, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.12 }),
+      el("t33", "text", { x: 233.3, y: 152, w: 80, text: "{rank3house} \u00b7 {rank3points} S", size: 9.5, font: "mono", color: "rgba(245,240,228,.68)", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("b34", "box", { x: 16, y: 176, w: 306, h: 0.4, fill: "rgba(201,162,39,.5)", stroke: "none", strokeWidth: 0 }),
+      el("t35", "text", { x: 16, y: 180, w: 306, text: "{school}", size: 9.5, font: "mono", color: "rgba(245,240,228,.55)", align: "left", weight: 400, spacing: sp(0.18, 9.5) }),
+      el("t36", "text", { x: 16, y: 180, w: 306, text: "{date}", size: 9.5, font: "mono", color: "rgba(245,240,228,.55)", align: "right", weight: 400, spacing: sp(0.18, 9.5) })
+    ]
+  };
+}
+
+/** Jaali band, gold roundel, chest number in the cartouche. */
+function heritageIdCard() {
+  return {
+    name: "ID Card \u2014 Landscape",
+    page: { w: 85.6, h: 54 },
+    background: "linear-gradient(160deg,#FFFDF6 0%,#FBF7EC 68%,#F3EBD9 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 85.6, h: 14, fill: "repeating-linear-gradient(45deg,rgba(242,169,59,.45) 0 1.1px,rgba(242,169,59,0) 1.1px 5px), repeating-linear-gradient(-45deg,rgba(242,169,59,.45) 0 1.1px,rgba(242,169,59,0) 1.1px 5px), linear-gradient(150deg,#2E45B8,#141B4D)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 14, w: 85.6, h: 0.8, fill: "linear-gradient(90deg,#C9A227,#F5E2A6 50%,#C9A227)", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 4, y: 3.5, w: 7, h: 7, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 3.5 }),
+      el("b3", "box", { x: 5.5, y: 5, w: 4, h: 4, fill: "#141B4D", stroke: "none", strokeWidth: 0, radius: 2 }),
+      el("t4", "text", { x: 14, y: 3.4, w: 60, text: "{fest}", size: 9, font: "serif", color: "#FBF7EC", align: "left", weight: 400 }),
+      el("t5", "text", { x: 14, y: 9.4, w: 64, text: "{school}", size: 4.5, font: "mono", color: "rgba(245,226,166,.85)", align: "left", weight: 400, spacing: sp(0.2, 4.5) }),
+      el("b6", "box", { x: 4, y: 18, w: 19, h: 24, fill: "linear-gradient(150deg,#F5E2A6,#C9A227 58%,#826411)", stroke: "none", strokeWidth: 0, radius: 12 }),
+      el("img7", "image", { x: 5, y: 19, w: 17, h: 22, src: "{photo}", radius: 11, fit: "cover" }),
+      el("t8", "text", { x: 4, y: 43, w: 19, text: "17 \u00d7 22 MM", size: 4, font: "mono", color: "#826411", align: "center", weight: 400, spacing: sp(0.12, 4) }),
+      el("t9", "text", { x: 27, y: 18.5, w: 54, text: "{name}", size: 10, font: "serif", color: "#101538", align: "left", weight: 400, lineHeight: 1.12 }),
+      el("b10", "box", { x: 27, y: 26, w: 52, h: 0.3, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("b11", "box", { x: 27, y: 28.5, w: 36, h: 13, fill: "none", stroke: "#C9A227", strokeWidth: 0.4 }),
+      el("t12", "text", { x: 27, y: 29.4, w: 36, text: "CHEST NO.", size: 4.5, font: "mono", color: "#826411", align: "center", weight: 400, spacing: sp(0.2, 4.5) }),
+      el("t13", "text", { x: 27, y: 31.6, w: 36, text: "{chest}", size: 16, font: "serif", color: "#1F2A6E", align: "center", weight: 400, lineHeight: 1.0 }),
+      el("b14", "box", { x: 66, y: 29, w: 14, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t15", "text", { x: 66, y: 32, w: 18, text: "{house}\n{category}\n{class}", size: 4.5, font: "mono", color: "#5E5348", align: "left", weight: 400, lineHeight: 1.6, spacing: sp(0.14, 4.5) }),
+      el("b16", "box", { x: 4, y: 47, w: 77.6, h: 0.3, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("t17", "text", { x: 4, y: 48.4, w: 77.6, text: "PARTICIPANT \u00b7 {date}", size: 4, font: "mono", color: "#826411", align: "left", weight: 400, spacing: sp(0.16, 4) })
+    ]
+  };
+}
+
+/** The hanging-badge shape, everything on the centre axis. */
+function heritageIdCardPortrait() {
+  return {
+    name: "ID Card \u2014 Portrait",
+    page: { w: 54, h: 85.6 },
+    background: "linear-gradient(170deg,#FFFDF6 0%,#FBF7EC 66%,#F3EBD9 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 54, h: 20, fill: "repeating-linear-gradient(45deg,rgba(242,169,59,.45) 0 1.1px,rgba(242,169,59,0) 1.1px 6px), repeating-linear-gradient(-45deg,rgba(242,169,59,.45) 0 1.1px,rgba(242,169,59,0) 1.1px 6px), linear-gradient(165deg,#2E45B8,#141B4D)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 20, w: 54, h: 0.8, fill: "linear-gradient(90deg,#C9A227,#F5E2A6 50%,#C9A227)", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 22, y: 2.4, w: 10, h: 1.6, fill: "rgba(255,255,255,.5)", stroke: "none", strokeWidth: 0, radius: 0.8 }),
+      el("b3", "box", { x: 23, y: 6.4, w: 8, h: 8, fill: "linear-gradient(140deg,#F5E2A6,#C9A227 60%,#826411)", stroke: "none", strokeWidth: 0, radius: 4 }),
+      el("b4", "box", { x: 25, y: 8.4, w: 4, h: 4, fill: "#141B4D", stroke: "none", strokeWidth: 0, radius: 2 }),
+      el("t5", "text", { x: 3, y: 15.4, w: 48, text: "{school}", size: 4.5, font: "mono", color: "rgba(245,226,166,.88)", align: "center", weight: 400, spacing: sp(0.2, 4.5) }),
+      el("b6", "box", { x: 14.5, y: 25, w: 25, h: 32, fill: "linear-gradient(150deg,#F5E2A6,#C9A227 58%,#826411)", stroke: "none", strokeWidth: 0, radius: 16 }),
+      el("img7", "image", { x: 15.5, y: 26, w: 23, h: 30, src: "{photo}", radius: 15, fit: "cover" }),
+      el("t8", "text", { x: 3, y: 60, w: 48, text: "{name}", size: 11, font: "serif", color: "#101538", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("b9", "box", { x: 9, y: 67.4, w: 36, h: 0.3, fill: "#DCC98F", stroke: "none", strokeWidth: 0 }),
+      el("b10", "box", { x: 9, y: 69, w: 36, h: 12, fill: "none", stroke: "#C9A227", strokeWidth: 0.4 }),
+      el("t11", "text", { x: 9, y: 69.8, w: 36, text: "CHEST NO.", size: 4.5, font: "mono", color: "#826411", align: "center", weight: 400, spacing: sp(0.2, 4.5) }),
+      el("t12", "text", { x: 9, y: 71.8, w: 36, text: "{chest}", size: 15, font: "serif", color: "#1F2A6E", align: "center", weight: 400, lineHeight: 1.0 }),
+      el("b13", "box", { x: 19, y: 78.4, w: 16, h: 1.2, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 3, y: 80.4, w: 48, text: "{house} \u00b7 {category} \u00b7 {class}", size: 4.5, font: "mono", color: "#5E5348", align: "center", weight: 400, spacing: sp(0.14, 4.5) }),
+      el("t15", "text", { x: 3, y: 82.5, w: 48, text: "PARTICIPANT \u00b7 {date}", size: 4, font: "mono", color: "#826411", align: "center", weight: 400, spacing: sp(0.16, 4) })
+    ]
+  };
+}
+
+/* ====================== KANCHIPURAM ====================== */
+/** The pallu across the foot, turmeric selvedge up both edges. */
+function kanchiPalluFoot() {
+  return {
+    name: "Pallu Foot",
+    page: A4,
+    background: "linear-gradient(172deg,#FFFDF7 0%,#FBF6EC 62%,#F4EBDA 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 297, h: 12, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.75) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/6mm 6mm, #F5A31A", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 12, w: 297, h: 1.2, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 0, y: 150, w: 297, h: 8, fill: "repeating-linear-gradient(90deg,#D81B60 0 4mm,rgba(216,27,96,0) 4mm 8mm)", stroke: "none", strokeWidth: 0 }),
+      el("b3", "box", { x: 0, y: 158, w: 297, h: 52, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.55) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/7mm 7mm, linear-gradient(170deg,#D81B60 0%,#A50E45 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b4", "box", { x: 0, y: 158, w: 297, h: 1.2, fill: "#F3D98B", stroke: "none", strokeWidth: 0 }),
+      el("t5", "text", { x: 16, y: 22, w: 265, text: "{school} \u00b7 {fest}", size: 8, font: "mono", color: "#A50E45", align: "center", weight: 400, spacing: sp(0.3, 8) }),
+      el("b6", "box", { x: 137.5, y: 30, w: 22, h: 22, fill: "linear-gradient(140deg,#F3D98B,#D4AF37 58%,#9A7A18)", stroke: "none", strokeWidth: 0, radius: 11 }),
+      el("b7", "box", { x: 140.5, y: 33, w: 16, h: 16, fill: "#0C7B6F", stroke: "none", strokeWidth: 0, radius: 8 }),
+      el("b8", "box", { x: 143.5, y: 36, w: 10, h: 10, fill: "none", stroke: "#F3D98B", strokeWidth: 0.5, radius: 5 }),
+      el("t9", "text", { x: 16, y: 58, w: 265, text: "CERTIFICATE OF MERIT", size: 15, font: "serif", color: "#A50E45", align: "center", weight: 400, spacing: sp(0.26, 15) }),
+      el("b10", "box", { x: 98, y: 70, w: 101, h: 0.5, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("t11", "text", { x: 16, y: 76, w: 265, text: "AWARDED TO", size: 7.5, font: "mono", color: "#0C7B6F", align: "center", weight: 400, spacing: sp(0.3, 7.5) }),
+      el("t12", "text", { x: 48, y: 84, w: 201, text: "{name}", size: 36, font: "serif", color: "#2B1B18", align: "center", weight: 400, lineHeight: 1.12 }),
+      el("b13", "box", { x: 74, y: 104, w: 149, h: 0.4, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("b14", "box", { x: 118.5, y: 110, w: 60, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t15", "text", { x: 16, y: 114, w: 265, text: "{house} \u00b7 Chest {chest} \u00b7 {category}", size: 8, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.2, 8) }),
+      el("t16", "text", { x: 58, y: 126, w: 181, text: "{results}", size: 11.5, font: "serif", color: "#3A2C28", align: "center", weight: 400, lineHeight: 1.66 }),
+      el("t17", "text", { x: 16, y: 168, w: 265, text: "{fest} \u00b7 {date}", size: 13, font: "serif", color: "#FBF6EC", align: "center", weight: 400, spacing: sp(0.16, 13) }),
+      el("b18", "box", { x: 32, y: 190, w: 66, h: 0.4, fill: "rgba(251,246,236,.85)", stroke: "none", strokeWidth: 0 }),
+      el("t19", "text", { x: 32, y: 192, w: 66, text: "FEST CONVENOR", size: 7, font: "mono", color: "rgba(251,246,236,.9)", align: "center", weight: 400, spacing: sp(0.2, 7) }),
+      el("b20", "box", { x: 199, y: 190, w: 66, h: 0.4, fill: "rgba(251,246,236,.85)", stroke: "none", strokeWidth: 0 }),
+      el("t21", "text", { x: 199, y: 192, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "rgba(251,246,236,.9)", align: "center", weight: 400, spacing: sp(0.2, 7) })
+    ]
+  };
+}
+
+/** Peacock border down the left, type flush against it. */
+function kanchiPalluSide() {
+  return {
+    name: "Pallu Side",
+    page: A4,
+    background: "linear-gradient(190deg,#FFFDF7 0%,#FBF6EC 62%,#F4EBDA 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 72, h: 210, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.5) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/7mm 7mm, linear-gradient(180deg,#0C7B6F 0%,#075B52 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 72, y: 0, w: 8, h: 210, fill: "repeating-linear-gradient(0deg,#0C7B6F 0 4mm,rgba(14,138,125,0) 4mm 8mm)", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 72, y: 0, w: 1.2, h: 210, fill: "#F3D98B", stroke: "none", strokeWidth: 0 }),
+      el("b3", "box", { x: 14, y: 20, w: 20, h: 20, fill: "linear-gradient(140deg,#F3D98B,#D4AF37 58%,#9A7A18)", stroke: "none", strokeWidth: 0, radius: 10 }),
+      el("b4", "box", { x: 17, y: 23, w: 14, h: 14, fill: "#075B52", stroke: "none", strokeWidth: 0, radius: 7 }),
+      el("t5", "text", { x: 14, y: 48, w: 46, text: "{fest}", size: 18, font: "serif", color: "#FBF6EC", align: "left", weight: 400, lineHeight: 1.14 }),
+      el("b6", "box", { x: 14, y: 70, w: 46, h: 0.5, fill: "rgba(243,217,139,.7)", stroke: "none", strokeWidth: 0 }),
+      el("t7", "text", { x: 14, y: 74, w: 48, text: "ANNUAL SPORTS\n&amp; ARTS FEST", size: 7, font: "mono", color: "rgba(251,246,236,.88)", align: "left", weight: 400, lineHeight: 1.8, spacing: sp(0.2, 7) }),
+      el("t8", "text", { x: 14, y: 186, w: 46, text: "{date}", size: 7.5, font: "mono", color: "#FBF3DA", align: "left", weight: 400, spacing: sp(0.16, 7.5) }),
+      el("t9", "text", { x: 90, y: 24, w: 191, text: "CERTIFICATE OF PARTICIPATION", size: 8, font: "mono", color: "#0C7B6F", align: "left", weight: 400, spacing: sp(0.28, 8) }),
+      el("t10", "text", { x: 90, y: 24, w: 191, text: "{school}", size: 8, font: "mono", color: "#A50E45", align: "right", weight: 400, spacing: sp(0.14, 8) }),
+      el("b11", "box", { x: 90, y: 34, w: 191, h: 0.4, fill: "#E3D3B4", stroke: "none", strokeWidth: 0 }),
+      el("t12", "text", { x: 90, y: 56, w: 191, text: "{name}", size: 34, font: "serif", color: "#2B1B18", align: "left", weight: 400, lineHeight: 1.1 }),
+      el("b13", "box", { x: 90, y: 88, w: 44, h: 1.6, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 90, y: 94, w: 191, text: "{house} \u00b7 Chest {chest} \u00b7 {category}", size: 8.5, font: "mono", color: "#5E4A44", align: "left", weight: 400, spacing: sp(0.2, 8.5) }),
+      el("b15", "box", { x: 90, y: 108, w: 191, h: 1, fill: "#D81B60", stroke: "none", strokeWidth: 0 }),
+      el("t16", "text", { x: 90, y: 118, w: 170, text: "{results}", size: 11.5, font: "serif", color: "#3A2C28", align: "left", weight: 400, lineHeight: 1.78 }),
+      el("b17", "box", { x: 90, y: 180, w: 191, h: 0.4, fill: "#E3D3B4", stroke: "none", strokeWidth: 0 }),
+      el("t18", "text", { x: 90, y: 186, w: 100, text: "Awarded at {fest}", size: 9.5, font: "serif", color: "#A50E45", align: "left", weight: 400, spacing: sp(0.14, 9.5) }),
+      el("b19", "box", { x: 215, y: 184, w: 66, h: 0.4, fill: "#2B1B18", stroke: "none", strokeWidth: 0 }),
+      el("t20", "text", { x: 215, y: 186, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.2, 7) })
+    ]
+  };
+}
+
+/** A 44mm square portrait in a zari frame, breaking the pallu. */
+function kanchiWithPhoto() {
+  return {
+    name: "With Photo",
+    page: A4,
+    background: "linear-gradient(160deg,#FFFDF7 0%,#FBF6EC 62%,#F4EBDA 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 297, h: 58, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.5) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/7mm 7mm, linear-gradient(165deg,#D81B60 0%,#A50E45 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 58, w: 297, h: 8, fill: "repeating-linear-gradient(90deg,#D81B60 0 4mm,rgba(216,27,96,0) 4mm 8mm)", stroke: "none", strokeWidth: 0 }),
+      el("t2", "text", { x: 16, y: 18, w: 265, text: "{school}", size: 8, font: "mono", color: "rgba(251,246,236,.88)", align: "center", weight: 400, spacing: sp(0.3, 8) }),
+      el("t3", "text", { x: 16, y: 26, w: 265, text: "{fest}", size: 15, font: "serif", color: "#FBF6EC", align: "center", weight: 400, spacing: sp(0.22, 15) }),
+      el("b4", "box", { x: 124, y: 36, w: 49, h: 49, fill: "linear-gradient(140deg,#F3D98B,#D4AF37 58%,#9A7A18)", stroke: "none", strokeWidth: 0 }),
+      el("b5", "box", { x: 126.5, y: 38.5, w: 44, h: 44, fill: "#E7DCC9", stroke: "none", strokeWidth: 0 }),
+      el("t6", "text", { x: 16, y: 94, w: 265, text: "CERTIFICATE OF PARTICIPATION", size: 7.5, font: "mono", color: "#0C7B6F", align: "center", weight: 400, spacing: sp(0.3, 7.5) }),
+      el("t7", "text", { x: 48, y: 102, w: 201, text: "{name}", size: 33, font: "serif", color: "#2B1B18", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("b8", "box", { x: 88, y: 124, w: 121, h: 0.4, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("b9", "box", { x: 118.5, y: 130, w: 60, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t10", "text", { x: 16, y: 134, w: 265, text: "{house} \u00b7 Chest {chest} \u00b7 {category}", size: 8, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.2, 8) }),
+      el("t11", "text", { x: 58, y: 146, w: 181, text: "{results}", size: 11, font: "serif", color: "#3A2C28", align: "center", weight: 400, lineHeight: 1.66 }),
+      el("b12", "box", { x: 16, y: 172, w: 265, h: 0.4, fill: "#E3D3B4", stroke: "none", strokeWidth: 0 }),
+      el("b13", "box", { x: 32, y: 186, w: 66, h: 0.4, fill: "#2B1B18", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 32, y: 188, w: 66, text: "FEST CONVENOR", size: 7, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.2, 7) }),
+      el("t15", "text", { x: 116, y: 187, w: 65, text: "{date}", size: 9.5, font: "serif", color: "#A50E45", align: "center", weight: 400, spacing: sp(0.14, 9.5) }),
+      el("b16", "box", { x: 199, y: 186, w: 66, h: 0.4, fill: "#2B1B18", stroke: "none", strokeWidth: 0 }),
+      el("t17", "text", { x: 199, y: 188, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.2, 7) })
+    ]
+  };
+}
+
+/** A Tanjore medallion, gold on rani pink. */
+function kanchiWinner() {
+  return {
+    name: "Winner Poster",
+    page: A4_PORTRAIT,
+    background: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.28) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/9mm 9mm, linear-gradient(178deg,#D81B60 0%,#A50E45 62%,#7C0733 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 210, h: 14, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.7) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/6mm 6mm, #F5A31A", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 14, w: 210, h: 1.2, fill: "#F3D98B", stroke: "none", strokeWidth: 0 }),
+      el("t2", "text", { x: 16, y: 24, w: 178, text: "{fest} \u00b7 {school}", size: 8.5, font: "mono", color: "rgba(251,246,236,.86)", align: "center", weight: 400, spacing: sp(0.3, 8.5) }),
+      el("b3", "box", { x: 39, y: 38, w: 132, h: 132, fill: "linear-gradient(140deg,#F3D98B,#D4AF37 56%,#9A7A18)", stroke: "none", strokeWidth: 0, radius: 66 }),
+      el("b4", "box", { x: 45, y: 44, w: 120, h: 120, fill: "repeating-conic-gradient(from 0deg,#F5A31A 0deg 9deg,#7C0733 9deg 24deg)", stroke: "none", strokeWidth: 0, radius: 60 }),
+      el("b5", "box", { x: 52, y: 51, w: 106, h: 106, fill: "#A50E45", stroke: "none", strokeWidth: 0, radius: 53 }),
+      el("b6", "box", { x: 63, y: 62, w: 84, h: 84, fill: "linear-gradient(140deg,#F3D98B,#D4AF37 58%,#9A7A18)", stroke: "none", strokeWidth: 0 }),
+      el("b7", "box", { x: 66, y: 65, w: 78, h: 78, fill: "#E7DCC9", stroke: "none", strokeWidth: 0 }),
+      el("b8", "box", { x: 0, y: 180, w: 210, h: 16, fill: "#F5A31A", stroke: "none", strokeWidth: 0 }),
+      el("b9", "box", { x: 0, y: 180, w: 210, h: 0.8, fill: "#F3D98B", stroke: "none", strokeWidth: 0 }),
+      el("t10", "text", { x: 16, y: 184, w: 178, text: "FIRST PLACE", size: 16, font: "serif", color: "#5C2708", align: "center", weight: 400, spacing: sp(0.24, 16) }),
+      el("t11", "text", { x: 16, y: 206, w: 178, text: "{name}", size: 30, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("b12", "box", { x: 70, y: 240, w: 70, h: 0.5, fill: "#F3D98B", stroke: "none", strokeWidth: 0 }),
+      el("t13", "text", { x: 16, y: 246, w: 178, text: "{event}", size: 12.5, font: "serif", color: "rgba(251,246,236,.92)", align: "center", weight: 400 }),
+      el("b14", "box", { x: 85, y: 258, w: 40, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t15", "text", { x: 16, y: 262, w: 178, text: "{house} \u00b7 Chest {chest}", size: 8, font: "mono", color: "rgba(251,246,236,.72)", align: "center", weight: 400, spacing: sp(0.2, 8) }),
+      el("b16", "box", { x: 0, y: 274, w: 210, h: 8, fill: "repeating-linear-gradient(90deg,#F5A31A 0 4mm,rgba(245,163,26,0) 4mm 8mm)", stroke: "none", strokeWidth: 0 }),
+      el("b17", "box", { x: 0, y: 282, w: 210, h: 15, fill: "linear-gradient(180deg,#0C7B6F,#075B52)", stroke: "none", strokeWidth: 0 }),
+      el("t18", "text", { x: 16, y: 286, w: 178, text: "RESULTS BOARD \u00b7 {date}", size: 7.5, font: "mono", color: "rgba(251,246,236,.9)", align: "center", weight: 400, spacing: sp(0.2, 7.5) })
+    ]
+  };
+}
+
+/** Woven rows — each placement banded like a border stripe. */
+function kanchiRanksPoster() {
+  return {
+    name: "Event Results (all ranks)",
+    page: A4_PORTRAIT,
+    background: "linear-gradient(180deg,#FFFDF7 0%,#FBF6EC 48%,#F4EBDA 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 210, h: 54, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.5) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/7mm 7mm, linear-gradient(165deg,#0C7B6F 0%,#075B52 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 54, w: 210, h: 8, fill: "repeating-linear-gradient(90deg,#0C7B6F 0 4mm,rgba(14,138,125,0) 4mm 8mm)", stroke: "none", strokeWidth: 0 }),
+      el("t2", "text", { x: 16, y: 14, w: 178, text: "{fest} \u00b7 {school}", size: 8, font: "mono", color: "rgba(251,246,236,.82)", align: "center", weight: 400, spacing: sp(0.28, 8) }),
+      el("t3", "text", { x: 16, y: 24, w: 178, text: "{event}", size: 24, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.08 }),
+      el("t4", "text", { x: 16, y: 42, w: 178, text: "{category} \u00b7 FINAL RESULT", size: 8, font: "mono", color: "#FBF3DA", align: "center", weight: 400, spacing: sp(0.28, 8) }),
+      el("t5", "text", { x: 16, y: 70, w: 178, text: "PLACE \u00b7 ATHLETE \u00b7 HOUSE", size: 7, font: "mono", color: "#776D60", align: "left", weight: 400, spacing: sp(0.24, 7) }),
+      el("t6", "text", { x: 16, y: 70, w: 178, text: "TIME", size: 7, font: "mono", color: "#776D60", align: "right", weight: 400, spacing: sp(0.24, 7) }),
+      el("b7", "box", { x: 16, y: 76, w: 178, h: 1, fill: "#D81B60", stroke: "none", strokeWidth: 0 }),
+      el("b8", "box", { x: 0, y: 82, w: 210, h: 30, fill: "repeating-conic-gradient(from 0deg, rgba(245,163,26,.32) 0% 25%, rgba(245,163,26,0) 0% 50%) 0 0/6mm 6mm, #FDF3DC", stroke: "none", strokeWidth: 0 }),
+      el("b9", "box", { x: 18, y: 90, w: 14, h: 14, fill: "linear-gradient(140deg,#FBF3DA,#D4AF37 58%,#9A7A18)", stroke: "none", strokeWidth: 0, radius: 7 }),
+      el("t10", "text", { x: 18, y: 93.4, w: 14, text: "I", size: 10, font: "serif", color: "#5C2708", align: "center", weight: 400 }),
+      el("b11", "box", { x: 37, y: 85, w: 24, h: 24, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("img12", "image", { x: 38, y: 86, w: 22, h: 22, src: "{rank1photo}", fit: "cover" }),
+      el("t13", "text", { x: 66, y: 86, w: 80, text: "{rank1name}", size: 18, font: "serif", color: "#2B1B18", align: "left", weight: 400, lineHeight: 1.1 }),
+      el("b14", "box", { x: 66, y: 99, w: 16, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t15", "text", { x: 66, y: 102, w: 80, text: "{rank1house} \u00b7 CHEST {chest}", size: 7.5, font: "mono", color: "#5E4A44", align: "left", weight: 400, spacing: sp(0.16, 7.5) }),
+      el("t16", "text", { x: 150, y: 92, w: 44, text: "{rank1points}", size: 14, font: "mono", color: "#A50E45", align: "right", weight: 700 }),
+      el("b17", "box", { x: 18, y: 120, w: 12, h: 12, fill: "linear-gradient(140deg,#EDE7DA,#A9A29A)", stroke: "none", strokeWidth: 0, radius: 6 }),
+      el("t18", "text", { x: 18, y: 122.8, w: 12, text: "II", size: 9, font: "serif", color: "#3A2C28", align: "center", weight: 400 }),
+      el("b19", "box", { x: 37, y: 117, w: 20, h: 20, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("img20", "image", { x: 38, y: 118, w: 18, h: 18, src: "{rank2photo}", fit: "cover" }),
+      el("t21", "text", { x: 66, y: 118, w: 80, text: "{rank2name}", size: 16, font: "serif", color: "#2B1B18", align: "left", weight: 400, lineHeight: 1.1 }),
+      el("t22", "text", { x: 66, y: 129, w: 80, text: "{rank2house} \u00b7 CHEST 187", size: 7.5, font: "mono", color: "#5E4A44", align: "left", weight: 400, spacing: sp(0.16, 7.5) }),
+      el("t23", "text", { x: 150, y: 121, w: 44, text: "{rank2points}", size: 13, font: "mono", color: "#3A2C28", align: "right", weight: 400 }),
+      el("b24", "box", { x: 16, y: 141, w: 178, h: 0.3, fill: "#E3D3B4", stroke: "none", strokeWidth: 0 }),
+      el("b25", "box", { x: 18, y: 150, w: 12, h: 12, fill: "linear-gradient(140deg,#E2B584,#A0632C)", stroke: "none", strokeWidth: 0, radius: 6 }),
+      el("t26", "text", { x: 18, y: 152.8, w: 12, text: "III", size: 9, font: "serif", color: "#2B1B18", align: "center", weight: 400 }),
+      el("b27", "box", { x: 37, y: 147, w: 20, h: 20, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("img28", "image", { x: 38, y: 148, w: 18, h: 18, src: "{rank3photo}", fit: "cover" }),
+      el("t29", "text", { x: 66, y: 148, w: 80, text: "{rank3name}", size: 16, font: "serif", color: "#2B1B18", align: "left", weight: 400, lineHeight: 1.1 }),
+      el("t30", "text", { x: 66, y: 159, w: 80, text: "{rank3house} \u00b7 CHEST 302", size: 7.5, font: "mono", color: "#5E4A44", align: "left", weight: 400, spacing: sp(0.16, 7.5) }),
+      el("t31", "text", { x: 150, y: 151, w: 44, text: "{rank3points}", size: 13, font: "mono", color: "#3A2C28", align: "right", weight: 400 }),
+      el("b32", "box", { x: 16, y: 171, w: 178, h: 0.3, fill: "#E3D3B4", stroke: "none", strokeWidth: 0 }),
+      el("t33", "text", { x: 20, y: 178, w: 12, text: "4", size: 10, font: "mono", color: "#776D60", align: "left", weight: 400 }),
+      el("t34", "text", { x: 66, y: 178, w: 80, text: "{rank4name}", size: 13, font: "serif", color: "#3A2C28", align: "left", weight: 400 }),
+      el("t35", "text", { x: 150, y: 179, w: 44, text: "{rank4points}", size: 11, font: "mono", color: "#3A2C28", align: "right", weight: 400 }),
+      el("b36", "box", { x: 16, y: 188, w: 178, h: 0.3, fill: "#EFE4CE", stroke: "none", strokeWidth: 0 }),
+      el("t37", "text", { x: 20, y: 194, w: 12, text: "5", size: 10, font: "mono", color: "#776D60", align: "left", weight: 400 }),
+      el("t38", "text", { x: 66, y: 194, w: 80, text: "{rank5name}", size: 13, font: "serif", color: "#3A2C28", align: "left", weight: 400 }),
+      el("t39", "text", { x: 150, y: 195, w: 44, text: "{rank5points}", size: 11, font: "mono", color: "#3A2C28", align: "right", weight: 400 }),
+      el("b40", "box", { x: 16, y: 204, w: 178, h: 0.3, fill: "#EFE4CE", stroke: "none", strokeWidth: 0 }),
+      el("t41", "text", { x: 20, y: 210, w: 12, text: "6", size: 10, font: "mono", color: "#776D60", align: "left", weight: 400 }),
+      el("t42", "text", { x: 66, y: 210, w: 80, text: "Aditya Nair", size: 13, font: "serif", color: "#3A2C28", align: "left", weight: 400 }),
+      el("t43", "text", { x: 150, y: 211, w: 44, text: "52.08", size: 11, font: "mono", color: "#3A2C28", align: "right", weight: 400 }),
+      el("b44", "box", { x: 16, y: 220, w: 178, h: 1, fill: "#D81B60", stroke: "none", strokeWidth: 0 }),
+      el("t45", "text", { x: 16, y: 230, w: 178, text: "HOUSE POINTS FROM THIS EVENT", size: 7.5, font: "mono", color: "#0C7B6F", align: "center", weight: 400, spacing: sp(0.26, 7.5) }),
+      el("t46", "text", { x: 20, y: 240, w: 38, text: "10", size: 19, font: "serif", color: "#A50E45", align: "center", weight: 400 }),
+      el("t47", "text", { x: 20, y: 252, w: 38, text: "{rank1house}", size: 6.5, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.14, 6.5) }),
+      el("t48", "text", { x: 64, y: 240, w: 38, text: "7", size: 19, font: "serif", color: "#3A2C28", align: "center", weight: 400 }),
+      el("t49", "text", { x: 64, y: 252, w: 38, text: "{rank2house}", size: 6.5, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.14, 6.5) }),
+      el("t50", "text", { x: 108, y: 240, w: 38, text: "5", size: 19, font: "serif", color: "#3A2C28", align: "center", weight: 400 }),
+      el("t51", "text", { x: 108, y: 252, w: 38, text: "{rank3house}", size: 6.5, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.14, 6.5) }),
+      el("t52", "text", { x: 152, y: 240, w: 38, text: "3", size: 19, font: "serif", color: "#3A2C28", align: "center", weight: 400 }),
+      el("t53", "text", { x: 152, y: 252, w: 38, text: "{house4name}", size: 6.5, font: "mono", color: "#5E4A44", align: "center", weight: 400, spacing: sp(0.14, 6.5) }),
+      el("b54", "box", { x: 0, y: 266, w: 210, h: 8, fill: "repeating-linear-gradient(90deg,#0C7B6F 0 4mm,rgba(14,138,125,0) 4mm 8mm)", stroke: "none", strokeWidth: 0 }),
+      el("b55", "box", { x: 0, y: 274, w: 210, h: 23, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.4) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/6mm 6mm, linear-gradient(180deg,#0C7B6F,#075B52)", stroke: "none", strokeWidth: 0 }),
+      el("t56", "text", { x: 16, y: 283, w: 178, text: "{date}", size: 7.5, font: "mono", color: "rgba(251,246,236,.92)", align: "center", weight: 400, spacing: sp(0.2, 7.5) })
+    ]
+  };
+}
+
+/** Three portraits on one baseline, zari rules between. */
+function kanchiRanksScreen() {
+  return {
+    name: "Event Results (all ranks) \u2014 16:9",
+    page: SLIDE_16_9,
+    background: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.16) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/10mm 10mm, linear-gradient(168deg,#0C7B6F 0%,#075B52 62%,#04413A 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 338.67, h: 34, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.45) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/7mm 7mm, linear-gradient(165deg,#D81B60,#A50E45)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 34, w: 338.67, h: 1.2, fill: "#F3D98B", stroke: "none", strokeWidth: 0 }),
+      el("t2", "text", { x: 16, y: 9, w: 200, text: "{fest} \u00b7 FINAL RESULT", size: 9.5, font: "mono", color: "rgba(251,246,236,.82)", align: "left", weight: 400, spacing: sp(0.26, 9.5) }),
+      el("t3", "text", { x: 16, y: 17, w: 220, text: "{event}", size: 24, font: "serif", color: "#FFFFFF", align: "left", weight: 400, lineHeight: 1.05 }),
+      el("t4", "text", { x: 236, y: 20, w: 86, text: "{category}", size: 11, font: "mono", color: "#FBF3DA", align: "right", weight: 400, spacing: sp(0.2, 11) }),
+      el("b5", "box", { x: 135.3, y: 48, w: 68, h: 68, fill: "linear-gradient(140deg,#F3D98B,#D4AF37 58%,#9A7A18)", stroke: "none", strokeWidth: 0 }),
+      el("img6", "image", { x: 138.3, y: 51, w: 62, h: 62, src: "{rank1photo}", fit: "cover" }),
+      el("b7", "box", { x: 129.3, y: 120, w: 80, h: 10, fill: "#F5A31A", stroke: "none", strokeWidth: 0 }),
+      el("t8", "text", { x: 129.3, y: 122, w: 80, text: "FIRST", size: 11, font: "serif", color: "#5C2708", align: "center", weight: 400, spacing: sp(0.18, 11) }),
+      el("t9", "text", { x: 119.3, y: 135, w: 100, text: "{rank1name}", size: 20, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("t10", "text", { x: 119.3, y: 149, w: 100, text: "{rank1house} \u00b7 {rank1points} S", size: 10, font: "mono", color: "rgba(251,246,236,.78)", align: "center", weight: 400, spacing: sp(0.16, 10) }),
+      el("b11", "box", { x: 42.3, y: 62, w: 54, h: 54, fill: "linear-gradient(140deg,#FBFAF7,#A9A29A)", stroke: "none", strokeWidth: 0 }),
+      el("img12", "image", { x: 44.8, y: 64.5, w: 49, h: 49, src: "{rank2photo}", fit: "cover" }),
+      el("b13", "box", { x: 39.3, y: 120, w: 60, h: 8, fill: "rgba(251,246,236,.16)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 39.3, y: 121.6, w: 60, text: "SECOND", size: 9.5, font: "serif", color: "#FBFAF7", align: "center", weight: 400, spacing: sp(0.18, 9.5) }),
+      el("t15", "text", { x: 29.3, y: 132, w: 80, text: "{rank2name}", size: 17, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("t16", "text", { x: 29.3, y: 144, w: 80, text: "{rank2house} \u00b7 {rank2points} S", size: 9.5, font: "mono", color: "rgba(251,246,236,.74)", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("b17", "box", { x: 242.3, y: 62, w: 54, h: 54, fill: "linear-gradient(140deg,#F7ECDF,#A0632C)", stroke: "none", strokeWidth: 0 }),
+      el("img18", "image", { x: 244.8, y: 64.5, w: 49, h: 49, src: "{rank3photo}", fit: "cover" }),
+      el("b19", "box", { x: 239.3, y: 120, w: 60, h: 8, fill: "rgba(251,246,236,.16)", stroke: "none", strokeWidth: 0 }),
+      el("t20", "text", { x: 239.3, y: 121.6, w: 60, text: "THIRD", size: 9.5, font: "serif", color: "#F7ECDF", align: "center", weight: 400, spacing: sp(0.18, 9.5) }),
+      el("t21", "text", { x: 229.3, y: 132, w: 80, text: "{rank3name}", size: 17, font: "serif", color: "#FFFFFF", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("t22", "text", { x: 229.3, y: 144, w: 80, text: "{rank3house} \u00b7 {rank3points} S", size: 9.5, font: "mono", color: "rgba(251,246,236,.74)", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("b23", "box", { x: 0, y: 166, w: 338.67, h: 8, fill: "repeating-linear-gradient(90deg,#F5A31A 0 4mm,rgba(245,163,26,0) 4mm 8mm)", stroke: "none", strokeWidth: 0 }),
+      el("b24", "box", { x: 0, y: 174, w: 338.67, h: 16.5, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.4) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/6mm 6mm, linear-gradient(180deg,#D81B60,#A50E45)", stroke: "none", strokeWidth: 0 }),
+      el("t25", "text", { x: 16, y: 180, w: 150, text: "{school}", size: 9.5, font: "mono", color: "rgba(251,246,236,.9)", align: "left", weight: 400, spacing: sp(0.18, 9.5) }),
+      el("t26", "text", { x: 172, y: 180, w: 150, text: "{date}", size: 9.5, font: "mono", color: "rgba(251,246,236,.9)", align: "right", weight: 400, spacing: sp(0.18, 9.5) })
+    ]
+  };
+}
+
+/** Zari header, checked chest panel, selvedge foot. */
+function kanchiIdCard() {
+  return {
+    name: "ID Card \u2014 Landscape",
+    page: { w: 85.6, h: 54 },
+    background: "linear-gradient(160deg,#FFFDF7 0%,#FBF6EC 68%,#F4EBDA 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 85.6, h: 13, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.6) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/4mm 4mm, linear-gradient(150deg,#D81B60,#A50E45)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 13, w: 85.6, h: 0.8, fill: "#F3D98B", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 4, y: 3.2, w: 7, h: 7, fill: "linear-gradient(140deg,#F3D98B,#D4AF37 58%,#9A7A18)", stroke: "none", strokeWidth: 0, radius: 3.5 }),
+      el("b3", "box", { x: 5.6, y: 4.8, w: 3.8, h: 3.8, fill: "#075B52", stroke: "none", strokeWidth: 0, radius: 1.9 }),
+      el("t4", "text", { x: 14, y: 3, w: 60, text: "{fest}", size: 9, font: "serif", color: "#FBF6EC", align: "left", weight: 400 }),
+      el("t5", "text", { x: 14, y: 8.8, w: 66, text: "{school}", size: 4.5, font: "mono", color: "rgba(251,246,236,.88)", align: "left", weight: 400, spacing: sp(0.2, 4.5) }),
+      el("b6", "box", { x: 4, y: 17, w: 22, h: 22, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("img7", "image", { x: 5, y: 18, w: 20, h: 20, src: "{photo}", fit: "cover" }),
+      el("t8", "text", { x: 30, y: 17.5, w: 52, text: "{name}", size: 10, font: "serif", color: "#2B1B18", align: "left", weight: 400, lineHeight: 1.12 }),
+      el("b9", "box", { x: 30, y: 25, w: 52, h: 0.3, fill: "#E3D3B4", stroke: "none", strokeWidth: 0 }),
+      el("b10", "box", { x: 30, y: 27.5, w: 34, h: 12, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.35) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/3mm 3mm, #FDF3DC", stroke: "none", strokeWidth: 0 }),
+      el("t11", "text", { x: 30, y: 28.4, w: 34, text: "CHEST NO.", size: 4.5, font: "mono", color: "#826411", align: "center", weight: 400, spacing: sp(0.2, 4.5) }),
+      el("t12", "text", { x: 30, y: 30.4, w: 34, text: "{chest}", size: 15, font: "serif", color: "#A50E45", align: "center", weight: 400, lineHeight: 1.0 }),
+      el("b13", "box", { x: 67, y: 28, w: 14, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 67, y: 31, w: 16, text: "{house}\n{category}\n{class}", size: 4.5, font: "mono", color: "#5E4A44", align: "left", weight: 400, lineHeight: 1.6, spacing: sp(0.14, 4.5) }),
+      el("b15", "box", { x: 0, y: 42, w: 85.6, h: 4, fill: "repeating-linear-gradient(90deg,#D81B60 0 2mm,rgba(216,27,96,0) 2mm 4mm)", stroke: "none", strokeWidth: 0 }),
+      el("b16", "box", { x: 0, y: 46, w: 85.6, h: 8, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.45) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/4mm 4mm, #A50E45", stroke: "none", strokeWidth: 0 }),
+      el("t17", "text", { x: 4, y: 48.6, w: 77.6, text: "PARTICIPANT \u00b7 {date}", size: 4.5, font: "mono", color: "rgba(251,246,236,.92)", align: "center", weight: 400, spacing: sp(0.18, 4.5) })
+    ]
+  };
+}
+
+/** The same weave turned upright for a lanyard. */
+function kanchiIdCardPortrait() {
+  return {
+    name: "ID Card \u2014 Portrait",
+    page: { w: 54, h: 85.6 },
+    background: "linear-gradient(170deg,#FFFDF7 0%,#FBF6EC 66%,#F4EBDA 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 54, h: 19, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.55) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/4mm 4mm, linear-gradient(165deg,#D81B60,#A50E45)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 19, w: 54, h: 0.8, fill: "#F3D98B", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 22, y: 2.4, w: 10, h: 1.6, fill: "rgba(255,255,255,.55)", stroke: "none", strokeWidth: 0, radius: 0.8 }),
+      el("b3", "box", { x: 23, y: 6, w: 8, h: 8, fill: "linear-gradient(140deg,#F3D98B,#D4AF37 58%,#9A7A18)", stroke: "none", strokeWidth: 0, radius: 4 }),
+      el("b4", "box", { x: 25, y: 8, w: 4, h: 4, fill: "#075B52", stroke: "none", strokeWidth: 0, radius: 2 }),
+      el("t5", "text", { x: 3, y: 15, w: 48, text: "{school}", size: 4.5, font: "mono", color: "rgba(251,246,236,.9)", align: "center", weight: 400, spacing: sp(0.2, 4.5) }),
+      el("b6", "box", { x: 14, y: 24, w: 26, h: 26, fill: "#D4AF37", stroke: "none", strokeWidth: 0 }),
+      el("img7", "image", { x: 15, y: 25, w: 24, h: 24, src: "{photo}", fit: "cover" }),
+      el("t8", "text", { x: 3, y: 53, w: 48, text: "{name}", size: 11, font: "serif", color: "#2B1B18", align: "center", weight: 400, lineHeight: 1.1 }),
+      el("b9", "box", { x: 9, y: 61, w: 36, h: 12, fill: "repeating-conic-gradient(from 0deg, rgba(212,175,55,.35) 0% 25%, rgba(212,175,55,0) 0% 50%) 0 0/3mm 3mm, #FDF3DC", stroke: "none", strokeWidth: 0 }),
+      el("t10", "text", { x: 9, y: 61.9, w: 36, text: "CHEST NO.", size: 4.5, font: "mono", color: "#826411", align: "center", weight: 400, spacing: sp(0.2, 4.5) }),
+      el("t11", "text", { x: 9, y: 63.9, w: 36, text: "{chest}", size: 15, font: "serif", color: "#A50E45", align: "center", weight: 400, lineHeight: 1.0 }),
+      el("b12", "box", { x: 19, y: 75, w: 16, h: 1.2, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("b13", "box", { x: 0, y: 78, w: 54, h: 3, fill: "repeating-linear-gradient(90deg,#D81B60 0 2mm,rgba(216,27,96,0) 2mm 4mm)", stroke: "none", strokeWidth: 0 }),
+      el("b14", "box", { x: 0, y: 81, w: 54, h: 4.6, fill: "#A50E45", stroke: "none", strokeWidth: 0 }),
+      el("t15", "text", { x: 3, y: 82.2, w: 48, text: "{house} \u00b7 {category} \u00b7 {class}", size: 4, font: "mono", color: "rgba(251,246,236,.92)", align: "center", weight: 400, spacing: sp(0.16, 4) })
+    ]
+  };
+}
+
+/* ====================== ANNOUNCEMENT ====================== */
+/** Fest title in gradient, three guest portraits along the foot. */
+function annThreeGuests() {
+  return {
+    name: "Announcement \u2014 three guests",
+    page: A4_PORTRAIT,
+    background: "radial-gradient(64% 34% at 50% 20%, rgba(28,62,86,.9) 0%, rgba(28,62,86,0) 68%), linear-gradient(182deg,#12283A 0%,#0B1B2B 46%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 122, y: 0, w: 88, h: 132, fill: "linear-gradient(200deg, rgba(20,160,106,.22) 0%, rgba(255,255,255,.10) 40%, rgba(28,90,150,.24) 100%)", stroke: "none", strokeWidth: 0 }),
+      el("t1", "text", { x: 16, y: 14, w: 60, text: "{motto}", size: 7.5, font: "mono", color: "#7BD7A9", align: "left", weight: 400, lineHeight: 2.0, spacing: sp(0.2, 7.5) }),
+      el("img2", "image", { x: 88, y: 24, w: 34, h: 34, src: "{logo}", fit: "cover", stroke: "rgba(234,240,246,.28)", strokeWidth: 0.5 }),
+      el("t3", "text", { x: 16, y: 104, w: 178, text: "{school}", size: 34, font: "display", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.0, spacing: sp(0.02, 34) }),
+      el("t4", "text", { x: 16, y: 120, w: 178, text: "{subtitle}", size: 11, font: "mono", color: "rgba(234,240,246,.72)", align: "center", weight: 400, spacing: sp(0.34, 11) }),
+      el("b5", "box", { x: 62, y: 130, w: 86, h: 0.4, fill: "rgba(234,240,246,.35)", stroke: "none", strokeWidth: 0 }),
+      el("t6", "text", { x: 16, y: 138, w: 178, text: "{fest}", size: 72, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 30%,#F5A31A 60%,#E2571A 100%)", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.0, spacing: sp(-0.02, 72) }),
+      el("b7", "box", { x: 44, y: 172, w: 122, h: 14, fill: "linear-gradient(180deg,#E22B3C 0%,#C81D2E 62%,#A5121F 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b8", "box", { x: 36, y: 175, w: 8, h: 8, fill: "#8C0D18", stroke: "none", strokeWidth: 0 }),
+      el("b9", "box", { x: 166, y: 175, w: 8, h: 8, fill: "#8C0D18", stroke: "none", strokeWidth: 0 }),
+      el("t10", "text", { x: 44, y: 176.5, w: 122, text: "{season}", size: 15, font: "display", color: "#FFF3D6", align: "center", weight: 700, spacing: sp(0.14, 15) }),
+      el("t11", "text", { x: 16, y: 196, w: 178, text: "{when}", size: 13, font: "sans", color: "#EAF0F6", align: "center", weight: 600 }),
+      el("t12", "text", { x: 16, y: 208, w: 178, text: "{venue}", size: 15, font: "display", color: "#FFD24A", align: "center", weight: 700, spacing: sp(0.06, 15) }),
+      el("b13", "box", { x: 0, y: 238, w: 210, h: 59, fill: "linear-gradient(180deg, rgba(6,14,22,0) 0%, rgba(6,14,22,.85) 42%, #060E16 100%), linear-gradient(0deg,#0E2233,#16324A)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 16, y: 224, w: 178, text: "{guestsLabel}", size: 7.5, font: "mono", color: "rgba(234,240,246,.62)", align: "center", weight: 400, spacing: sp(0.28, 7.5) }),
+      el("img15", "image", { x: 30, y: 234, w: 44, h: 44, src: "{photo1}", fit: "cover" }),
+      el("img16", "image", { x: 83, y: 234, w: 44, h: 44, src: "{photo2}", fit: "cover" }),
+      el("img17", "image", { x: 136, y: 234, w: 44, h: 44, src: "{photo3}", fit: "cover" }),
+      el("t18", "text", { x: 16, y: 284, w: 178, text: "{school}", size: 10, font: "display", color: "#FFFFFF", align: "center", weight: 700, spacing: sp(0.2, 10) })
+    ]
+  };
+}
+
+/** Ribbon down the left, four named guests with their roles. */
+function annFourGuests() {
+  return {
+    name: "Announcement \u2014 four guests",
+    page: A4_PORTRAIT,
+    background: "radial-gradient(70% 32% at 50% 16%, rgba(28,62,86,.85) 0%, rgba(28,62,86,0) 66%), linear-gradient(182deg,#14202E 0%,#0B1B2B 46%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 210, h: 6, fill: "linear-gradient(90deg,#14A06A,#FFD24A 50%,#C81D2E)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 0, y: 14, w: 70, h: 112, fill: "linear-gradient(160deg, rgba(20,160,106,.24) 0%, rgba(255,255,255,.09) 45%, rgba(28,90,150,.22) 100%)", stroke: "none", strokeWidth: 0 }),
+      el("img2", "image", { x: 150, y: 16, w: 44, h: 26, src: "{logo}", fit: "cover", stroke: "rgba(234,240,246,.28)", strokeWidth: 0.5 }),
+      el("t3", "text", { x: 86, y: 52, w: 108, text: "{motto}", size: 8, font: "mono", color: "#7BD7A9", align: "right", weight: 400, lineHeight: 2.0, spacing: sp(0.26, 8) }),
+      el("t4", "text", { x: 16, y: 132, w: 178, text: "{school} PRESENTS", size: 10, font: "mono", color: "rgba(234,240,246,.7)", align: "left", weight: 400, spacing: sp(0.32, 10) }),
+      el("t5", "text", { x: 16, y: 142, w: 178, text: "{fest}", size: 64, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 30%,#F5A31A 62%,#E2571A 100%)", color: "#FFFFFF", align: "left", weight: 700, lineHeight: 0.98, spacing: sp(-0.03, 64) }),
+      el("b6", "box", { x: 16, y: 174, w: 150, h: 14, fill: "linear-gradient(180deg,#E22B3C 0%,#C81D2E 62%,#A5121F 100%)", stroke: "none", strokeWidth: 0 }),
+      el("t7", "text", { x: 16, y: 178.5, w: 150, text: "{subtitle}", size: 14, font: "display", color: "#FFF3D6", align: "center", weight: 700, spacing: sp(0.14, 14) }),
+      el("t8", "text", { x: 16, y: 198, w: 178, text: "{when}", size: 12.5, font: "sans", color: "#EAF0F6", align: "left", weight: 600 }),
+      el("t9", "text", { x: 16, y: 208, w: 178, text: "{venue}", size: 14, font: "display", color: "#FFD24A", align: "left", weight: 700, spacing: sp(0.05, 14) }),
+      el("b10", "box", { x: 0, y: 236, w: 210, h: 61, fill: "linear-gradient(180deg, rgba(6,14,22,0) 0%, rgba(6,14,22,.88) 44%, #060E16 100%), linear-gradient(0deg,#0E2233,#16324A)", stroke: "none", strokeWidth: 0 }),
+      el("t11", "text", { x: 16, y: 222, w: 178, text: "{guestsLabel}", size: 7.5, font: "mono", color: "rgba(234,240,246,.62)", align: "left", weight: 400, spacing: sp(0.28, 7.5) }),
+      el("img12", "image", { x: 16, y: 232, w: 38, h: 38, src: "{photo1}", fit: "cover" }),
+      el("t13", "text", { x: 16, y: 272, w: 38, text: "{name1}", size: 7.5, font: "sans", color: "#EAF0F6", align: "center", weight: 600, lineHeight: 1.3 }),
+      el("t14", "text", { x: 16, y: 279, w: 38, text: "{role1}", size: 5.5, font: "mono", color: "rgba(234,240,246,.55)", align: "center", weight: 400, spacing: sp(0.14, 5.5) }),
+      el("img15", "image", { x: 60, y: 232, w: 38, h: 38, src: "{photo2}", fit: "cover" }),
+      el("t16", "text", { x: 60, y: 272, w: 38, text: "{name2}", size: 7.5, font: "sans", color: "#EAF0F6", align: "center", weight: 600, lineHeight: 1.3 }),
+      el("t17", "text", { x: 60, y: 279, w: 38, text: "{role2}", size: 5.5, font: "mono", color: "rgba(234,240,246,.55)", align: "center", weight: 400, spacing: sp(0.14, 5.5) }),
+      el("img18", "image", { x: 104, y: 232, w: 38, h: 38, src: "{photo3}", fit: "cover" }),
+      el("t19", "text", { x: 104, y: 272, w: 38, text: "{name3}", size: 7.5, font: "sans", color: "#EAF0F6", align: "center", weight: 600, lineHeight: 1.3 }),
+      el("t20", "text", { x: 104, y: 279, w: 38, text: "{role3}", size: 5.5, font: "mono", color: "rgba(234,240,246,.55)", align: "center", weight: 400, spacing: sp(0.14, 5.5) }),
+      el("img21", "image", { x: 148, y: 232, w: 38, h: 38, src: "{photo4}", fit: "cover" }),
+      el("t22", "text", { x: 148, y: 272, w: 38, text: "{name4}", size: 7.5, font: "sans", color: "#EAF0F6", align: "center", weight: 600, lineHeight: 1.3 }),
+      el("t23", "text", { x: 148, y: 279, w: 38, text: "{role4}", size: 5.5, font: "mono", color: "rgba(234,240,246,.55)", align: "center", weight: 400, spacing: sp(0.14, 5.5) })
+    ]
+  };
+}
+
+/** One portrait slot under a gradient placement line. */
+function annWinner() {
+  return {
+    name: "Winner Poster",
+    page: A4_PORTRAIT,
+    background: "radial-gradient(60% 30% at 50% 46%, rgba(245,163,26,.22) 0%, rgba(245,163,26,0) 66%), linear-gradient(182deg,#12283A 0%,#0B1B2B 48%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 130, y: 0, w: 80, h: 104, fill: "linear-gradient(200deg, rgba(20,160,106,.2) 0%, rgba(255,255,255,.08) 45%, rgba(28,90,150,.2) 100%)", stroke: "none", strokeWidth: 0 }),
+      el("img1", "image", { x: 16, y: 16, w: 26, h: 26, src: "{logo}", fit: "cover", stroke: "rgba(234,240,246,.28)", strokeWidth: 0.5 }),
+      el("t2", "text", { x: 16, y: 48, w: 110, text: "{fest}\nRESULTS BOARD", size: 8.5, font: "mono", color: "#7BD7A9", align: "left", weight: 400, lineHeight: 1.9, spacing: sp(0.28, 8.5) }),
+      el("t3", "text", { x: 16, y: 78, w: 178, text: "FIRST", size: 80, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 28%,#F5A31A 60%,#E2571A 100%)", color: "#FFFFFF", align: "left", weight: 700, lineHeight: 0.94, spacing: sp(-0.03, 80) }),
+      el("b4", "box", { x: 16, y: 116, w: 178, h: 14, fill: "linear-gradient(180deg,#E22B3C 0%,#C81D2E 62%,#A5121F 100%)", stroke: "none", strokeWidth: 0 }),
+      el("t5", "text", { x: 16, y: 120.5, w: 178, text: "4 \u00d7 100 M RELAY \u00b7 {category}", size: 14, font: "display", color: "#FFF3D6", align: "center", weight: 700, spacing: sp(0.14, 14) }),
+      el("b6", "box", { x: 59, y: 142, w: 92, h: 92, fill: "#FFFFFF", stroke: "none", strokeWidth: 0 }),
+      el("t7", "text", { x: 16, y: 244, w: 178, text: "{name}", size: 26, font: "display", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.08, spacing: sp(-0.01, 26) }),
+      el("b8", "box", { x: 85, y: 270, w: 40, h: 1.6, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t9", "text", { x: 16, y: 275, w: 178, text: "{house} \u00b7 Chest {chest}", size: 8.5, font: "mono", color: "rgba(234,240,246,.7)", align: "center", weight: 400, spacing: sp(0.2, 8.5) }),
+      el("t10", "text", { x: 16, y: 284, w: 178, text: "{school} \u00b7 {date}", size: 7, font: "mono", color: "rgba(234,240,246,.5)", align: "center", weight: 400, spacing: sp(0.18, 7) })
+    ]
+  };
+}
+
+/** Three portrait slots in a row beneath the event title. */
+function annRanksPoster() {
+  return {
+    name: "Event Results (all ranks)",
+    page: A4_PORTRAIT,
+    background: "radial-gradient(66% 26% at 50% 12%, rgba(28,62,86,.85) 0%, rgba(28,62,86,0) 66%), linear-gradient(182deg,#12283A 0%,#0B1B2B 50%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 210, h: 6, fill: "linear-gradient(90deg,#14A06A,#FFD24A 50%,#C81D2E)", stroke: "none", strokeWidth: 0 }),
+      el("img1", "image", { x: 16, y: 16, w: 26, h: 26, src: "{logo}", fit: "cover", stroke: "rgba(234,240,246,.28)", strokeWidth: 0.5 }),
+      el("t2", "text", { x: 50, y: 20, w: 144, text: "{fest} \u00b7 {school}", size: 8, font: "mono", color: "rgba(234,240,246,.7)", align: "right", weight: 400, spacing: sp(0.26, 8) }),
+      el("t3", "text", { x: 50, y: 30, w: 144, text: "FINAL RESULT", size: 8, font: "mono", color: "#7BD7A9", align: "right", weight: 400, spacing: sp(0.26, 8) }),
+      el("t4", "text", { x: 16, y: 52, w: 178, text: "{event}", size: 52, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 30%,#F5A31A 62%,#E2571A 100%)", color: "#FFFFFF", align: "left", weight: 700, lineHeight: 1.0, spacing: sp(-0.03, 52) }),
+      el("b5", "box", { x: 16, y: 78, w: 130, h: 12, fill: "linear-gradient(180deg,#E22B3C 0%,#C81D2E 62%,#A5121F 100%)", stroke: "none", strokeWidth: 0 }),
+      el("t6", "text", { x: 16, y: 81.6, w: 130, text: "{category}", size: 12, font: "display", color: "#FFF3D6", align: "center", weight: 700, spacing: sp(0.14, 12) }),
+      el("img7", "image", { x: 66, y: 102, w: 78, h: 78, src: "{rank1photo}", fit: "cover" }),
+      el("b8", "box", { x: 66, y: 180, w: 78, h: 10, fill: "#F5A31A", stroke: "none", strokeWidth: 0 }),
+      el("t9", "text", { x: 66, y: 182, w: 78, text: "FIRST", size: 11, font: "display", color: "#3D2000", align: "center", weight: 700, spacing: sp(0.16, 11) }),
+      el("t10", "text", { x: 56, y: 194, w: 98, text: "{rank1name}", size: 19, font: "display", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.08 }),
+      el("t11", "text", { x: 56, y: 206, w: 98, text: "{rank1house} \u00b7 {rank1points} S", size: 8.5, font: "mono", color: "rgba(234,240,246,.7)", align: "center", weight: 400, spacing: sp(0.16, 8.5) }),
+      el("img12", "image", { x: 16, y: 214, w: 82, h: 56, src: "{rank2photo}", fit: "cover" }),
+      el("b13", "box", { x: 16, y: 271, w: 82, h: 8, fill: "rgba(234,240,246,.16)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 16, y: 272.6, w: 82, text: "SECOND", size: 9.5, font: "display", color: "#EAF0F6", align: "center", weight: 700, spacing: sp(0.14, 9.5) }),
+      el("t15", "text", { x: 16, y: 281, w: 82, text: "{rank2name}", size: 9, font: "sans", color: "#EAF0F6", align: "center", weight: 600 }),
+      el("img16", "image", { x: 112, y: 214, w: 82, h: 56, src: "{rank3photo}", fit: "cover" }),
+      el("b17", "box", { x: 112, y: 271, w: 82, h: 8, fill: "rgba(234,240,246,.16)", stroke: "none", strokeWidth: 0 }),
+      el("t18", "text", { x: 112, y: 272.6, w: 82, text: "THIRD", size: 9.5, font: "display", color: "#EAF0F6", align: "center", weight: 700, spacing: sp(0.14, 9.5) }),
+      el("t19", "text", { x: 112, y: 281, w: 82, text: "{rank3name}", size: 9, font: "sans", color: "#EAF0F6", align: "center", weight: 600 })
+    ]
+  };
+}
+
+/** The announcement idiom at 16:9 for the hall screen. */
+function annRanksScreen() {
+  return {
+    name: "Event Results (all ranks) \u2014 16:9",
+    page: SLIDE_16_9,
+    background: "radial-gradient(46% 60% at 50% 40%, rgba(245,163,26,.18) 0%, rgba(245,163,26,0) 68%), linear-gradient(168deg,#14293C 0%,#0B1B2B 52%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 338.67, h: 5, fill: "linear-gradient(90deg,#14A06A,#FFD24A 50%,#C81D2E)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 262, y: 5, w: 76.67, h: 88, fill: "linear-gradient(200deg, rgba(20,160,106,.18) 0%, rgba(255,255,255,.07) 45%, rgba(28,90,150,.18) 100%)", stroke: "none", strokeWidth: 0 }),
+      el("img2", "image", { x: 16, y: 14, w: 22, h: 22, src: "{logo}", fit: "cover", stroke: "rgba(234,240,246,.28)", strokeWidth: 0.5 }),
+      el("t3", "text", { x: 44, y: 15, w: 180, text: "{fest} \u00b7 FINAL RESULT", size: 9.5, font: "mono", color: "rgba(234,240,246,.72)", align: "left", weight: 400, spacing: sp(0.28, 9.5) }),
+      el("t4", "text", { x: 44, y: 24, w: 220, text: "{event}", size: 32, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 32%,#F5A31A 64%,#E2571A 100%)", color: "#FFFFFF", align: "left", weight: 700, lineHeight: 1.0, spacing: sp(-0.02, 32) }),
+      el("b5", "box", { x: 262, y: 26, w: 60, h: 11, fill: "linear-gradient(180deg,#E22B3C,#A5121F)", stroke: "none", strokeWidth: 0 }),
+      el("t6", "text", { x: 262, y: 29, w: 60, text: "{category}", size: 11, font: "display", color: "#FFF3D6", align: "center", weight: 700, spacing: sp(0.14, 11) }),
+      el("img7", "image", { x: 129.3, y: 52, w: 80, h: 80, src: "{rank1photo}", fit: "cover" }),
+      el("b8", "box", { x: 129.3, y: 132, w: 80, h: 10, fill: "#F5A31A", stroke: "none", strokeWidth: 0 }),
+      el("t9", "text", { x: 129.3, y: 134, w: 80, text: "FIRST", size: 11, font: "display", color: "#3D2000", align: "center", weight: 700, spacing: sp(0.16, 11) }),
+      el("t10", "text", { x: 119.3, y: 146, w: 100, text: "{rank1name}", size: 20, font: "display", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.06 }),
+      el("t11", "text", { x: 119.3, y: 160, w: 100, text: "{rank1house} \u00b7 {rank1points} S", size: 10, font: "mono", color: "rgba(234,240,246,.72)", align: "center", weight: 400, spacing: sp(0.16, 10) }),
+      el("img12", "image", { x: 34.3, y: 64, w: 62, h: 62, src: "{rank2photo}", fit: "cover" }),
+      el("b13", "box", { x: 34.3, y: 126, w: 62, h: 8, fill: "rgba(234,240,246,.16)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 34.3, y: 127.6, w: 62, text: "SECOND", size: 9.5, font: "display", color: "#EAF0F6", align: "center", weight: 700, spacing: sp(0.14, 9.5) }),
+      el("t15", "text", { x: 25.3, y: 138, w: 80, text: "{rank2name}", size: 17, font: "display", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.06 }),
+      el("t16", "text", { x: 25.3, y: 150, w: 80, text: "{rank2house} \u00b7 {rank2points} S", size: 9.5, font: "mono", color: "rgba(234,240,246,.68)", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("img17", "image", { x: 242.3, y: 64, w: 62, h: 62, src: "{rank3photo}", fit: "cover" }),
+      el("b18", "box", { x: 242.3, y: 126, w: 62, h: 8, fill: "rgba(234,240,246,.16)", stroke: "none", strokeWidth: 0 }),
+      el("t19", "text", { x: 242.3, y: 127.6, w: 62, text: "THIRD", size: 9.5, font: "display", color: "#EAF0F6", align: "center", weight: 700, spacing: sp(0.14, 9.5) }),
+      el("t20", "text", { x: 233.3, y: 138, w: 80, text: "{rank3name}", size: 17, font: "display", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.06 }),
+      el("t21", "text", { x: 233.3, y: 150, w: 80, text: "{rank3house} \u00b7 {rank3points} S", size: 9.5, font: "mono", color: "rgba(234,240,246,.68)", align: "center", weight: 400, spacing: sp(0.16, 9.5) }),
+      el("b22", "box", { x: 16, y: 172, w: 306, h: 0.4, fill: "rgba(234,240,246,.24)", stroke: "none", strokeWidth: 0 }),
+      el("t23", "text", { x: 16, y: 176, w: 150, text: "{school}", size: 9.5, font: "mono", color: "rgba(234,240,246,.55)", align: "left", weight: 400, spacing: sp(0.18, 9.5) }),
+      el("t24", "text", { x: 172, y: 176, w: 150, text: "{date}", size: 9.5, font: "mono", color: "rgba(234,240,246,.55)", align: "right", weight: 400, spacing: sp(0.18, 9.5) })
+    ]
+  };
+}
+
+/** Centred, with the name itself carrying the gradient. */
+function annCertCentred() {
+  return {
+    name: "Centred",
+    page: A4,
+    background: "radial-gradient(56% 40% at 50% 22%, rgba(28,62,86,.85) 0%, rgba(28,62,86,0) 68%), linear-gradient(178deg,#12283A 0%,#0B1B2B 50%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 297, h: 5, fill: "linear-gradient(90deg,#14A06A,#FFD24A 50%,#C81D2E)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 225, y: 0, w: 72, h: 78, fill: "linear-gradient(200deg, rgba(20,160,106,.16) 0%, rgba(255,255,255,.07) 45%, rgba(28,90,150,.16) 100%)", stroke: "none", strokeWidth: 0 }),
+      el("img2", "image", { x: 16, y: 14, w: 26, h: 26, src: "{logo}", fit: "cover", stroke: "rgba(234,240,246,.28)", strokeWidth: 0.5 }),
+      el("t3", "text", { x: 50, y: 20, w: 160, text: "{school}", size: 8, font: "mono", color: "rgba(234,240,246,.72)", align: "left", weight: 400, spacing: sp(0.26, 8) }),
+      el("t4", "text", { x: 50, y: 29, w: 160, text: "{fest} \u00b7 {date}", size: 8, font: "mono", color: "#7BD7A9", align: "left", weight: 400, spacing: sp(0.26, 8) }),
+      el("t5", "text", { x: 16, y: 52, w: 265, text: "CERTIFICATE OF MERIT", size: 8.5, font: "mono", color: "rgba(234,240,246,.7)", align: "center", weight: 400, spacing: sp(0.34, 8.5) }),
+      el("t6", "text", { x: 16, y: 62, w: 265, text: "{name}", size: 46, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 30%,#F5A31A 62%,#E2571A 100%)", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.04, spacing: sp(-0.02, 46) }),
+      el("b7", "box", { x: 78.5, y: 88, w: 140, h: 13, fill: "linear-gradient(180deg,#E22B3C 0%,#C81D2E 62%,#A5121F 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b8", "box", { x: 70.5, y: 91, w: 8, h: 7, fill: "#8C0D18", stroke: "none", strokeWidth: 0 }),
+      el("b9", "box", { x: 218.5, y: 91, w: 8, h: 7, fill: "#8C0D18", stroke: "none", strokeWidth: 0 }),
+      el("t10", "text", { x: 78.5, y: 92, w: 140, text: "{house} \u00b7 Chest {chest}", size: 11, font: "display", color: "#FFF3D6", align: "center", weight: 700, spacing: sp(0.12, 11) }),
+      el("b11", "box", { x: 128.5, y: 106, w: 40, h: 1.6, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t12", "text", { x: 58, y: 116, w: 181, text: "{results}", size: 11.5, font: "sans", color: "#D5E0E9", align: "center", weight: 400, lineHeight: 1.8 }),
+      el("b13", "box", { x: 32, y: 176, w: 66, h: 0.4, fill: "rgba(234,240,246,.6)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 32, y: 178, w: 66, text: "FEST CONVENOR", size: 7, font: "mono", color: "rgba(234,240,246,.7)", align: "center", weight: 400, spacing: sp(0.2, 7) }),
+      el("t15", "text", { x: 116, y: 177, w: 65, text: "{fest}", size: 10, font: "display", color: "#FFD24A", align: "center", weight: 700, spacing: sp(0.16, 10) }),
+      el("b16", "box", { x: 199, y: 176, w: 66, h: 0.4, fill: "rgba(234,240,246,.6)", stroke: "none", strokeWidth: 0 }),
+      el("t17", "text", { x: 199, y: 178, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "rgba(234,240,246,.7)", align: "center", weight: 400, spacing: sp(0.2, 7) })
+    ]
+  };
+}
+
+/** Flush left against a ribbon edge. */
+function annCertRibbon() {
+  return {
+    name: "Ribbon Edge",
+    page: A4,
+    background: "radial-gradient(60% 40% at 74% 26%, rgba(28,62,86,.8) 0%, rgba(28,62,86,0) 68%), linear-gradient(190deg,#14202E 0%,#0B1B2B 50%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 62, h: 210, fill: "linear-gradient(170deg, rgba(20,160,106,.24) 0%, rgba(255,255,255,.08) 42%, rgba(28,90,150,.22) 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 62, y: 0, w: 1.4, h: 210, fill: "linear-gradient(180deg,#FFD24A,#C81D2E)", stroke: "none", strokeWidth: 0 }),
+      el("img2", "image", { x: 12, y: 16, w: 38, h: 26, src: "{logo}", fit: "cover", stroke: "rgba(234,240,246,.28)", strokeWidth: 0.5 }),
+      el("t3", "text", { x: 12, y: 50, w: 44, text: "{motto}", size: 7, font: "mono", color: "#7BD7A9", align: "left", weight: 400, lineHeight: 2.0, spacing: sp(0.2, 7) }),
+      el("t4", "text", { x: 12, y: 186, w: 44, text: "{date}", size: 7, font: "mono", color: "#FFD24A", align: "left", weight: 400, spacing: sp(0.16, 7) }),
+      el("t5", "text", { x: 78, y: 24, w: 203, text: "CERTIFICATE OF PARTICIPATION", size: 8, font: "mono", color: "rgba(234,240,246,.7)", align: "left", weight: 400, spacing: sp(0.3, 8) }),
+      el("t6", "text", { x: 78, y: 24, w: 203, text: "{school}", size: 8, font: "mono", color: "rgba(234,240,246,.55)", align: "right", weight: 400, spacing: sp(0.18, 8) }),
+      el("b7", "box", { x: 78, y: 34, w: 203, h: 0.4, fill: "rgba(234,240,246,.24)", stroke: "none", strokeWidth: 0 }),
+      el("t8", "text", { x: 78, y: 54, w: 203, text: "{name}", size: 44, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 30%,#F5A31A 62%,#E2571A 100%)", color: "#FFFFFF", align: "left", weight: 700, lineHeight: 1.04, spacing: sp(-0.025, 44) }),
+      el("b9", "box", { x: 78, y: 88, w: 150, h: 13, fill: "linear-gradient(180deg,#E22B3C 0%,#C81D2E 62%,#A5121F 100%)", stroke: "none", strokeWidth: 0 }),
+      el("t10", "text", { x: 78, y: 92, w: 150, text: "{house} \u00b7 Chest {chest} \u00b7 {category}", size: 11, font: "display", color: "#FFF3D6", align: "center", weight: 700, spacing: sp(0.12, 11) }),
+      el("b11", "box", { x: 78, y: 106, w: 40, h: 1.6, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t12", "text", { x: 78, y: 118, w: 180, text: "{results}", size: 11.5, font: "sans", color: "#D5E0E9", align: "left", weight: 400, lineHeight: 1.8 }),
+      el("b13", "box", { x: 78, y: 172, w: 203, h: 0.4, fill: "rgba(234,240,246,.24)", stroke: "none", strokeWidth: 0 }),
+      el("b14", "box", { x: 199, y: 180, w: 66, h: 0.4, fill: "rgba(234,240,246,.6)", stroke: "none", strokeWidth: 0 }),
+      el("t15", "text", { x: 199, y: 182, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "rgba(234,240,246,.7)", align: "center", weight: 400, spacing: sp(0.2, 7) }),
+      el("t16", "text", { x: 78, y: 182, w: 100, text: "{fest}", size: 10, font: "display", color: "#FFD24A", align: "left", weight: 700, spacing: sp(0.16, 10) })
+    ]
+  };
+}
+
+/** The centred plate with a portrait slot beside the name. */
+function annCertPhoto() {
+  return {
+    name: "With Photo",
+    page: A4,
+    background: "radial-gradient(56% 40% at 62% 24%, rgba(28,62,86,.82) 0%, rgba(28,62,86,0) 68%), linear-gradient(178deg,#12283A 0%,#0B1B2B 50%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 297, h: 5, fill: "linear-gradient(90deg,#14A06A,#FFD24A 50%,#C81D2E)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 231, y: 5, w: 66, h: 72, fill: "linear-gradient(200deg, rgba(20,160,106,.16) 0%, rgba(255,255,255,.07) 45%, rgba(28,90,150,.16) 100%)", stroke: "none", strokeWidth: 0 }),
+      el("img2", "image", { x: 16, y: 14, w: 26, h: 26, src: "{logo}", fit: "cover", stroke: "rgba(234,240,246,.28)", strokeWidth: 0.5 }),
+      el("t3", "text", { x: 50, y: 22, w: 170, text: "{school} \u00b7 {fest}", size: 8, font: "mono", color: "rgba(234,240,246,.72)", align: "left", weight: 400, spacing: sp(0.26, 8) }),
+      el("b4", "box", { x: 24, y: 62, w: 52, h: 52, fill: "#FFFFFF", stroke: "none", strokeWidth: 0 }),
+      el("t5", "text", { x: 24, y: 118, w: 52, text: "CHEST {chest}", size: 6.5, font: "mono", color: "rgba(234,240,246,.5)", align: "center", weight: 400, spacing: sp(0.16, 6.5) }),
+      el("t6", "text", { x: 90, y: 56, w: 191, text: "CERTIFICATE OF PARTICIPATION", size: 8, font: "mono", color: "rgba(234,240,246,.7)", align: "left", weight: 400, spacing: sp(0.3, 8) }),
+      el("t7", "text", { x: 90, y: 64, w: 191, text: "{name}", size: 40, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 30%,#F5A31A 62%,#E2571A 100%)", color: "#FFFFFF", align: "left", weight: 700, lineHeight: 1.04, spacing: sp(-0.025, 40) }),
+      el("b8", "box", { x: 90, y: 94, w: 150, h: 12, fill: "linear-gradient(180deg,#E22B3C 0%,#C81D2E 62%,#A5121F 100%)", stroke: "none", strokeWidth: 0 }),
+      el("t9", "text", { x: 90, y: 97.6, w: 150, text: "{house} \u00b7 {category}", size: 10.5, font: "display", color: "#FFF3D6", align: "center", weight: 700, spacing: sp(0.12, 10.5) }),
+      el("b10", "box", { x: 90, y: 110, w: 40, h: 1.6, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t11", "text", { x: 90, y: 124, w: 180, text: "{results}", size: 11.5, font: "sans", color: "#D5E0E9", align: "left", weight: 400, lineHeight: 1.8 }),
+      el("b12", "box", { x: 16, y: 172, w: 265, h: 0.4, fill: "rgba(234,240,246,.24)", stroke: "none", strokeWidth: 0 }),
+      el("b13", "box", { x: 32, y: 180, w: 66, h: 0.4, fill: "rgba(234,240,246,.6)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 32, y: 182, w: 66, text: "FEST CONVENOR", size: 7, font: "mono", color: "rgba(234,240,246,.7)", align: "center", weight: 400, spacing: sp(0.2, 7) }),
+      el("t15", "text", { x: 116, y: 181, w: 65, text: "{date}", size: 10, font: "display", color: "#FFD24A", align: "center", weight: 700, spacing: sp(0.16, 10) }),
+      el("b16", "box", { x: 199, y: 180, w: 66, h: 0.4, fill: "rgba(234,240,246,.6)", stroke: "none", strokeWidth: 0 }),
+      el("t17", "text", { x: 199, y: 182, w: 66, text: "PRINCIPAL", size: 7, font: "mono", color: "rgba(234,240,246,.7)", align: "center", weight: 400, spacing: sp(0.2, 7) })
+    ]
+  };
+}
+
+/** Gradient header, chest number oversized. */
+function annIdCard() {
+  return {
+    name: "ID Card \u2014 Landscape",
+    page: { w: 85.6, h: 54 },
+    background: "radial-gradient(70% 60% at 76% 20%, rgba(28,62,86,.9) 0%, rgba(28,62,86,0) 70%), linear-gradient(170deg,#14202E 0%,#0B1B2B 56%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 85.6, h: 3, fill: "linear-gradient(90deg,#14A06A,#FFD24A 50%,#C81D2E)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 58, y: 3, w: 27.6, h: 22, fill: "linear-gradient(200deg, rgba(20,160,106,.2) 0%, rgba(255,255,255,.08) 45%, rgba(28,90,150,.18) 100%)", stroke: "none", strokeWidth: 0 }),
+      el("b2", "box", { x: 4, y: 6, w: 8, h: 8, fill: "#12283A", stroke: "rgba(234,240,246,.3)", strokeWidth: 0.4 }),
+      el("t3", "text", { x: 15, y: 5.6, w: 52, text: "{fest}", size: 10, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 34%,#F5A31A 68%,#E2571A 100%)", color: "#FFFFFF", align: "left", weight: 700, lineHeight: 1.0, spacing: sp(-0.01, 10) }),
+      el("t4", "text", { x: 15, y: 11, w: 56, text: "{school}", size: 4.2, font: "mono", color: "rgba(234,240,246,.62)", align: "left", weight: 400, spacing: sp(0.2, 4.2) }),
+      el("img5", "image", { x: 4, y: 18, w: 21, h: 21, src: "{photo}", fit: "cover" }),
+      el("t6", "text", { x: 29, y: 18, w: 52, text: "{name}", size: 10, font: "display", color: "#FFFFFF", align: "left", weight: 700, lineHeight: 1.1 }),
+      el("b7", "box", { x: 29, y: 25.4, w: 52, h: 0.3, fill: "rgba(234,240,246,.28)", stroke: "none", strokeWidth: 0 }),
+      el("b8", "box", { x: 29, y: 28, w: 30, h: 11, fill: "linear-gradient(180deg,#FFD24A,#F5A31A)", stroke: "none", strokeWidth: 0 }),
+      el("t9", "text", { x: 29, y: 28.8, w: 30, text: "CHEST NO.", size: 4.2, font: "mono", color: "#5C3A00", align: "center", weight: 400, spacing: sp(0.2, 4.2) }),
+      el("t10", "text", { x: 29, y: 30.8, w: 30, text: "{chest}", size: 15, font: "display", color: "#3D2000", align: "center", weight: 700, lineHeight: 1.0 }),
+      el("b11", "box", { x: 62, y: 28, w: 14, h: 1.4, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t12", "text", { x: 62, y: 31, w: 20, text: "{house}\n{category}\n{class}", size: 4.2, font: "mono", color: "rgba(234,240,246,.72)", align: "left", weight: 400, lineHeight: 1.6, spacing: sp(0.14, 4.2) }),
+      el("b13", "box", { x: 4, y: 44, w: 77.6, h: 0.3, fill: "rgba(234,240,246,.24)", stroke: "none", strokeWidth: 0 }),
+      el("t14", "text", { x: 4, y: 46, w: 77.6, text: "PARTICIPANT", size: 4.2, font: "mono", color: "rgba(234,240,246,.6)", align: "left", weight: 400, spacing: sp(0.18, 4.2) }),
+      el("t15", "text", { x: 4, y: 46, w: 77.6, text: "{date}", size: 4.2, font: "mono", color: "rgba(234,240,246,.6)", align: "right", weight: 400, spacing: sp(0.18, 4.2) })
+    ]
+  };
+}
+
+/** The portrait card, gradient header, lanyard punch. */
+function annIdCardPortrait() {
+  return {
+    name: "ID Card \u2014 Portrait",
+    page: { w: 54, h: 85.6 },
+    background: "radial-gradient(70% 40% at 50% 24%, rgba(28,62,86,.9) 0%, rgba(28,62,86,0) 70%), linear-gradient(178deg,#14202E 0%,#0B1B2B 56%,#060E16 100%)",
+    backgroundImage: null,
+    elements: [
+      el("b0", "box", { x: 0, y: 0, w: 54, h: 3, fill: "linear-gradient(90deg,#14A06A,#FFD24A 50%,#C81D2E)", stroke: "none", strokeWidth: 0 }),
+      el("b1", "box", { x: 22, y: 5, w: 10, h: 1.6, fill: "rgba(234,240,246,.4)", stroke: "none", strokeWidth: 0, radius: 0.8 }),
+      el("b2", "box", { x: 23, y: 9, w: 8, h: 8, fill: "#12283A", stroke: "rgba(234,240,246,.3)", strokeWidth: 0.4 }),
+      el("t3", "text", { x: 3, y: 19, w: 48, text: "{fest}", size: 11, font: "display", gradient: "linear-gradient(178deg,#FFE9A8 0%,#FFD24A 34%,#F5A31A 68%,#E2571A 100%)", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.0 }),
+      el("t4", "text", { x: 3, y: 25, w: 48, text: "{school}", size: 4.2, font: "mono", color: "rgba(234,240,246,.62)", align: "center", weight: 400, spacing: sp(0.2, 4.2) }),
+      el("img5", "image", { x: 14, y: 31, w: 26, h: 26, src: "{photo}", fit: "cover" }),
+      el("t6", "text", { x: 3, y: 60, w: 48, text: "{name}", size: 11, font: "display", color: "#FFFFFF", align: "center", weight: 700, lineHeight: 1.08 }),
+      el("b7", "box", { x: 10, y: 68, w: 34, h: 11, fill: "linear-gradient(180deg,#FFD24A,#F5A31A)", stroke: "none", strokeWidth: 0 }),
+      el("t8", "text", { x: 10, y: 68.8, w: 34, text: "CHEST NO.", size: 4.2, font: "mono", color: "#5C3A00", align: "center", weight: 400, spacing: sp(0.2, 4.2) }),
+      el("t9", "text", { x: 10, y: 70.8, w: 34, text: "{chest}", size: 15, font: "display", color: "#3D2000", align: "center", weight: 700, lineHeight: 1.0 }),
+      el("b10", "box", { x: 19, y: 77.6, w: 16, h: 1.2, fill: "#1E5FA8", stroke: "none", strokeWidth: 0 }),
+      el("t11", "text", { x: 3, y: 79.6, w: 48, text: "{house} \u00b7 {category} \u00b7 {class}", size: 4, font: "mono", color: "rgba(234,240,246,.66)", align: "center", weight: 400, spacing: sp(0.14, 4) })
+    ]
+  };
+}
+
 export const TEMPLATES = {
   // Modern — the original kit. Ids are unchanged from when these were the
   // only eight: a saved design stores its own elements, but `designs`
@@ -1192,7 +2141,20 @@ export const TEMPLATES = {
   classicEventRanksPoster, classicEventRanksScreen, classicIdCard, classicIdCardPortrait,
   // Bold Grid — split fields, oversized numerals, square crops.
   boldSplitField, boldChestNumeral, boldSquarePhoto, boldWinnerPoster,
-  boldEventRanksPoster, boldEventRanksScreen, boldIdCard, boldIdCardPortrait
+  boldEventRanksPoster, boldEventRanksScreen, boldIdCard, boldIdCardPortrait,
+  // Heritage — jaali screens, temple arches, kalash finials.
+  heritageGrandPlate, heritageEmerald, heritageWithPhoto,
+  heritageWinner, heritageRanksPoster, heritageRanksScreen,
+  heritageIdCard, heritageIdCardPortrait,
+  // Kanchipuram — a woven silk border, not a drawn frame.
+  kanchiPalluFoot, kanchiPalluSide, kanchiWithPhoto,
+  kanchiWinner, kanchiRanksPoster, kanchiRanksScreen,
+  kanchiIdCard, kanchiIdCardPortrait,
+  // Announcement — the noticeboard idiom, gradient titles, photo slots.
+  annThreeGuests, annFourGuests, annWinner,
+  annRanksPoster, annRanksScreen, annCertCentred,
+  annCertRibbon, annCertPhoto, annIdCard,
+  annIdCardPortrait
 };
 
 /* Every design belongs to a theme and a kind. `label` is the design's own
@@ -1207,7 +2169,13 @@ export const THEMES = [
   { id: "classic", label: "Classic",
     blurb: "Crimson, gilt and deep teal. Georgia, double rules, medal rings." },
   { id: "bold",    label: "Bold Grid",
-    blurb: "Split colour fields, oversized numerals, square photos, real tables." }
+    blurb: "Split colour fields, oversized numerals, square photos, real tables." },
+  { id: "heritage", label: "Heritage",
+    blurb: "Indian classical idiom — jaali screens, temple arches, gold on indigo." },
+  { id: "kanchi",  label: "Kanchipuram",
+    blurb: "A Kanchipuram silk border: zari checks, rani pink pallu, peacock green." },
+  { id: "announce", label: "Announcement",
+    blurb: "Noticeboard posters — gradient titles and photo slots you fill in." }
 ];
 
 export const TEMPLATE_LIST = [
@@ -1237,13 +2205,40 @@ export const TEMPLATE_LIST = [
   { id: "boldEventRanksPoster", label: "Event Results (all ranks)",        theme: "bold", kind: "poster" },
   { id: "boldEventRanksScreen", label: "Event Results (all ranks) — 16:9", theme: "bold", kind: "poster" },
   { id: "boldIdCard",           label: "ID Card — Landscape", theme: "bold", kind: "idcard" },
-  { id: "boldIdCardPortrait",   label: "ID Card — Portrait",  theme: "bold", kind: "idcard" }
+  { id: "boldIdCardPortrait",   label: "ID Card — Portrait",  theme: "bold", kind: "idcard" },
+  { id: "heritageGrandPlate",    label: "Grand Plate",                         theme: "heritage",  kind: "certificate" },
+  { id: "heritageEmerald",       label: "Emerald Plate",                       theme: "heritage",  kind: "certificate" },
+  { id: "heritageWithPhoto",     label: "With Photo",                          theme: "heritage",  kind: "certificate" },
+  { id: "heritageWinner",        label: "Winner Poster",                       theme: "heritage",  kind: "poster" },
+  { id: "heritageRanksPoster",   label: "Event Results (all ranks)",           theme: "heritage",  kind: "poster" },
+  { id: "heritageRanksScreen",   label: "Event Results (all ranks) \u2014 16:9", theme: "heritage",  kind: "poster" },
+  { id: "heritageIdCard",        label: "ID Card \u2014 Landscape",            theme: "heritage",  kind: "idcard" },
+  { id: "heritageIdCardPortrait", label: "ID Card \u2014 Portrait",             theme: "heritage",  kind: "idcard" },
+  { id: "kanchiPalluFoot",       label: "Pallu Foot",                          theme: "kanchi",    kind: "certificate" },
+  { id: "kanchiPalluSide",       label: "Pallu Side",                          theme: "kanchi",    kind: "certificate" },
+  { id: "kanchiWithPhoto",       label: "With Photo",                          theme: "kanchi",    kind: "certificate" },
+  { id: "kanchiWinner",          label: "Winner Poster",                       theme: "kanchi",    kind: "poster" },
+  { id: "kanchiRanksPoster",     label: "Event Results (all ranks)",           theme: "kanchi",    kind: "poster" },
+  { id: "kanchiRanksScreen",     label: "Event Results (all ranks) \u2014 16:9", theme: "kanchi",    kind: "poster" },
+  { id: "kanchiIdCard",          label: "ID Card \u2014 Landscape",            theme: "kanchi",    kind: "idcard" },
+  { id: "kanchiIdCardPortrait",  label: "ID Card \u2014 Portrait",             theme: "kanchi",    kind: "idcard" },
+  { id: "annThreeGuests",        label: "Announcement \u2014 three guests",    theme: "announce",  kind: "announce" },
+  { id: "annFourGuests",         label: "Announcement \u2014 four guests",     theme: "announce",  kind: "announce" },
+  { id: "annWinner",             label: "Winner Poster",                       theme: "announce",  kind: "poster" },
+  { id: "annRanksPoster",        label: "Event Results (all ranks)",           theme: "announce",  kind: "poster" },
+  { id: "annRanksScreen",        label: "Event Results (all ranks) \u2014 16:9", theme: "announce",  kind: "poster" },
+  { id: "annCertCentred",        label: "Centred",                             theme: "announce",  kind: "certificate" },
+  { id: "annCertRibbon",         label: "Ribbon Edge",                         theme: "announce",  kind: "certificate" },
+  { id: "annCertPhoto",          label: "With Photo",                          theme: "announce",  kind: "certificate" },
+  { id: "annIdCard",             label: "ID Card \u2014 Landscape",            theme: "announce",  kind: "idcard" },
+  { id: "annIdCardPortrait",     label: "ID Card \u2014 Portrait",             theme: "announce",  kind: "idcard" }
 ];
 
 export const TEMPLATE_KIND_LABEL = {
   certificate: "Certificates",
   poster: "Posters",
-  idcard: "ID cards"
+  idcard: "ID cards",
+  announce: "Event announcements"
 };
 
 export const THEME_LABEL = Object.fromEntries(THEMES.map(t => [t.id, t.label]));
