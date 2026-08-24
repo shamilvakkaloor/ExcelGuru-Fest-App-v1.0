@@ -30,7 +30,7 @@ import { getLang, setLang } from "./i18n.js";
  * is the one they can quote when asking for help. Anything that displays a
  * version imports this — never a literal, which is how the login footer and
  * the boot-failure screen ended up stuck on 7.2 and 7.2.1 respectively. */
-export const APP_VERSION = "1.2";
+export const APP_VERSION = "1.3";
 
 /** The product name that follows the fest's own name in the browser tab. */
 export const APP_NAME = "ExcelGuru Fest App";
