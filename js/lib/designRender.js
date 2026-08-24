@@ -397,6 +397,81 @@ async function embeddedFontsCSS() {
   return embeddedFontsCSSPromise;
 }
 
+/** One URL to a data: URI, or null when it cannot be read. */
+async function toDataUri(url) {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => reject(new Error("read failed"));
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;                      // cross-origin with no CORS, or offline
+  }
+}
+
+/**
+ * Replace every image reference with an inline data: URI.
+ *
+ * THE REASON THIS EXISTS. An SVG loaded through `<img>` — which is how the
+ * rasteriser below draws the page — is not allowed to fetch ANY external
+ * resource. Not cross-origin ones; not even same-origin ones. So a photo
+ * given as a URL silently rendered as nothing, and a results poster saved
+ * as an image came out with blank holes where the winners' faces were,
+ * while the PDF of the same design was correct — the print path is a real
+ * browser window with ordinary image loading.
+ *
+ * Inlining first is what makes the image path match the print path. An
+ * uploaded photo is already a data: URI and costs nothing here; a pasted
+ * external link has to be fetched, which needs the host to allow a CORS
+ * read. Anything that cannot be read is REPORTED rather than quietly
+ * dropped, because a silently faceless poster is the bug being fixed.
+ */
+async function inlineImages(design, data) {
+  const out = { ...data };
+  const failed = [];
+  const cache = new Map();
+  const inline = async value => {
+    const v = String(value || "");
+    if (!v || v.startsWith("data:")) return v;
+    if (cache.has(v)) return cache.get(v);
+    const uri = await toDataUri(v);
+    cache.set(v, uri);
+    return uri;
+  };
+
+  // Token-supplied sources (a participant photo, the fest logo).
+  for (const e of design.elements || []) {
+    if (e.type !== "image") continue;
+    const token = /^\{(\w+)\}$/.exec(String(e.src || ""));
+    if (!token) continue;
+    const key = token[1];
+    const val = out[key];
+    if (!val || String(val).startsWith("data:")) continue;
+    const uri = await inline(val);
+    if (uri) out[key] = uri; else { delete out[key]; failed.push(key); }
+  }
+
+  // Literal sources set on the element itself, plus a background image.
+  const elements = await Promise.all((design.elements || []).map(async e => {
+    if (e.type !== "image" || /^\{\w+\}$/.test(String(e.src || ""))) return e;
+    const uri = await inline(e.src);
+    if (uri) return { ...e, src: uri };
+    failed.push(e.id);
+    return { ...e, src: "" };
+  }));
+  let backgroundImage = design.backgroundImage || null;
+  if (backgroundImage && !String(backgroundImage).startsWith("data:")) {
+    backgroundImage = await inline(backgroundImage);
+    if (!backgroundImage) { backgroundImage = null; failed.push("background"); }
+  }
+  return { design: { ...design, elements, backgroundImage }, data: out, failed };
+}
+
 /**
  * Rasterise one filled page to a PNG Blob — "save as image" alongside the
  * existing PDF/print path.
@@ -420,8 +495,14 @@ async function embeddedFontsCSS() {
  * reading its pixels back. Left to the caller to catch and explain, since
  * this module has no toast/UI dependency.
  */
-export async function designPageToImageBlob(design, data, { scale = 3 } = {}) {
+export async function designPageToImageBlob(design, data, { scale = 3, onMissingImages } = {}) {
   const fontCSS = await embeddedFontsCSS();
+  const inlined = await inlineImages(design, data || {});
+  if (inlined.failed.length && typeof onMissingImages === "function") {
+    onMissingImages(inlined.failed);
+  }
+  design = inlined.design;
+  data = inlined.data;
 
   const pageHTML = renderPageHTML(design, data).replace(/<img\b([^>]*)>/g, "<img$1/>");
   const wPx = Math.round(design.page.w * MM_PER_PX_AT_96DPI);

@@ -799,15 +799,27 @@ export default async function generator(root) {
  */
 const saveAsImage = guard(async (design, data, filename) => {
   let blob;
+  let missing = [];
   try {
-    blob = await designPageToImageBlob(design, data);
+    blob = await designPageToImageBlob(design, data, {
+      onMissingImages: keys => { missing = keys; }
+    });
   } catch (err) {
     console.error("saveAsImage", err);
-    toast("Couldn't save this as an image — it may use a photo pasted in as a link rather than " +
-      "uploaded, which browsers block from image export. Printing to PDF still works.", true);
+    toast("Couldn't save this as an image. Printing to PDF still works.", true);
     return;
   }
   downloadBlob(filename, blob);
+  /* Say so rather than handing over a poster with blank holes where the
+   * faces should be. A photo pasted in as an external link can only be
+   * embedded if its host allows a cross-origin read, and Google's photo
+   * CDN does not — so the honest advice is to upload the photo instead,
+   * or use Print, which is not subject to this at all. */
+  if (missing.length) {
+    toast(`Saved, but ${missing.length} photo${missing.length === 1 ? "" : "s"} could not be embedded — ` +
+      `${missing.length === 1 ? "it is" : "they are"} pasted-in links rather than uploaded images. ` +
+      `Upload the photo on the participant, or use Print for a PDF instead.`, true);
+  }
 });
 
 /**
