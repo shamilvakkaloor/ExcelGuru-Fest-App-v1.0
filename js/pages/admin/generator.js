@@ -6,9 +6,9 @@
 // arrange on screen is exactly what prints.
 import { el, card, field, input, select, button, toast, guard, notice, empty, badge, modal, confirmDialog, loading, checkbox, hint, photoPicker } from "../../lib/ui.js";
 import { getAll, getOne, put, patch, remove, where } from "../../lib/db.js";
-import { printDocument, downloadBlob } from "../../lib/pdf.js";
+import { printDocument } from "../../lib/pdf.js";
 import { loadTemplate, TEMPLATE_LIST, TEMPLATE_KIND_LABEL, THEMES, PLACEHOLDERS, fillTokens } from "../../domain/templates.js";
-import { renderCanvas, renderPageHTML, previewData, ensureDesignFonts, designPageToImageBlob, prepareDesignImages } from "../../lib/designRender.js";
+import { renderCanvas, renderPageHTML, previewData, ensureDesignFonts } from "../../lib/designRender.js";
 import { compressImage, photoSrc } from "../../lib/photo.js";
 import { PUBLISH_STATUS, classLabel, EVENT_CLASSES } from "../../domain/constants.js";
 import { highestRankAwarded, gradeLabel } from "../../domain/scoring.js";
@@ -629,20 +629,6 @@ export default async function generator(root) {
       ]),
       actions: [
         { label: "Cancel" },
-        /* A one-page design can be saved straight out as a PNG. A batch of
-         * one-per-person cannot usefully be — that is hundreds of separate
-         * files with nowhere to put them — so this only appears for the
-         * single-page runs. */
-        ...(usesEventResults(d) ? [{
-          label: "Save as image", closes: false, busyLabel: "Rendering…", onClick: guard(async () => {
-            const res = published.find(r => r.id === eventSel.value);
-            if (!res) { toast("Pick an event with published results.", true); return false; }
-            const data = eventRanksData(d, res, settings, catName, photoById, houseColorById);
-            if (!data) { toast("No ranked placements for that event.", true); return false; }
-            await saveAsImage(d, data, `${d.name || "Event results"} - ${res.eventName}.png`);
-            return false;
-          })
-        }] : []),
         { label: "Generate", kind: "accent", closes: false, busyLabel: "Building…", onClick: guard(async close => {
             if (mode.value === "eventranks") {
               const res = published.find(r => r.id === eventSel.value);
@@ -798,66 +784,6 @@ export default async function generator(root) {
  * go without a zip step this app doesn't carry.
  */
 /**
- * Save one filled page as a PNG.
- *
- * A photo that lives at an external link can be DISPLAYED but not READ:
- * the browser deliberately refuses to hand a page the pixels of an image
- * whose host did not opt in with CORS headers, and the photo hosts in
- * play (Google's CDN, and whatever a pasted link points at) do not.
- * Printing is unaffected, because a print window only ever displays.
- *
- * So this asks BEFORE producing the file rather than apologising after —
- * being handed a finished poster with silhouettes where the winners
- * should be, at several megabytes, is worse than being asked.
- */
-const saveAsImage = guard(async (design, data, filename) => {
-  let prepared;
-  try {
-    prepared = await prepareDesignImages(design, data);
-  } catch (err) {
-    console.error("saveAsImage/prepare", err);
-    toast("Couldn't prepare this for saving. Printing to PDF still works.", true);
-    return;
-  }
-
-  if (prepared.failed.length) {
-    const n = prepared.failed.length;
-    const ok = await modal({
-      title: "Some photos cannot go into an image",
-      body: el("div", {}, [
-        el("p", { text: n === 1
-          ? "1 photo on this page is a pasted-in link rather than an uploaded image. A browser will show a " +
-            "linked photo but will not let the page read it back, so it cannot be written into a PNG. " +
-            "That face will come out as the plain grey figure the app shows for anyone with no photo."
-          : `${n} photos on this page are pasted-in links rather than uploaded images. A browser will show a ` +
-            "linked photo but will not let the page read it back, so they cannot be written into a PNG. " +
-            "Those faces will come out as the plain grey figure the app shows for anyone with no photo." }),
-        notice("info", "Print keeps the photos — choose Generate, then “Save as PDF” in the print window."),
-        el("p.hint", { text:
-          "To fix it for good, upload the photo on the participant rather than linking to it. " +
-          "An uploaded photo is stored with the fest and works everywhere." })
-      ]),
-      actions: [
-        { label: "Cancel" },
-        { label: n === 1 ? "Save without that photo" : "Save without those photos",
-          kind: "accent", onClick: () => true }
-      ]
-    }).promise.then(v => v === true);
-    if (!ok) return;
-  }
-
-  let blob;
-  try {
-    blob = await designPageToImageBlob(design, data, { prepared });
-  } catch (err) {
-    console.error("saveAsImage", err);
-    toast("Couldn't save this as an image. Printing to PDF still works.", true);
-    return;
-  }
-  downloadBlob(filename, blob);
-});
-
-/**
  * Fill in and print ONE announcement poster.
  *
  * Every other design in the app is generated — the data already exists and
@@ -913,12 +839,6 @@ function announceDialog(design, settings) {
     ]),
     actions: [
       { label: "Cancel" },
-      { label: "Save as image", closes: false, busyLabel: "Rendering…", onClick: guard(async () => {
-          const data = collect();
-          await saveAsImage(design, data, `${data.title || "Announcement"}.png`);
-          return false;
-        })
-      },
       { label: "Print", kind: "accent", closes: false, busyLabel: "Building…", onClick: guard(async close => {
           const data = collect();
           const html = renderPageHTML(design, data);
@@ -1259,9 +1179,7 @@ function singleDialog(design, published, typeName, tierName, catName) {
                   @page{size:${design.page.w}mm ${design.page.h}mm;margin:0;}
                   body{margin:0;}</style>` + html
               });
-            })}),
-            button("Save as image", { class: "btn-sm",
-              onclick: () => saveAsImage(design, tokenData, `${design.name || "Certificate"} - ${p.name}.png`) })
+            })})
           ]);
         })()
       ]));
@@ -1320,16 +1238,9 @@ function singleEventDialog(design, published, catName) {
             el("span.mono", { text: res.eventCode || "" })]),
           el("div.hint", { style: "margin:0", text: `${rankedCount} ranked placement${rankedCount === 1 ? "" : "s"}` })
         ]),
-        el("div", { style: "display:flex;gap:.4rem" }, [
-          button("Print", { class: "btn-sm btn-accent", onclick: () => {
-            if (!printEventRanks(design, res, settings, catName, photoById, houseColorById)) toast("No ranked placements for that event.", true);
-          }}),
-          button("Save as image", { class: "btn-sm", onclick: () => {
-            const data = eventRanksData(design, res, settings, catName, photoById, houseColorById);
-            if (!data) { toast("No ranked placements for that event.", true); return; }
-            saveAsImage(design, data, `${design.name || "Event results"} - ${res.eventName}.png`);
-          }})
-        ])
+        button("Print", { class: "btn-sm btn-accent", onclick: () => {
+          if (!printEventRanks(design, res, settings, catName, photoById, houseColorById)) toast("No ranked placements for that event.", true);
+        }})
       ]));
     }
   });

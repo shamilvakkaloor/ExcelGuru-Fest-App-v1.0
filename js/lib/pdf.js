@@ -203,15 +203,6 @@ function offerDownloadLink(html, title) {
   document.body.appendChild(box);
 }
 
-/** Hand an already-built Blob to the browser as a download, e.g. a PNG. */
-export function downloadBlob(filename, blob) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 /** Build a print-ready table from the same column shape the UI uses. */
 export function htmlTable(columns, rows) {
   const head = columns.map(c => `<th${c.num ? ' class="num"' : ""}>${escapeHTML(c.label)}</th>`).join("");

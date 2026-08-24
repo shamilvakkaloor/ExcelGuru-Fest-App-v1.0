@@ -346,15 +346,7 @@ export function photoPicker(existing = {}) {
     photoData = null;
     linkResult = resolvePhotoLink(linkInput.value);
     preview.src = linkResult.photoURL || PLACEHOLDER_AVATAR;
-    /* Always say the export cost, on top of any link-specific warning. A
-     * linked photo displays and prints fine, but a browser will not let a
-     * page read back the pixels of an image the host did not share with
-     * CORS — so it cannot be written into a saved PNG, and posters saved
-     * as images get the silhouette. The moment someone chooses to link
-     * rather than upload is the moment worth saying so. */
-    const exportNote = "Note: a linked photo cannot be included when a poster is saved as an image — " +
-      "it comes out as a plain grey figure. Printing to PDF is unaffected. Uploading works everywhere.";
-    info.textContent = linkResult.warning ? linkResult.warning + " " + exportNote : exportNote;
+    info.textContent = linkResult.warning || "";
   });
 
   const node = el("div", { style: "display:flex;gap:.9rem;align-items:flex-start" }, [
