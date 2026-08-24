@@ -517,7 +517,7 @@ export const ML = {
     "പങ്കാളികളെ ചേർക്കുന്നതിന് മുമ്പ് അക്കൗണ്ട്സിൽ ഹൗസുകൾ ഉണ്ടാക്കുക.",
   "Run this after changing anything that alters HOW entries are counted: turning per-category limits on or off, changing “split by stage”, or switching Type or Tier limits on. Until you do, those settings refuse to save.":
     "എൻട്രികൾ എങ്ങനെ എണ്ണുന്നു എന്നത് മാറ്റുന്ന എന്തെങ്കിലും മാറ്റിയ ശേഷം ഇത് പ്രവർത്തിപ്പിക്കുക: വിഭാഗം തിരിച്ചുള്ള പരിധികൾ ഓൺ/ഓഫ് ചെയ്യുക, “സ്റ്റേജ് അനുസരിച്ച് വിഭജിക്കുക” മാറ്റുക, അല്ലെങ്കിൽ ടൈപ്പ്/ടയർ പരിധികൾ ഓണാക്കുക. അതുവരെ ആ ക്രമീകരണങ്ങൾ സേവ് ആകില്ല.",
-  "Uploaded photos and Google Drive links both print — the print window waits for them to load. Anyone with no photo at all gets a silhouette.":
+  "Uploaded photos and Google Drive links both print — the print window waits for them to load. Anyone with no photo at all gets a plain grey figure.":
     "അപ്‌ലോഡ് ചെയ്ത ഫോട്ടോകളും Google Drive ലിങ്കുകളും പ്രിന്റ് ആകും — അവ ലോഡ് ആകുന്നതുവരെ പ്രിന്റ് വിൻഡോ കാത്തിരിക്കും. ഫോട്ടോ ഇല്ലാത്തവർക്ക് ഒരു നിഴൽരൂപം കാണിക്കും.",
   "No participants match": "അനുയോജ്യമായ പങ്കാളികളില്ല",
   "Entries are created by House Managers in their own panel. This screen is for code letters, judges and review.":

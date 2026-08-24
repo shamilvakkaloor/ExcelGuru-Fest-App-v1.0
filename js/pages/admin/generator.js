@@ -825,10 +825,13 @@ const saveAsImage = guard(async (design, data, filename) => {
     const ok = await modal({
       title: "Some photos cannot go into an image",
       body: el("div", {}, [
-        el("p", { text:
-          `${n} photo${n === 1 ? "" : "s"} on this page ${n === 1 ? "is" : "are"} a pasted-in link rather than ` +
-          `an uploaded image. A browser will show a linked photo but will not let the page read it back, so ` +
-          `${n === 1 ? "it" : "they"} cannot be written into a PNG. The silhouette is used instead.` }),
+        el("p", { text: n === 1
+          ? "1 photo on this page is a pasted-in link rather than an uploaded image. A browser will show a " +
+            "linked photo but will not let the page read it back, so it cannot be written into a PNG. " +
+            "That face will come out as the plain grey figure the app shows for anyone with no photo."
+          : `${n} photos on this page are pasted-in links rather than uploaded images. A browser will show a ` +
+            "linked photo but will not let the page read it back, so they cannot be written into a PNG. " +
+            "Those faces will come out as the plain grey figure the app shows for anyone with no photo." }),
         notice("info", "Print keeps the photos — choose Generate, then “Save as PDF” in the print window."),
         el("p.hint", { text:
           "To fix it for good, upload the photo on the participant rather than linking to it. " +
@@ -836,7 +839,8 @@ const saveAsImage = guard(async (design, data, filename) => {
       ]),
       actions: [
         { label: "Cancel" },
-        { label: "Save with silhouettes", kind: "accent", onClick: () => true }
+        { label: n === 1 ? "Save without that photo" : "Save without those photos",
+          kind: "accent", onClick: () => true }
       ]
     }).promise.then(v => v === true);
     if (!ok) return;

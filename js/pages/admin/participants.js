@@ -501,7 +501,7 @@ function chestCardDialog(allParticipants, houses, cfg) {
     title: "Print chest number cards",
     body: el("div", {}, [
       el("p.hint", { text: "Cards are printed with cut guides. Code letters are deliberately left off — they are the blind-judging secret." }),
-      notice("info", "Uploaded photos and Google Drive links both print — the print window waits for them to load. Anyone with no photo at all gets a silhouette."),
+      notice("info", "Uploaded photos and Google Drive links both print — the print window waits for them to load. Anyone with no photo at all gets a plain grey figure."),
       field("Cards per sheet", perSheet),
       el("div.grid.grid-2", {}, [field("House", houseSel), field("Category", catSel)]),
       field("Card background", bgSel,

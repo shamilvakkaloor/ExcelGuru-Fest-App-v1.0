@@ -352,8 +352,8 @@ export function photoPicker(existing = {}) {
      * CORS — so it cannot be written into a saved PNG, and posters saved
      * as images get the silhouette. The moment someone chooses to link
      * rather than upload is the moment worth saying so. */
-    const exportNote = "Note: a linked photo cannot be included when a poster is saved as an image " +
-      "(printing to PDF is unaffected). Uploading works everywhere.";
+    const exportNote = "Note: a linked photo cannot be included when a poster is saved as an image — " +
+      "it comes out as a plain grey figure. Printing to PDF is unaffected. Uploading works everywhere.";
     info.textContent = linkResult.warning ? linkResult.warning + " " + exportNote : exportNote;
   });
 
