@@ -18,7 +18,11 @@ import { wallClockToEpoch } from "../lib/timezone.js";
  * Stamped onto publicLeaderboard as `snapshotBuild` — see the comment
  * where it is written. Bump this, not a date: the point is only to tell
  * "this snapshot predates the feature" from "the feature is broken". */
-export const SNAPSHOT_BUILD = 3;
+/* 4 — published results now carry categoryIds and categoryNames, so a
+ * mixed event can be named "Junior and Senior" and can answer to each of
+ * its categories in the public filter. A snapshot built before this has
+ * neither, which is why the rebuild banner needs to notice. */
+export const SNAPSHOT_BUILD = 4;
 
 /** Load the four config documents every calculation needs. */
 export async function loadConfig() {
@@ -415,6 +419,12 @@ export async function rebuildPublicSnapshots() {
             categoryIds: res.categoryIds?.length ? res.categoryIds : eventCategoryIds(ev) },
           catName),
         categoryIds: res.categoryIds?.length ? res.categoryIds : eventCategoryIds(ev),
+        /* Each category on its own, so the public page can offer "Junior"
+         * as a filter and have a Junior+Senior event answer to it. The
+         * combined categoryName above is for reading; this is for
+         * matching. */
+        categoryNames: (res.categoryIds?.length ? res.categoryIds : eventCategoryIds(ev))
+          .map(id => catName[id]).filter(Boolean),
         // v8 — denormalised so public pages filter on Type/Tier with no
         // extra reads, exactly as categoryName already does.
         typeName: typeName[res.typeId ?? ev?.typeId] || "",

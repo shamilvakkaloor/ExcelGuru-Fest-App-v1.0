@@ -260,9 +260,17 @@ export default async function resultsPage(root) {
 
     // I3 — filter by category and class. Rows expose the keys the filter
     // names, so the shared component in ui.js does the matching.
+    /* Each category listed separately, never the combined "Junior and
+     * Senior" as an option of its own — a mixed event should answer to
+     * BOTH Junior and Senior, which is what filterBar's array support
+     * below gives us. Falls back to the combined name for results
+     * published before categoryNames was recorded. */
+    const catsOf = e => (e.categoryNames?.length ? e.categoryNames
+                          : (e.categoryName ? [e.categoryName] : []));
     const cats = [...new Map(events
-      .filter(e => e.categoryName)
-      .map(e => [e.categoryName, { value: e.categoryName, label: e.categoryName }])).values()];
+      .flatMap(catsOf)
+      .map(n => [n, { value: n, label: n }])).values()]
+      .sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
     const listBox = el("div");
     const bar = filterBar({
@@ -288,7 +296,7 @@ export default async function resultsPage(root) {
     function paintList() {
       listBox.innerHTML = "";
       const sorted = [...events]
-        .map(ev => ({ ...ev, filterCategory: ev.categoryName || "", filterClass: ev.eventClass || "",
+        .map(ev => ({ ...ev, filterCategory: catsOf(ev), filterClass: ev.eventClass || "",
                       filterType: ev.typeName || "", filterTier: ev.tierName || "" }))
         .filter(bar.matches)
         .sort((a, b) => String(a.eventName).localeCompare(String(b.eventName)));
