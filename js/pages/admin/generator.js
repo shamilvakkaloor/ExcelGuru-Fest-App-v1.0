@@ -25,6 +25,12 @@ export default async function generator(root) {
   // Generate button exists, so this is always populated by the time one
   // can be pressed.
   let maxRank = 0;
+  /* Which style tab is open. Out here, not inside paintList(), because
+   * paintList() re-runs every time you come back from the editor — so a
+   * variable declared in there was re-initialised to the first theme and
+   * the chosen style was lost the moment you opened a template and closed
+   * it again. It should persist for the whole visit to this screen. */
+  let activeTheme = null;
 
   await paintList();
 
@@ -66,9 +72,13 @@ export default async function generator(root) {
      * read through, so only the chosen one belongs on screen. Same
      * `.tabs` markup the public results page uses, so it behaves like
      * every other tab strip in the app. */
-    const kindOrder = ["certificate", "poster", "idcard"];
+    const kindOrder = ["certificate", "poster", "idcard", "announce"];
     const availableThemes = THEMES.filter(th => TEMPLATE_LIST.some(t => t.theme === th.id));
-    let activeTheme = availableThemes[0]?.id;
+    // Keep whatever was open; fall back to the first only on a first visit
+    // (or if a theme ever stops existing).
+    if (!availableThemes.some(th => th.id === activeTheme)) {
+      activeTheme = availableThemes[0]?.id;
+    }
 
     const themeTabs = el("div.tabs");
     const themePanel = el("div");
@@ -619,6 +629,20 @@ export default async function generator(root) {
       ]),
       actions: [
         { label: "Cancel" },
+        /* A one-page design can be saved straight out as a PNG. A batch of
+         * one-per-person cannot usefully be — that is hundreds of separate
+         * files with nowhere to put them — so this only appears for the
+         * single-page runs. */
+        ...(usesEventResults(d) ? [{
+          label: "Save as image", closes: false, busyLabel: "Rendering…", onClick: guard(async () => {
+            const res = published.find(r => r.id === eventSel.value);
+            if (!res) { toast("Pick an event with published results.", true); return false; }
+            const data = eventRanksData(d, res, settings, catName, photoById, houseColorById);
+            if (!data) { toast("No ranked placements for that event.", true); return false; }
+            await saveAsImage(d, data, `${d.name || "Event results"} - ${res.eventName}.png`);
+            return false;
+          })
+        }] : []),
         { label: "Generate", kind: "accent", closes: false, busyLabel: "Building…", onClick: guard(async close => {
             if (mode.value === "eventranks") {
               const res = published.find(r => r.id === eventSel.value);
@@ -842,17 +866,14 @@ function announceDialog(design, settings) {
     ]),
     actions: [
       { label: "Cancel" },
+      { label: "Save as image", closes: false, busyLabel: "Rendering…", onClick: guard(async () => {
+          const data = collect();
+          await saveAsImage(design, data, `${data.title || "Announcement"}.png`);
+          return false;
+        })
+      },
       { label: "Print", kind: "accent", closes: false, busyLabel: "Building…", onClick: guard(async close => {
-          const data = { ...base };
-          for (const f of ANNOUNCE_FIELDS) data[f.key] = inputs[f.key].value.trim();
-          if (!data.title) data.title = base.fest;
-          for (const g of guestPickers) {
-            data[`name${g.n}`] = g.nameI.value.trim();
-            data[`role${g.n}`] = g.roleI.value.trim();
-            const v = g.pick.getValue();
-            const src = v.photoData || v.photoURL || "";
-            if (src) data[`photo${g.n}`] = src;
-          }
+          const data = collect();
           const html = renderPageHTML(design, data);
           printDocument({
             title: data.title || "Announcement", bare: true,
@@ -866,6 +887,22 @@ function announceDialog(design, settings) {
       }
     ]
   });
+
+  /* One place both actions read the form from, so Print and Save can never
+   * produce different posters from the same filled-in fields. */
+  function collect() {
+    const data = { ...base };
+    for (const f of ANNOUNCE_FIELDS) data[f.key] = inputs[f.key].value.trim();
+    if (!data.title) data.title = base.fest;
+    for (const g of guestPickers) {
+      data[`name${g.n}`] = g.nameI.value.trim();
+      data[`role${g.n}`] = g.roleI.value.trim();
+      const v = g.pick.getValue();
+      const src = v.photoData || v.photoURL || "";
+      if (src) data[`photo${g.n}`] = src;
+    }
+    return data;
+  }
 }
 
 /**

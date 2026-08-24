@@ -74,6 +74,14 @@ function resolveColor(value, data, fallback = "#EC3013") {
 function elementStyle(e, unit, scale = 1, data = null) {
   const u = v => (unit === "px" ? v * scale + "px" : v + "mm");
   const base = `left:${u(e.x)};top:${u(e.y)};width:${u(e.w)};`;
+  /* `radius` is one number, which cannot describe an asymmetric corner
+   * spec like a temple arch (round at the top, square at the foot).
+   * `radiusRaw` carries the whole CSS value verbatim for those; it is
+   * written in percentages precisely so it still scales with the editor's
+   * zoom, which a literal mm would not. */
+  const radius = e.radiusRaw
+    ? `border-radius:${e.radiusRaw};`
+    : `border-radius:${u(e.radius || 0)};`;
 
   if (e.type === "box") {
     const fill = resolveColor(e.fill, data);
@@ -83,7 +91,7 @@ function elementStyle(e, unit, scale = 1, data = null) {
       `background:${fill && fill !== "none" ? fill : "transparent"};` +
       (stroke && stroke !== "none"
         ? `border:${unit === "px" ? Math.max(1, (e.strokeWidth || 0) * scale) + "px" : (e.strokeWidth || 0) + "mm"} solid ${stroke};` : "") +
-      `border-radius:${u(e.radius || 0)};` +
+      radius +
       (e.opacity !== undefined ? `opacity:${e.opacity};` : "");
   }
 
@@ -95,7 +103,7 @@ function elementStyle(e, unit, scale = 1, data = null) {
     const stroke = resolveColor(e.stroke, data);
     return base +
       `height:${u(e.h)};` +
-      `border-radius:${u(e.radius || 0)};` +
+      radius +
       // "cover" fills the frame and crops; "contain" shows the whole photo
       // and leaves gaps. Cover stays the default — a portrait cropped to a
       // circle is the usual want, and it is what every existing design has.
